@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Info, AlertTriangle } from 'lucide-react';
+import { CircleInfo, Check, WarningDiamond } from 'pixelarticons/react';
 import type { ToastMessage } from '../types/vector';
 
 interface ToastProps {
@@ -7,18 +7,19 @@ interface ToastProps {
   onDismiss: (id: string) => void;
 }
 
-export const ToastContainer: React.FC<ToastProps> = ({ toasts }) => {
+/** Notifications as the yellow balloon tips of the Windows system tray. */
+export const ToastContainer: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="toast-container">
+    <div className="toast-container" role="status" aria-live="polite">
       {toasts.map((toast) => (
-        <div key={toast.id} className={`toast-pill toast-${toast.type || 'info'}`}>
-          {toast.type === 'success' && <CheckCircle2 size={15} className="text-emerald" />}
-          {toast.type === 'warning' && <AlertTriangle size={15} className="text-amber" />}
-          {(!toast.type || toast.type === 'info') && <Info size={15} className="text-cyan" />}
+        <button key={toast.id} className={`toast-balloon toast-${toast.type || 'info'}`} onClick={() => onDismiss(toast.id)}>
+          {toast.type === 'success' && <Check width={24} height={24} className="r-icon" />}
+          {toast.type === 'warning' && <WarningDiamond width={24} height={24} className="r-icon" />}
+          {(!toast.type || toast.type === 'info') && <CircleInfo width={24} height={24} className="r-icon" />}
           <span className="toast-text">{toast.text}</span>
-        </div>
+        </button>
       ))}
     </div>
   );

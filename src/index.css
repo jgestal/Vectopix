@@ -1,70 +1,66 @@
+/* ==========================================================================
+   Vectopix · retro design system
+   Windows 95/98 chrome: grey faces, 3D bevels, navy title bars, pixel type.
+   ========================================================================== */
 
 :root {
-  /* Dark Studio Palette */
-  --bg-root: #0b0d13;
-  --bg-surface: #12151e;
-  --bg-surface-elevated: #181c28;
-  --bg-surface-hover: #1f2434;
-  --bg-surface-active: #262c3f;
+  --r-face: #c0c0c0;
+  --r-light: #dfdfdf;
+  --r-white: #ffffff;
+  --r-shadow: #808080;
+  --r-dark: #0a0a0a;
+  --r-text: #000000;
+  --r-text-disabled: #808080;
+  --r-desktop: #008080;
+  --r-workspace: #808080;
+  --r-select: #000080;
+  --r-select-text: #ffffff;
+  --r-tooltip: #ffffe1;
+  --r-link: #0000ee;
+  --r-title: linear-gradient(90deg, #000080 0%, #1084d0 100%);
+  --r-title-inactive: linear-gradient(90deg, #808080 0%, #b5b5b5 100%);
 
-  --border-subtle: #202636;
-  --border-strong: #2e374d;
-  --border-focus: #6366f1;
+  --r-font: 'Pixelify Sans', 'MS Sans Serif', Tahoma, 'Hiragino Kaku Gothic ProN', 'PingFang SC',
+    'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
+  --r-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Consolas, monospace;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-dim: #475569;
+  /* The four classic bevels, as inset shadows so they never change layout */
+  --bevel-raised: inset -1px -1px var(--r-dark), inset 1px 1px var(--r-white), inset -2px -2px var(--r-shadow),
+    inset 2px 2px var(--r-light);
+  --bevel-pressed: inset -1px -1px var(--r-white), inset 1px 1px var(--r-dark), inset -2px -2px var(--r-light),
+    inset 2px 2px var(--r-shadow);
+  --bevel-window: inset -1px -1px var(--r-dark), inset 1px 1px var(--r-light), inset -2px -2px var(--r-shadow),
+    inset 2px 2px var(--r-white);
+  --bevel-field: inset -1px -1px var(--r-white), inset 1px 1px var(--r-shadow), inset -2px -2px var(--r-light),
+    inset 2px 2px var(--r-dark);
+  --bevel-status: inset -1px -1px var(--r-white), inset 1px 1px var(--r-shadow);
+  --bevel-thin-raised: inset -1px -1px var(--r-shadow), inset 1px 1px var(--r-white);
 
-  /* Accent Colors */
-  --indigo-500: #6366f1;
-  --indigo-600: #4f46e5;
-  --cyan-400: #22d3ee;
-  --cyan-500: #06b6d4;
-  --emerald-400: #34d399;
-  --emerald-500: #10b981;
-  --amber-400: #fbbf24;
-  --rose-500: #f43f5e;
-
-  /* Gradients */
-  --grad-primary: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
-  --grad-glow: radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
-
-  /* Typography */
-  --font-sans: 'Inter Variable', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Outfit Variable', 'Inter Variable', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.1);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15);
-  --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.25);
-
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-full: 9999px;
+  /* Checkerboard for transparent areas and the classic 50 % dither */
+  --r-checker: repeating-conic-gradient(#d4d4d4 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px;
+  --r-dither: repeating-conic-gradient(var(--r-face) 0% 25%, var(--r-white) 0% 50%) 0 0 / 2px 2px;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body {
+html,
+body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: var(--bg-root);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
+  background: var(--r-desktop);
+  color: var(--r-text);
+  font-family: var(--r-font);
   font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.35;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
 }
 
 #root {
@@ -74,18 +70,338 @@ html, body {
   flex-direction: column;
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
 }
-::-webkit-scrollbar-track {
+
+button {
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------------------
+   Buttons
+   ------------------------------------------------------------------------ */
+.r-btn {
+  min-height: 26px;
+  min-width: 76px;
+  padding: 3px 12px;
+  border: none;
+  background: var(--r-face);
+  box-shadow: var(--bevel-raised);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.r-btn:active:not(:disabled),
+.r-btn.is-active {
+  box-shadow: var(--bevel-pressed);
+  padding: 4px 11px 2px 13px;
+}
+
+.r-btn.is-active {
+  background: var(--r-dither);
+}
+
+.r-btn:focus-visible {
+  outline: 1px dotted var(--r-dark);
+  outline-offset: -5px;
+}
+
+.r-btn:disabled {
+  color: var(--r-text-disabled);
+  text-shadow: 1px 1px var(--r-white);
+}
+
+.r-btn.is-default {
+  box-shadow: inset 0 0 0 1px var(--r-dark), inset -2px -2px var(--r-dark), inset 2px 2px var(--r-white),
+    inset -3px -3px var(--r-shadow), inset 3px 3px var(--r-light);
+}
+
+.r-btn-small {
+  min-width: 0;
+  min-height: 22px;
+  padding: 2px 8px;
+}
+
+.r-btn svg,
+.r-icon {
+  flex-shrink: 0;
+  shape-rendering: crispEdges;
+}
+
+/* ---------------------------------------------------------------------------
+   Windows
+   ------------------------------------------------------------------------ */
+.r-window {
+  background: var(--r-face);
+  box-shadow: var(--bevel-window);
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.r-titlebar {
+  background: var(--r-title);
+  color: var(--r-white);
+  height: 22px;
+  padding: 0 3px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.r-titlebar-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.r-titlebar-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.r-titlebar-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.r-titlebar-btn {
+  width: 18px;
+  height: 16px;
+  border: none;
+  background: var(--r-face);
+  color: var(--r-text);
+  box-shadow: var(--bevel-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.r-titlebar-btn:active {
+  box-shadow: var(--bevel-pressed);
+}
+
+.r-window-body {
+  padding: 10px;
+  min-height: 0;
+}
+
+.r-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.r-modal-backdrop > .r-window {
+  max-height: calc(100vh - 32px);
+  box-shadow: var(--bevel-window), 4px 4px 0 rgba(0, 0, 0, 0.35);
+}
+
+.r-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+/* ---------------------------------------------------------------------------
+   Fields, group boxes, separators
+   ------------------------------------------------------------------------ */
+.r-field {
+  background: var(--r-white);
+  box-shadow: var(--bevel-field);
+  padding: 3px 5px;
+  border: none;
+}
+
+input.r-field {
+  height: 24px;
+  min-width: 0;
+}
+
+.r-field:focus {
+  outline: none;
+}
+
+.r-group {
+  border: none;
+  box-shadow: inset -1px -1px var(--r-white), inset 1px 1px var(--r-shadow), inset -2px -2px var(--r-shadow),
+    inset 2px 2px var(--r-white);
+  padding: 14px 10px 10px;
+  margin-top: 8px;
+  position: relative;
+}
+
+.r-group > legend {
+  position: absolute;
+  top: -8px;
+  left: 8px;
+  padding: 0 4px;
+  background: var(--r-face);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.r-separator {
+  height: 0;
+  border-top: 1px solid var(--r-shadow);
+  border-bottom: 1px solid var(--r-white);
+  margin: 6px 0;
+}
+
+.r-status-field {
+  box-shadow: var(--bevel-status);
+  padding: 2px 6px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Checkbox, radio, range, select
+   ------------------------------------------------------------------------ */
+.r-check {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--r-white);
+  box-shadow: var(--bevel-field);
+  flex-shrink: 0;
+  display: grid;
+  place-content: center;
+}
+
+.r-check:checked::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  /* Pixel check mark */
+  background: var(--r-text);
+  clip-path: polygon(0 50%, 25% 50%, 25% 75%, 37.5% 75%, 37.5% 62.5%, 50% 62.5%, 50% 50%, 62.5% 50%, 62.5% 37.5%,
+      75% 37.5%, 75% 25%, 87.5% 25%, 87.5% 12.5%, 100% 12.5%, 100% 37.5%, 87.5% 37.5%, 87.5% 50%, 75% 50%, 75% 62.5%,
+      62.5% 62.5%, 62.5% 75%, 50% 75%, 50% 87.5%, 37.5% 87.5%, 37.5% 100%, 25% 100%, 25% 87.5%, 12.5% 87.5%, 12.5% 75%,
+      0 75%);
+}
+
+.r-check:focus-visible {
+  outline: 1px dotted var(--r-dark);
+  outline-offset: 2px;
+}
+
+.r-range {
+  appearance: none;
+  width: 100%;
+  height: 22px;
   background: transparent;
 }
-::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: var(--radius-full);
+
+.r-range::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--r-face);
+  box-shadow: var(--bevel-field);
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+
+.r-range::-moz-range-track {
+  height: 4px;
+  background: var(--r-face);
+  box-shadow: var(--bevel-field);
+}
+
+.r-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 11px;
+  height: 21px;
+  margin-top: -9px;
+  background: var(--r-face);
+  box-shadow: var(--bevel-raised);
+  border: none;
+  border-radius: 0;
+}
+
+.r-range::-moz-range-thumb {
+  width: 11px;
+  height: 21px;
+  background: var(--r-face);
+  box-shadow: var(--bevel-raised);
+  border: none;
+  border-radius: 0;
+}
+
+.r-range:focus-visible {
+  outline: 1px dotted var(--r-dark);
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbars, Win98 style
+   ------------------------------------------------------------------------ */
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--r-dither);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--r-face);
+  box-shadow: var(--bevel-raised);
+}
+
+::-webkit-scrollbar-button:single-button {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background-color: var(--r-face);
+  box-shadow: var(--bevel-raised);
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M3 0h2v1h1v1h1v1h1v1H0V3h1V2h1V1h1z'/%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar-button:single-button:vertical:increment {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 0h8v1H7v1H6v1H5v1H3V3H2V2H1V1H0z'/%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='8'%3E%3Cpath d='M0 3h1V2h1V1h1V0h1v8H3V7H2V6H1V5H0z'/%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:increment {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='8'%3E%3Cpath d='M0 0h1v1h1v1h1v1h1v2H3v1H2v1H1v1H0z'/%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--r-face);
 }

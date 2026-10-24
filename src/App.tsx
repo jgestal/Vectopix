@@ -14,7 +14,11 @@ import {
   measureSsimWithWorker,
   VectorizationCanceledError,
 } from './services/vectorWorkerClient';
-import { Header } from './components/Header';
+import { Toolbox } from './components/Toolbox';
+import { ColorBox } from './components/ColorBox';
+import { StudioMenuBar } from './components/StudioMenuBar';
+import { AboutModal } from './components/AboutModal';
+import { AppIcon } from './components/retro/RetroWindow';
 import { Sidebar } from './components/Sidebar';
 import { Viewport } from './components/Viewport';
 import { MetricsBar } from './components/MetricsBar';
@@ -26,7 +30,7 @@ import { ToastContainer } from './components/Toast';
 import { replaceColorInSvg, removeColorFromSvg, normalizeHex } from './utils/paletteUtils';
 import { parseSvgDocument, serializeParsedDoc, simplifySvgPaths } from './utils/pathParser';
 import { rasterizeForComparison } from './utils/fidelity';
-import { readImageFile, readDrop, fetchImage } from './utils/imageLoading';
+import { readImageFile, readDrop, fetchImage, EXTRA_IMAGE_EXTENSIONS } from './utils/imageLoading';
 import { SAMPLE_IMAGES, generateSampleDataUrl } from './utils/sampleImages';
 import { DEFAULT_OPTIONS, applyPreset } from './config/presets';
 import { useI18n, type MessageKey } from './i18n';
@@ -74,6 +78,8 @@ export function App() {
   // Modals & Floating UI State
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
+  const [isAboutOpen, setIsAboutOpen] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedPaletteColor, setSelectedPaletteColor] = useState<PaletteColor | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -339,6 +345,16 @@ export function App() {
     applySvgUpdate(removeColorFromSvg(result.svg, targetHex), true, t('toast.colorRemoved', { color: targetHex }), palette);
   };
 
+  const handleCopySvg = useCallback(() => {
+    if (!result) return;
+    navigator.clipboard.writeText(result.svg);
+    showToast(t('toast.svgCopied'), 'success');
+  }, [result, showToast, t]);
+
+  const handleZoom = (factor: number) =>
+    setZoom((z) => Math.min(24, Math.max(0.1, Math.round(z * factor * 100) / 100)));
+  const handleFit = () => setFitRequest((n) => n + 1);
+
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -357,20 +373,20 @@ export function App() {
           handleRedo();
         } else if (key === 'c' && !window.getSelection()?.toString() && result) {
           e.preventDefault();
-          navigator.clipboard.writeText(result.svg);
-          showToast(t('toast.svgCopied'), 'success');
+          handleCopySvg();
         }
         return;
       }
 
       if (e.altKey) return;
 
-      if (e.key === '?') {
+      if (e.key === '?' || e.key === 'F1') {
         e.preventDefault();
         setIsShortcutsOpen((prev) => !prev);
       } else if (e.key === 'Escape') {
         setIsExportOpen(false);
         setIsShortcutsOpen(false);
+        setIsAboutOpen(false);
         setSelectedPaletteColor(null);
       } else if (key === 'w') {
         setRenderMode((prev) => (prev === 'wireframe' ? 'full' : 'wireframe'));
@@ -387,7 +403,7 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, showToast, result, t]);
+  }, [handleUndo, handleRedo, handleCopySvg, showToast, result, t]);
 
   // Global Paste Listener (Ctrl+V / Cmd+V) to load images at any time
   useEffect(() => {
@@ -411,48 +427,84 @@ export function App() {
     handleDrop(e.dataTransfer);
   };
 
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
   return (
-    <div className="studio-app-root" onDragOver={handleAppDragOver} onDrop={handleAppDrop}>
+    <div className="app-root" onDragOver={handleAppDragOver} onDrop={handleAppDrop}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={['image/*', ...EXTRA_IMAGE_EXTENSIONS].join(',')}
+        className="hidden-file-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) loadFile(file);
+          e.target.value = '';
+        }}
+      />
+
       {!rasterUrl ? (
         <DropZone onSampleSelected={loadSample} onFileSelected={(file) => loadFile(file)} onDrop={handleDrop} />
       ) : (
-        <div className="studio-layout">
-          {/* Top Studio Header */}
-          <Header
-            imageName={fileName}
-            imageDimensions={imageDimensions}
+        <div className="r-window studio-window">
+          <header className="r-titlebar">
+            <AppIcon />
+            <span className="r-titlebar-text">
+              {fileName}
+              {imageDimensions && ` (${imageDimensions.width}×${imageDimensions.height})`} - Vectopix
+            </span>
+            <div className="r-titlebar-buttons">
+              <button
+                className="r-titlebar-btn"
+                onClick={() => setIsShortcutsOpen(true)}
+                title={t('header.shortcuts')}
+                aria-label={t('header.shortcuts')}
+              >
+                ?
+              </button>
+            </div>
+          </header>
+
+          <StudioMenuBar
             viewMode={viewMode}
             setViewMode={setViewMode}
             renderMode={renderMode}
             setRenderMode={setRenderMode}
-            zoom={zoom}
-            setZoom={setZoom}
-            onResetZoom={() => setFitRequest((n) => n + 1)}
-            engine={options.engine}
-            onOpenExport={() => setIsExportOpen(true)}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            hasEdits={!!result && result.svg !== result.originalSvg}
+            hasResult={!!result}
+            onOpen={() => fileInputRef.current?.click()}
             onNewImage={handleNewImage}
-            isProcessing={isProcessing}
-            isCenterline={options.traceMethod === 'centerline'}
-            canUndo={historyIndex > 0}
-            canRedo={historyIndex < history.length - 1}
+            onExport={() => setIsExportOpen(true)}
             onUndo={handleUndo}
             onRedo={handleRedo}
-            onOpenShortcuts={() => setIsShortcutsOpen(true)}
+            onCopySvg={handleCopySvg}
+            onSimplify={handleSimplifyNodes}
+            onResetEdits={handleResetEdits}
+            onZoom={handleZoom}
+            onFit={handleFit}
+            onShortcuts={() => setIsShortcutsOpen(true)}
+            onAbout={() => setIsAboutOpen(true)}
           />
 
-          {/* Main Workspace: Sidebar + Viewport */}
-          <div className="studio-main-body">
-            <Sidebar
-              options={options}
-              setOptions={setOptions}
-              onApplyPreset={handleApplyPreset}
-              palette={result?.palette || []}
-              isProcessing={isProcessing}
-              onRetrace={handleRetrace}
-              isCenterline={options.traceMethod === 'centerline'}
-              onSelectColor={(col) => setSelectedPaletteColor(col)}
-              onSimplifyNodes={handleSimplifyNodes}
-              nodesCount={result?.nodesCount}
+          <div className="workarea">
+            <Toolbox
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              renderMode={renderMode}
+              setRenderMode={setRenderMode}
+              zoom={zoom}
+              setZoom={setZoom}
+              onFit={handleFit}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onNewImage={handleNewImage}
+              onExport={() => result && setIsExportOpen(true)}
+              isProcessing={isProcessing || !result}
             />
 
             <Viewport
@@ -473,35 +525,47 @@ export function App() {
               fitRequest={fitRequest}
               isCenterline={options.traceMethod === 'centerline'}
             />
+
+            <Sidebar
+              options={options}
+              setOptions={setOptions}
+              onApplyPreset={handleApplyPreset}
+              isProcessing={isProcessing}
+              onRetrace={handleRetrace}
+              isCenterline={options.traceMethod === 'centerline'}
+              onSimplifyNodes={handleSimplifyNodes}
+              nodesCount={result?.nodesCount}
+            />
           </div>
 
-          {/* Bottom Metrics Bar */}
-          <MetricsBar result={result} />
-
-          {isExportOpen && result && (
-            <ExportModal
-              key={historyIndex}
-              onClose={() => setIsExportOpen(false)}
-              result={result}
-              baseFileName={fileName}
-              imageDimensions={imageDimensions}
-              onShowToast={showToast}
-            />
-          )}
-
-          {selectedPaletteColor && (
-            <ColorModal
-              key={selectedPaletteColor.hex}
-              color={selectedPaletteColor}
-              onClose={() => setSelectedPaletteColor(null)}
-              onReplaceColor={handleReplaceColor}
-              onRemoveColor={handleRemoveColor}
-            />
-          )}
-
-          <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
+          <ColorBox palette={result?.palette ?? []} onSelect={setSelectedPaletteColor} />
+          <MetricsBar result={result} progress={progress} />
         </div>
       )}
+
+      {isExportOpen && result && (
+        <ExportModal
+          key={historyIndex}
+          onClose={() => setIsExportOpen(false)}
+          result={result}
+          baseFileName={fileName}
+          imageDimensions={imageDimensions}
+          onShowToast={showToast}
+        />
+      )}
+
+      {selectedPaletteColor && (
+        <ColorModal
+          key={selectedPaletteColor.hex}
+          color={selectedPaletteColor}
+          onClose={() => setSelectedPaletteColor(null)}
+          onReplaceColor={handleReplaceColor}
+          onRemoveColor={handleRemoveColor}
+        />
+      )}
+
+      <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
+      {isAboutOpen && <AboutModal onClose={() => setIsAboutOpen(false)} />}
 
       {/* Outside the layout switch so errors on the landing page are shown too */}
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />

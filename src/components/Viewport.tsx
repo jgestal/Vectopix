@@ -11,16 +11,8 @@ import {
   type ParsedSvgDoc,
   type InteractiveNode,
 } from '../utils/pathParser';
-import {
-  MousePointer,
-  RotateCcw,
-  Trash2,
-  Crosshair,
-  Spline,
-  CornerUpRight,
-  PlusCircle,
-  Sparkles,
-} from 'lucide-react';
+import { CornerUpRight, Hourglass, Pointer, Plus, Reload, Sparkles, Trash } from 'pixelarticons/react';
+import { RetroWindow } from './retro/RetroWindow';
 import { useI18n } from '../i18n';
 
 interface ViewportProps {
@@ -48,6 +40,8 @@ type DraggedNode = Pick<InteractiveNode, 'id' | 'pathIndex' | 'segmentIndex' | '
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 24;
 const FIT_PADDING = 80;
+/** Height of the title bar on top of each side-by-side pane (see .sbs-pane-badge). */
+const SBS_TITLE_HEIGHT = 20;
 
 /** Path index encoded in an interactive node id (`p{path}_s{segment}_{type}`). */
 function pathIndexFromNodeId(id: string | null): number | null {
@@ -389,7 +383,7 @@ export const Viewport: React.FC<ViewportProps> = ({
               y1={cp.connectedAnchor.y}
               x2={cp.x}
               y2={cp.y}
-              stroke="#22d3ee"
+              stroke="#ff00ff"
               strokeWidth={1 / Math.sqrt(zoom)}
               strokeDasharray={`${3 / Math.sqrt(zoom)},${3 / Math.sqrt(zoom)}`}
             />
@@ -405,7 +399,7 @@ export const Viewport: React.FC<ViewportProps> = ({
             cx={cp.x}
             cy={cp.y}
             r={handleRadius * 0.75}
-            fill="#06b6d4"
+            fill="#ff00ff"
             stroke="#ffffff"
             strokeWidth={handleStroke}
             className="interactive-cp-handle"
@@ -425,8 +419,8 @@ export const Viewport: React.FC<ViewportProps> = ({
                   cx={anchor.x}
                   cy={anchor.y}
                   r={handleRadius * 1.8}
-                  fill="rgba(34, 211, 238, 0.25)"
-                  stroke="#22d3ee"
+                  fill="rgba(0, 0, 128, 0.2)"
+                  stroke="#000080"
                   strokeWidth={handleStroke}
                 />
               )}
@@ -434,8 +428,8 @@ export const Viewport: React.FC<ViewportProps> = ({
                 cx={anchor.x}
                 cy={anchor.y}
                 r={handleRadius}
-                fill={isSelected ? '#22d3ee' : '#ffffff'}
-                stroke={isSelected ? '#0e7490' : '#4f46e5'}
+                fill={isSelected ? '#000080' : '#ffffff'}
+                stroke={isSelected ? '#ffffff' : '#000080'}
                 strokeWidth={handleStroke}
                 className="interactive-anchor-handle"
                 onMouseDown={(e) => handleNodeMouseDown(e, anchor)}
@@ -466,7 +460,7 @@ export const Viewport: React.FC<ViewportProps> = ({
           }}
         >
           {/* Left Board: Original Raster */}
-          <div className="sbs-pane" style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}>
+          <div className="sbs-pane" style={{ width: `${scaledWidth}px`, height: `${scaledHeight + SBS_TITLE_HEIGHT}px` }}>
             <div className="sbs-pane-badge raster-badge">
               <span>{t('viewport.rasterBadge', { width, height })}</span>
             </div>
@@ -498,7 +492,7 @@ export const Viewport: React.FC<ViewportProps> = ({
           </div>
 
           {/* Right Board: Vector Output */}
-          <div className="sbs-pane" style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}>
+          <div className="sbs-pane" style={{ width: `${scaledWidth}px`, height: `${scaledHeight + SBS_TITLE_HEIGHT}px` }}>
             <div className="sbs-pane-badge vector-badge">
               <span>{t('viewport.vectorBadge', { count: parsedDoc.paths.length })}</span>
             </div>
@@ -602,122 +596,79 @@ export const Viewport: React.FC<ViewportProps> = ({
               }}
             >
               <div className="split-handle">
-                <span className="split-arrow-left">◀</span>
-                <span className="split-tag">{t('viewport.splitTag')}</span>
-                <span className="split-arrow-right">▶</span>
+                <span className="split-tag">◀ {t('viewport.splitTag')} ▶</span>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Floating Node Editor Toolbar (when in Nodes / Anchor mode) */}
+      {/* Floating node editor toolbar, a Win98 tool window */}
       {renderMode === 'nodes' && (
-        <div className="node-editor-toolbar">
-          <div className="node-toolbar-badge">
-            <MousePointer size={14} className="text-cyan" />
-            <span>{t('nodes.editor')}</span>
-          </div>
+        <div className="node-toolbar" onMouseDown={(e) => e.stopPropagation()}>
+          <span className="node-toolbar-title">
+            <Pointer width={12} height={12} className="r-icon" />
+            {t('nodes.editor')}
+          </span>
 
           {selectedNode ? (
-            <div className="node-toolbar-info">
-              <Crosshair size={13} className="text-indigo" />
-              <span>
-                {t('nodes.node')} {t(selectedNode.nodeType === 'anchor' ? 'nodes.anchor' : 'nodes.handle')}:
-                {' '}
-                <strong>X: {selectedNode.x.toFixed(1)}</strong>,{' '}
-                <strong>Y: {selectedNode.y.toFixed(1)}</strong>
+            <>
+              <span className="r-status-field node-toolbar-coords">
+                {t(selectedNode.nodeType === 'anchor' ? 'nodes.anchor' : 'nodes.handle')} X {selectedNode.x.toFixed(1)} Y{' '}
+                {selectedNode.y.toFixed(1)}
               </span>
-
-              {selectedNode.nodeType === 'anchor' && (
+              {selectedNode.nodeType === 'anchor' && selectedNode.segmentType !== 'M' && (
                 <>
-                  {selectedNode.segmentType !== 'M' && (
                   <button
-                    className="btn-node-tool"
+                    className="r-btn r-btn-small"
                     onClick={handleToggleCurve}
-                    title={
-                      selectedNode.isCurve
-                        ? t('nodes.toCornerTitle')
-                        : t('nodes.toSmoothTitle')
-                    }
+                    title={selectedNode.isCurve ? t('nodes.toCornerTitle') : t('nodes.toSmoothTitle')}
                   >
-                    {selectedNode.isCurve ? (
-                      <>
-                        <CornerUpRight size={13} />
-                        <span>{t('nodes.corner')}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Spline size={13} />
-                        <span>{t('nodes.smooth')}</span>
-                      </>
-                    )}
+                    <CornerUpRight width={12} height={12} className="r-icon" />
+                    {t(selectedNode.isCurve ? 'nodes.corner' : 'nodes.smooth')}
                   </button>
-                  )}
-
-                  {selectedNode.segmentType !== 'M' && (
-                    <button
-                      className="btn-node-tool"
-                      onClick={handleSplitSegment}
-                      title={t('nodes.splitTitle')}
-                    >
-                      <PlusCircle size={13} />
-                      <span>{t('nodes.split')}</span>
-                    </button>
-                  )}
-
-                  <button
-                    className="btn-node-tool danger"
-                    onClick={handleDeleteSelectedNode}
-                    title={t('nodes.deleteTitle')}
-                  >
-                    <Trash2 size={13} />
-                    <span>{t('nodes.delete')}</span>
+                  <button className="r-btn r-btn-small" onClick={handleSplitSegment} title={t('nodes.splitTitle')}>
+                    <Plus width={12} height={12} className="r-icon" />
+                    {t('nodes.split')}
                   </button>
                 </>
               )}
-            </div>
+              {selectedNode.nodeType === 'anchor' && (
+                <button className="r-btn r-btn-small" onClick={handleDeleteSelectedNode} title={t('nodes.deleteTitle')}>
+                  <Trash width={12} height={12} className="r-icon" />
+                  {t('nodes.delete')}
+                </button>
+              )}
+            </>
           ) : (
             <span className="node-toolbar-hint">{t('nodes.hint')}</span>
           )}
 
-          <button
-            className="btn-node-tool simplify"
-            onClick={onSimplifyNodes}
-            title={t('nodes.simplifyTitle')}
-          >
-            <Sparkles size={13} className="text-amber" />
-            <span>{t('nodes.simplify')}</span>
+          <button className="r-btn r-btn-small" onClick={onSimplifyNodes} title={t('nodes.simplifyTitle')}>
+            <Sparkles width={12} height={12} className="r-icon" />
+            {t('nodes.simplify')}
           </button>
-
           {hasModifications && (
-            <button
-              className="btn-node-tool reset"
-              onClick={onResetEdits}
-              title={t('nodes.resetTitle')}
-            >
-              <RotateCcw size={13} />
-              <span>{t('nodes.reset')}</span>
+            <button className="r-btn r-btn-small" onClick={onResetEdits} title={t('nodes.resetTitle')}>
+              <Reload width={12} height={12} className="r-icon" />
+              {t('nodes.reset')}
             </button>
           )}
         </div>
       )}
 
-      {/* Processing Loader Overlay */}
+      {/* Progress dialog with the classic segmented bar */}
       {isProcessing && progress && (
         <div className="viewport-processing-overlay">
-          <div className="processing-card">
-            <div className="processing-spinner-glow"></div>
-            <div className="processing-title">{t('viewport.processing')}</div>
-            <div className="processing-stage">{t(progress.stage)}</div>
-            <div className="processing-bar-track">
-              <div
-                className="processing-bar-fill"
-                style={{ width: `${progress.percent}%` }}
-              ></div>
+          <RetroWindow title={t('viewport.processing')} className="progress-window">
+            <div className="progress-body">
+              <Hourglass width={36} height={36} className="r-icon progress-hourglass" />
+              <span>{t(progress.stage)}</span>
             </div>
-            <div className="processing-percent">{progress.percent}%</div>
-          </div>
+            <div className="progress-track r-field" role="progressbar" aria-valuenow={progress.percent} aria-valuemin={0} aria-valuemax={100}>
+              <div className="progress-fill" style={{ width: `${progress.percent}%` }} />
+            </div>
+          </RetroWindow>
         </div>
       )}
 
@@ -725,15 +676,14 @@ export const Viewport: React.FC<ViewportProps> = ({
       <div className="viewport-legend">
         {isCenterline ? (
           <>
-            <span className="legend-tag centerline-tag">{t('viewport.legendCenterline')}</span>
-            <span className="legend-sep">•</span>
-            <span className="legend-sub">{t('viewport.legendCenterlineSub')}</span>
+            <strong>{t('viewport.legendCenterline')}</strong>
+            <span>· {t('viewport.legendCenterlineSub')}</span>
           </>
         ) : (
           <>
-            <span className="legend-tag raster-tag">{t('viewport.legendRaster')}</span>
-            <span className="legend-sep">⟷</span>
-            <span className="legend-tag vector-tag">{t('viewport.legendVector')}</span>
+            <span>{t('viewport.legendRaster')}</span>
+            <span>|</span>
+            <span>{t('viewport.legendVector')}</span>
           </>
         )}
       </div>

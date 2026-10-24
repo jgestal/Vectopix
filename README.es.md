@@ -10,7 +10,8 @@
 
 <p align="center">
   Convierte imágenes raster (PNG, JPG, WebP, BMP) en vectores limpios — <b>SVG, DXF, EPS y PDF</b>.
-  Funciona por completo en tu equipo, en el navegador o como app de escritorio: tus imágenes nunca salen de tu ordenador.
+  Funciona por completo en tu equipo, en el navegador o como app de escritorio, y parece un programa de dibujo de los 90:
+  tus imágenes nunca salen de tu ordenador.
 </p>
 
 <p align="center">
@@ -32,6 +33,7 @@
 
 ## Características
 
+- **Interfaz retro** inspirada en el Paint de Windows 98: barra de menús, caja de herramientas, caja de colores, barra de estado, diálogos con relieve, fuente pixelada e iconos pixel-art.
 - **Vectorización sub-píxel** con [vecline](https://www.npmjs.com/package/vecline): cuantización de color en espacio Oklab, reconstrucción del anti-aliasing y ajuste de curvas Bézier. ImageTracerJS está disponible como motor alternativo.
 - **Dos métodos de trazado**
   - *Contornos*: regiones de color rellenas, para logos, ilustraciones, pixel art o fotos.
@@ -39,9 +41,10 @@
 - **Presets** para logotipos, ilustración plana, fotografía, bocetos, pixel art y línea central, más control fino de colores, tolerancia, suavizado, esquinas, área mínima, contraste y reducción de ruido.
 - **Re-trazado automático**: al cambiar cualquier ajuste se vuelve a vectorizar (con *debounce*, así que mover un slider no satura el motor).
 - **Fidelidad medida, no estimada**: el SVG resultante se renderiza y se compara con la imagen original mediante SSIM.
+- **Cualquier imagen, de cualquier forma**: arrastra o pega PNG, JPG, WebP, GIF, AVIF, BMP, ICO, SVG, TGA o PPM/PGM; arrastra una de las muestras o una imagen de otra página web a la zona de carga.
 - **Comparación visual**: cortinilla antes/después, vista doble, solo vector o solo raster, modo contornos y rejilla de píxeles al hacer zoom.
 - **Editor de nodos Bézier**: mueve anclas y tiradores, alterna curva/esquina, divide tramos, elimina nodos y simplifica trazados, con deshacer y rehacer. Admite todos los comandos de trazado SVG, arcos incluidos, y guarda las ediciones en formato compacto para que el archivo no engorde.
-- **Gestión de paleta**: sustituye un color en todo el gráfico (degradados incluidos) o hazlo transparente.
+- **Gestión de paleta**: la caja de colores muestra la paleta del trazado; haz clic en un color para sustituirlo en todo el gráfico (degradados incluidos) o hacerlo transparente.
 - **Exportación**: SVG optimizado, PNG a @1x–@8x, componentes React/Vue/Svelte, DXF (láser/CNC), EPS (imprenta) y PDF vectorial. Todos los formatos incluyen tus ediciones de nodos y colores.
 - **8 idiomas**: español, inglés, alemán, francés, italiano, portugués, chino y japonés. La app usa el idioma de tu sistema y recuerda tu elección.
 - **Todo en local**: el motor corre en un Web Worker, así que la interfaz no se bloquea, y no se sube nada a ningún servidor. Las fuentes también van incluidas, así que la app de escritorio funciona sin conexión.
@@ -59,11 +62,11 @@
   </tr>
   <tr>
     <td><img src="docs/es/side-by-side.png" alt="Vista doble: raster original y vector lado a lado" /></td>
-    <td><img src="docs/es/wireframe.png" alt="Modo contornos sobre la cortinilla raster/vector" /></td>
+    <td><img src="docs/es/menu.png" alt="El menú Archivo abierto sobre el estudio" /></td>
   </tr>
   <tr>
     <td align="center"><b>Vista doble</b>: original y vector lado a lado</td>
-    <td align="center"><b>Modo contornos</b>: la estructura de los trazados</td>
+    <td align="center"><b>Menús</b>: todas las acciones, al estilo de Windows 98</td>
   </tr>
   <tr>
     <td><img src="docs/es/centerline.png" alt="Trazado de línea central de una firma" /></td>
@@ -139,7 +142,7 @@ Además, cada push a `main` pasa los tests y despliega la versión web en GitHub
 | <kbd>Espacio</kbd> + arrastrar          | Desplazar el lienzo                           |
 | Rueda / pellizco                        | Zoom centrado en el cursor                    |
 | <kbd>Supr</kbd> / <kbd>⌫</kbd>          | Eliminar el nodo seleccionado                 |
-| <kbd>?</kbd>                            | Mostrar todos los atajos                      |
+| <kbd>F1</kbd> / <kbd>?</kbd>            | Mostrar todos los atajos                      |
 
 ## Arquitectura
 
@@ -152,7 +155,8 @@ src/
 │   ├── vectorEngine.ts         Motor puro (sin DOM ni worker): trazado, exportación y SSIM
 │   └── vectorWorkerClient.ts   Cliente del worker: peticiones, progreso y cancelación
 ├── workers/vector.worker.ts    Envoltorio fino del motor dentro del Web Worker
-├── components/                 Header, Sidebar, Viewport (lienzo y editor de nodos), diálogos…
+├── components/                 Barra de menús, caja de herramientas, Viewport (lienzo y editor de nodos), propiedades, diálogos…
+│   └── retro/                  Piezas de Windows 98: ventana, diálogo, barra de menús
 └── utils/
     ├── pathParser.ts           Parser y editor de trazados SVG (anclas, tiradores, simplificación)
     ├── svgExport.ts            SVG (editado) → geometría para DXF / EPS / PDF
@@ -179,7 +183,7 @@ electron/main.cjs               App de escritorio: sirve dist/ desde un origen p
 
 ## Tecnologías
 
-[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [Electron](https://www.electronjs.org) · [lucide-react](https://lucide.dev) · [Fontsource](https://fontsource.org) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
+[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [Electron](https://www.electronjs.org) · [pixelarticons](https://pixelarticons.com) · [Pixelify Sans](https://fontsource.org/fonts/pixelify-sans) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
 
 ## Licencia
 

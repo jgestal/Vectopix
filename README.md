@@ -10,7 +10,8 @@
 
 <p align="center">
   Turn raster images (PNG, JPG, WebP, BMP) into clean vectors — <b>SVG, DXF, EPS and PDF</b>.
-  It runs entirely on your machine, in the browser or as a desktop app: your images never leave your computer.
+  It runs entirely on your machine, in the browser or as a desktop app, and it looks like a 90s paint program:
+  your images never leave your computer.
 </p>
 
 <p align="center">
@@ -32,6 +33,7 @@
 
 ## Features
 
+- **Retro interface** inspired by Windows 98 Paint: menu bar, tool box, colour box, status bar, bevelled dialogs, pixel font and pixel-art icons.
 - **Sub-pixel vectorization** powered by [vecline](https://www.npmjs.com/package/vecline): colour quantization in Oklab space, anti-aliasing reconstruction and Bézier curve fitting. ImageTracerJS is available as an alternative engine.
 - **Two tracing methods**
   - *Outline*: filled colour regions, for logos, illustrations, pixel art or photos.
@@ -39,9 +41,10 @@
 - **Presets** for logos, flat illustration, photos, sketches, pixel art and centerline, plus fine control over colours, tolerance, smoothing, corners, minimum area, contrast and noise reduction.
 - **Automatic re-tracing**: changing any setting re-vectorizes the image (debounced, so dragging a slider doesn't flood the engine).
 - **Measured fidelity, not estimated**: the resulting SVG is rendered and compared with the original image using SSIM.
+- **Any image, any way**: drop or paste PNG, JPG, WebP, GIF, AVIF, BMP, ICO, SVG, TGA or PPM/PGM; drag a built-in sample or an image from another web page onto the drop zone.
 - **Visual comparison**: before/after split, side-by-side, vector only or raster only, outline mode and a pixel grid when zoomed in.
 - **Bézier node editor**: move anchors and handles, toggle curve/corner, split segments, delete nodes and simplify paths, with undo and redo. It handles every SVG path command, arcs included, and stores edits compactly so the file doesn't grow.
-- **Palette management**: replace a colour across the whole drawing (gradients included) or make it transparent.
+- **Palette management**: the colour box shows the traced palette; click a colour to replace it across the whole drawing (gradients included) or make it transparent.
 - **Export**: optimized SVG, PNG at @1x–@8x, React/Vue/Svelte components, DXF (laser/CNC), EPS (print) and vector PDF. Every format includes your node and colour edits.
 - **8 languages**: English, Spanish, German, French, Italian, Portuguese, Chinese and Japanese. The app picks your system language and remembers your choice.
 - **Fully local**: the engine runs in a Web Worker, so the interface never freezes, and nothing is uploaded anywhere. Fonts are bundled too, so the desktop app works offline.
@@ -59,11 +62,11 @@
   </tr>
   <tr>
     <td><img src="docs/en/side-by-side.png" alt="Dual view: original raster and vector side by side" /></td>
-    <td><img src="docs/en/wireframe.png" alt="Outline mode over the raster/vector split" /></td>
+    <td><img src="docs/en/menu.png" alt="The File menu open over the studio" /></td>
   </tr>
   <tr>
     <td align="center"><b>Dual view</b>: original and vector side by side</td>
-    <td align="center"><b>Outline mode</b>: the structure of the paths</td>
+    <td align="center"><b>Menus</b>: every action, Windows 98 style</td>
   </tr>
   <tr>
     <td><img src="docs/en/centerline.png" alt="Centerline trace of a signature" /></td>
@@ -139,7 +142,7 @@ Every push to `main` also runs the tests and deploys the web version to GitHub P
 | <kbd>Space</kbd> + drag                 | Pan the canvas                                 |
 | Wheel / pinch                           | Zoom around the cursor                         |
 | <kbd>Del</kbd> / <kbd>⌫</kbd>           | Delete the selected node                       |
-| <kbd>?</kbd>                            | Show every shortcut                            |
+| <kbd>F1</kbd> / <kbd>?</kbd>            | Show every shortcut                            |
 
 ## Architecture
 
@@ -152,7 +155,8 @@ src/
 │   ├── vectorEngine.ts         Pure engine (no DOM, no worker): tracing, export, SSIM
 │   └── vectorWorkerClient.ts   Worker client: requests, progress and cancellation
 ├── workers/vector.worker.ts    Thin wrapper around the engine inside the Web Worker
-├── components/                 Header, Sidebar, Viewport (canvas and node editor), dialogs…
+├── components/                 Menu bar, Toolbox, Viewport (canvas and node editor), properties, dialogs…
+│   └── retro/                  Windows 98 building blocks: window, dialog, menu bar
 └── utils/
     ├── pathParser.ts           SVG path parser and editor (anchors, handles, simplification)
     ├── svgExport.ts            (Edited) SVG → geometry for DXF / EPS / PDF
@@ -179,7 +183,7 @@ electron/main.cjs               Desktop shell: serves dist/ from a private app:/
 
 ## Tech stack
 
-[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [Electron](https://www.electronjs.org) · [lucide-react](https://lucide.dev) · [Fontsource](https://fontsource.org) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
+[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [Electron](https://www.electronjs.org) · [pixelarticons](https://pixelarticons.com) · [Pixelify Sans](https://fontsource.org/fonts/pixelify-sans) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
 
 ## License
 

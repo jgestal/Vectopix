@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 // Fonts are bundled (no Google Fonts request): works offline and stays private
-import '@fontsource-variable/inter'
-import '@fontsource-variable/outfit'
+import '@fontsource/pixelify-sans/400.css'
+import '@fontsource/pixelify-sans/700.css'
 import '@fontsource-variable/jetbrains-mono'
 import './index.css'
 import App from './App.tsx'

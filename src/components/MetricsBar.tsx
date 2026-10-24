@@ -1,142 +1,73 @@
 import React, { useState } from 'react';
-import {
-  Activity,
-  GitCommit,
-  Clock,
-  HardDrive,
-  Check,
-  Copy,
-  Zap,
-  Scissors,
-} from 'lucide-react';
-import type { VectorResult } from '../types/vector';
+import { Copy } from 'pixelarticons/react';
+import type { VectorResult, WorkerProgress } from '../types/vector';
 import { formatBytes } from '../utils/exportUtils';
-import { useI18n } from '../i18n';
+import { useI18n, type MessageKey } from '../i18n';
 
 interface MetricsBarProps {
   result: VectorResult | null;
+  progress: WorkerProgress | null;
 }
 
-export const MetricsBar: React.FC<MetricsBarProps> = ({ result }) => {
+/** Windows status bar: a message field, then sunken cells with the metrics. */
+export const MetricsBar: React.FC<MetricsBarProps> = ({ result, progress }) => {
   const { t, lang } = useI18n();
   const [copied, setCopied] = useState(false);
 
-  if (!result) return null;
-
   const handleCopySvg = async () => {
+    if (!result) return;
     try {
       await navigator.clipboard.writeText(result.svg);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // clipboard fallback
+      // Clipboard can be blocked; the menu offers the same action
     }
   };
 
-  const compressionRatio =
-    result.rasterSizeBytes > 0
-      ? Math.round(
-          ((result.rasterSizeBytes - result.fileSizeBytes) /
-            result.rasterSizeBytes) *
-            100
-        )
-      : 0;
+  const cells: { label: MessageKey; title: MessageKey; value: string }[] = [];
+  if (result) {
+    const savings =
+      result.rasterSizeBytes > 0
+        ? Math.round(((result.rasterSizeBytes - result.fileSizeBytes) / result.rasterSizeBytes) * 100)
+        : 0;
+    if (result.isCenterline) {
+      cells.push({ label: 'metrics.centerlines', title: 'metrics.centerlinesTitle', value: result.shapes.toLocaleString(lang) });
+      cells.push({
+        label: 'metrics.length',
+        title: 'metrics.lengthTitle',
+        value: `${(result.centerlineLength ?? 0).toLocaleString(lang)} px`,
+      });
+    } else {
+      cells.push({ label: 'metrics.paths', title: 'metrics.pathsTitle', value: result.shapes.toLocaleString(lang) });
+    }
+    cells.push({ label: 'metrics.nodes', title: 'metrics.nodesTitle', value: result.nodesCount.toLocaleString(lang) });
+    cells.push({ label: 'metrics.time', title: 'metrics.timeTitle', value: `${result.executionTimeMs} ms` });
+    cells.push({
+      label: 'metrics.size',
+      title: 'metrics.sizeTitle',
+      value: formatBytes(result.fileSizeBytes) + (savings > 0 ? ` (−${savings}%)` : ''),
+    });
+    if (result.ssim !== undefined) {
+      cells.push({ label: 'metrics.fidelity', title: 'metrics.fidelityTitle', value: `${(result.ssim * 100).toFixed(1)}%` });
+    }
+  }
 
   return (
-    <footer className="studio-metrics-bar">
-      <div className="metrics-group">
-        {result.isCenterline ? (
-          <>
-            <div className="metric-item" title={t('metrics.centerlinesTitle')}>
-              <Scissors size={14} className="metric-icon text-amber" />
-              <span className="metric-label">{t('metrics.centerlines')}:</span>
-              <span className="metric-value text-amber">{result.shapes.toLocaleString(lang)}</span>
-            </div>
-
-            <div className="metric-sep"></div>
-
-            <div className="metric-item" title={t('metrics.lengthTitle')}>
-              <Activity size={14} className="metric-icon" />
-              <span className="metric-label">{t('metrics.length')}:</span>
-              <span className="metric-value">{result.centerlineLength?.toLocaleString(lang) || 0} px</span>
-            </div>
-          </>
-        ) : (
-          <div className="metric-item" title={t('metrics.pathsTitle')}>
-            <Activity size={14} className="metric-icon" />
-            <span className="metric-label">{t('metrics.paths')}:</span>
-            <span className="metric-value">{result.shapes.toLocaleString(lang)}</span>
-          </div>
-        )}
-
-        <div className="metric-sep"></div>
-
-        <div
-          className="metric-item"
-          title={t('metrics.nodesTitle')}
-        >
-          <GitCommit size={14} className="metric-icon" />
-          <span className="metric-label">{t('metrics.nodes')}:</span>
-          <span className="metric-value">{result.nodesCount.toLocaleString(lang)}</span>
+    <footer className="statusbar">
+      <div className="r-status-field statusbar-message">{progress ? t(progress.stage) : t('status.idle')}</div>
+      {cells.map((cell) => (
+        <div key={cell.label} className="r-status-field" title={t(cell.title)}>
+          <span className="metric-label">{t(cell.label)}:</span>
+          <span className="metric-value">{cell.value}</span>
         </div>
-
-        <div className="metric-sep"></div>
-
-        <div className="metric-item" title={t('metrics.timeTitle')}>
-          <Clock size={14} className="metric-icon" />
-          <span className="metric-label">{t('metrics.time')}:</span>
-          <span className="metric-value">{result.executionTimeMs} ms</span>
-        </div>
-
-        <div className="metric-sep"></div>
-
-        <div className="metric-item" title={t('metrics.sizeTitle')}>
-          <HardDrive size={14} className="metric-icon" />
-          <span className="metric-label">{t('metrics.size')}:</span>
-          <span className="metric-value">
-            {formatBytes(result.fileSizeBytes)}
-            {compressionRatio > 0 && (
-              <span className="metric-badge-save">-{compressionRatio}%</span>
-            )}
-          </span>
-        </div>
-
-        {result.ssim !== undefined && (
-          <>
-            <div className="metric-sep"></div>
-            <div
-              className="metric-item"
-              title={t('metrics.fidelityTitle')}
-            >
-              <Zap size={14} className="metric-icon text-cyan" />
-              <span className="metric-label">{t('metrics.fidelity')}:</span>
-              <span className="metric-value text-cyan">
-                {(result.ssim * 100).toFixed(1)}% SSIM
-              </span>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="metrics-actions">
-        <button
-          className="btn-quick-copy"
-          onClick={handleCopySvg}
-          title={t('metrics.copyTitle')}
-        >
-          {copied ? (
-            <>
-              <Check size={14} className="text-emerald" />
-              <span className="text-emerald">{t('metrics.copied')}</span>
-            </>
-          ) : (
-            <>
-              <Copy size={14} />
-              <span>{t('metrics.copy')}</span>
-            </>
-          )}
+      ))}
+      {result && (
+        <button className="r-btn r-btn-small" onClick={handleCopySvg} title={t('metrics.copyTitle')}>
+          <Copy width={12} height={12} className="r-icon" />
+          {copied ? t('metrics.copied') : t('metrics.copy')}
         </button>
-      </div>
+      )}
     </footer>
   );
 };

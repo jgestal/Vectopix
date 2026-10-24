@@ -7,7 +7,6 @@ export const es = {
   'app.language': 'Idioma',
 
   // Landing page
-  'landing.badge': 'Calidad sub-píxel en tu navegador',
   'landing.titleBefore': 'Convierte imágenes raster en',
   'landing.titleHighlight': 'vectores limpios',
   'landing.description':
@@ -35,13 +34,8 @@ export const es = {
   'sample.pixel-heart.description': 'Rejilla ortogonal perfecta para el modo pixel art exacto.',
 
   // Header
-  'header.activeEngine': 'Motor activo',
-  'header.engineCenterline': 'Esqueleto centerline',
-  'header.engineVecline': 'Vecline sub-píxel',
-  'header.engineImageTracer': 'ImageTracerJS',
   'header.undo': 'Deshacer (Cmd/Ctrl + Z)',
   'header.redo': 'Rehacer (Cmd/Ctrl + Shift + Z)',
-  'header.viewMode': 'Modo de vista',
   'header.viewSplit': 'Cortinilla',
   'header.viewSplitTitle': 'Comparar con cortinilla antes/después [S]',
   'header.viewVector': 'Vector',
@@ -50,7 +44,6 @@ export const es = {
   'header.viewRasterTitle': 'Solo la imagen original',
   'header.viewSideBySide': 'Doble',
   'header.viewSideBySideTitle': 'Original y vector lado a lado [D]',
-  'header.renderStyle': 'Estilo del vector',
   'header.renderFull': 'Relleno',
   'header.renderFullTitle': 'Relleno normal con colores',
   'header.renderWireframe': 'Contornos',
@@ -58,13 +51,10 @@ export const es = {
   'header.renderNodes': 'Editor de nodos',
   'header.renderNodesTitle': 'Editor de nodos: arrastra anclas y tiradores Bézier [E / N]',
   'header.zoomOut': 'Alejar',
-  'header.zoomReset': 'Ajustar a pantalla',
   'header.zoomIn': 'Acercar',
   'header.fit': 'Ajustar a pantalla',
   'header.shortcuts': 'Atajos de teclado (?)',
-  'header.new': 'Nueva',
   'header.newTitle': 'Cargar otra imagen',
-  'header.export': 'Exportar',
   'header.exportTitle': 'Descargar o exportar (SVG, PNG, componentes, DXF, EPS, PDF)',
 
   // Sidebar
@@ -159,7 +149,6 @@ export const es = {
   'nodes.editor': 'Editor de nodos',
   'nodes.anchor': 'Ancla',
   'nodes.handle': 'Tirador',
-  'nodes.node': 'Nodo',
   'nodes.toCornerTitle': 'Convertir en esquina (línea recta)',
   'nodes.toSmoothTitle': 'Convertir en curva Bézier suave',
   'nodes.corner': 'Esquina',
@@ -207,7 +196,6 @@ export const es = {
   'export.tabDxf': 'DXF (láser / CNC)',
   'export.tabEps': 'EPS (imprenta)',
   'export.tabPdf': 'PDF vectorial',
-  'export.optimization': 'Optimización:',
   'export.minify': 'Minificar y optimizar coordenadas (menos peso, sin metadatos)',
   'export.scale': 'Escala:',
   'export.background': 'Fondo:',
@@ -224,9 +212,6 @@ export const es = {
   'export.copied': 'Copiado',
   'export.generating': 'Generando {format}...',
   'export.pngInfo': 'PNG de {width} × {height} px (escala {scale}x)',
-  'export.pngResolution': 'Resolución final:',
-  'export.pngBackground': 'Fondo:',
-  'export.pngTransparentAlpha': 'transparente (canal alfa)',
   'export.pdfReadyTitle': 'PDF vectorial listo para descargar',
   'export.pdfGenerating': 'Generando PDF...',
   'export.pdfInfo': 'PDF vectorial (1.4) · {width} × {height} pt · listo para descargar',
@@ -305,13 +290,31 @@ export const es = {
   'toast.nodeEditorToggled': 'Editor de nodos alternado',
 
   // Errors
-  'error.invalidImage': 'Selecciona una imagen válida (PNG, JPG, WebP, BMP)',
   'error.fileTooLarge': 'La imagen supera el límite de 50 MB',
   'error.fileRead': 'No se pudo leer el archivo',
   'error.imageDecode': 'No se pudo leer la imagen',
   'error.workerCrashed': 'El motor de vectorización se ha detenido inesperadamente',
   'error.unsupportedFormat': 'Formato no compatible: {format}. Prueba con PNG, JPG, WebP, GIF o BMP.',
   'error.remoteImage': 'No se pudo obtener la imagen de esa página. Guárdala en tu equipo y arrastra el archivo.',
+
+  // Retro chrome: menus, about box, status bar
+  'menu.file': 'Archivo',
+  'menu.edit': 'Edición',
+  'menu.view': 'Ver',
+  'menu.language': 'Idioma',
+  'menu.help': 'Ayuda',
+  'menu.new': 'Nueva imagen',
+  'menu.open': 'Abrir…',
+  'menu.export': 'Exportar…',
+  'menu.copySvg': 'Copiar SVG',
+  'menu.sourceCode': 'Código fuente en GitHub',
+  'menu.about': 'Acerca de Vectopix',
+  'about.version': 'Versión {version}',
+  'about.license': 'Software libre con licencia MIT.',
+  'about.ok': 'Aceptar',
+  'landing.windowTitle': 'Bienvenido a Vectopix',
+  'status.idle': 'Para obtener ayuda, pulsa F1',
+  'toolbox.label': 'Herramientas',
 
   'file.pastedName': 'imagen-pegada.png',
 };
