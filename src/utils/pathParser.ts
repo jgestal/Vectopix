@@ -790,3 +790,17 @@ export function simplifySvgPaths(
     removedCount: originalNodes - simplifiedNodes,
   };
 }
+
+/**
+ * Anchor points of an SVG: the nodes a person would edit. Every path segment
+ * end counts once (control points do not); a circle, ellipse or rect counts
+ * as one shape-defined node.
+ */
+export function countAnchors(svg: string): number {
+  let count = 0;
+  for (const match of svg.matchAll(/<path\b[^>]*\sd="([^"]*)"/g)) {
+    count += parsePathSegments(match[1]).filter((s) => s.type !== 'Z').length;
+  }
+  count += (svg.match(/<(circle|ellipse|rect)\b/g) || []).length;
+  return count;
+}

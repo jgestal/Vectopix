@@ -25,7 +25,7 @@ import { ColorModal } from './components/ColorModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { ToastContainer } from './components/Toast';
 import { replaceColorInSvg, removeColorFromSvg, normalizeHex } from './utils/paletteUtils';
-import { parseSvgDocument, serializeParsedDoc, simplifySvgPaths } from './utils/pathParser';
+import { parseSvgDocument, serializeParsedDoc, simplifySvgPaths, countAnchors } from './utils/pathParser';
 import { rasterizeForComparison } from './utils/fidelity';
 import { readImageFile, readDrop, fetchImage, EXTRA_IMAGE_EXTENSIONS } from './utils/imageLoading';
 import { SAMPLE_IMAGES, generateSampleDataUrl } from './utils/sampleImages';
@@ -43,10 +43,6 @@ const RETRACE_DEBOUNCE_MS = 400;
 interface HistoryEntry {
   svg: string;
   palette: PaletteColor[];
-}
-
-function countNodes(svg: string): number {
-  return (svg.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -260,7 +256,7 @@ export function App() {
               svg: newSvg,
               palette: palette ?? prev.palette,
               fileSizeBytes: new Blob([newSvg]).size,
-              nodesCount: countNodes(newSvg),
+              nodesCount: countAnchors(newSvg),
             }
           : null
       );
@@ -288,7 +284,7 @@ export function App() {
               svg: entry.svg,
               palette: entry.palette,
               fileSizeBytes: new Blob([entry.svg]).size,
-              nodesCount: countNodes(entry.svg),
+              nodesCount: countAnchors(entry.svg),
             }
           : null
       );

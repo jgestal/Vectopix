@@ -33,7 +33,9 @@
 ## Características
 
 - **Un espacio de trabajo tranquilo y legible**: el lienzo es una alfombrilla de corte, los ajustes están en un solo panel con los avanzados plegados, y la interfaz sigue el modo claro u oscuro de tu sistema.
-- **Vectorización sub-píxel** con [vecline](https://www.npmjs.com/package/vecline): cuantización de color en espacio Oklab, reconstrucción del anti-aliasing y ajuste de curvas Bézier. ImageTracerJS está disponible como motor alternativo.
+- **Geometría limpia, no píxeles calcados**: los bordes rectos salen como una sola recta, las esquinas son nítidas y los arcos son arcos de circunferencia de verdad. Un logo plano queda con los pocos nodos que dibujaría un diseñador: el logo hexagonal de ejemplo tiene 41 nodos en lugar de varios cientos.
+- **Detección automática de colores**: encuentra los colores reales de la imagen y los usa tal cual, ignorando los píxeles mezclados del antialiasing, así que no se fusionan colores parecidos ni aparecen contornos fantasma.
+- **Trazado sub-píxel** con [vecline](https://www.npmjs.com/package/vecline): cuantización de color en Oklab, reconstrucción del anti-aliasing, fronteras compartidas entre formas vecinas y detección de círculos, elipses y rectángulos. ImageTracerJS está disponible como motor alternativo.
 - **Dos métodos de trazado**
   - *Contornos*: regiones de color rellenas, para logos, ilustraciones, pixel art o fotos.
   - *Línea central*: trazos de un solo hilo, para corte láser, plotters, CNC y bocetos.
@@ -151,7 +153,8 @@ src/
 ├── i18n/                       Traducciones: runtime ligero, un archivo por idioma
 ├── config/presets.ts           Opciones por defecto y tabla única de presets
 ├── services/
-│   ├── vectorEngine.ts         Motor puro (sin DOM ni worker): trazado, exportación y SSIM
+│   ├── vectorEngine.ts         Motor puro (sin DOM ni worker): detección de colores, trazado y SSIM
+│   ├── svgRefine.ts            Limpieza geométrica: rectas, esquinas nítidas y arcos de circunferencia
 │   └── vectorWorkerClient.ts   Cliente del worker: peticiones, progreso y cancelación
 ├── workers/vector.worker.ts    Envoltorio fino del motor dentro del Web Worker
 ├── components/                 Barra superior, controles del lienzo, Viewport (lienzo y editor de nodos), ajustes, diálogos…
@@ -168,10 +171,11 @@ electron/main.cjs               App de escritorio: sirve dist/ desde un origen p
 **Cómo fluye una vectorización**
 
 1. La imagen se decodifica en un `<canvas>`. Si supera los 4 MP se reduce, para que el trazado siga siendo fluido.
-2. Los píxeles se envían (transferidos, sin copias) al Web Worker, que aplica el preprocesado y traza con vecline o ImageTracerJS mientras informa del progreso.
-3. Si llega una petición nueva mientras otra está en curso, el worker se termina y se crea uno nuevo. Es una cancelación real: el trabajo antiguo no sigue consumiendo CPU.
-4. Con el SVG ya en pantalla, se renderiza en segundo plano y el worker calcula su SSIM frente al original.
-5. DXF, EPS y PDF solo se generan al abrir su pestaña de exportación: con la geometría exacta del trazado si no has editado nada, o a partir del SVG actual si lo has hecho, para incluir todos los cambios.
+2. Los píxeles se envían (transferidos, sin copias) al Web Worker, que aplica el preprocesado, detecta los colores reales y traza con vecline o ImageTracerJS mientras informa del progreso.
+3. Los contornos trazados se reajustan: cada uno se remuestrea, se localizan sus esquinas reales (giros bruscos, o dos tramos rectos que se encuentran en ángulo) y cada tramo entre esquinas se redibuja como una sola recta, un arco de circunferencia o el menor número posible de curvas Bézier. Donde se juntan dos rectas, la esquina pasa a su intersección exacta.
+4. Si llega una petición nueva mientras otra está en curso, el worker se termina y se crea uno nuevo. Es una cancelación real: el trabajo antiguo no sigue consumiendo CPU.
+5. Con el SVG ya en pantalla, se renderiza en segundo plano y el worker calcula su SSIM frente al original.
+6. DXF, EPS y PDF se generan a partir del SVG actual al abrir su pestaña de exportación, así que comparten su geometría limpia e incluyen cualquier edición.
 
 **Traducciones**: `src/i18n/locales/es.ts` es el catálogo de referencia. TypeScript obliga a que cada idioma defina exactamente las mismas claves, y un test comprueba que cada traducción conserve los mismos `{marcadores}`. Para añadir un idioma, copia `en.ts`, tradúcelo y regístralo en `src/i18n/core.ts`.
 

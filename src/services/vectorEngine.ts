@@ -1,41 +1,28 @@
-import {
-  trace,
-  traceGeometry,
-  centerlineTrace,
-  centerlinePolylines,
-  toDxf,
-  toEps,
-  toPdf,
-  countPathNodes,
-  extractPalette,
-  compareImages,
-  TRACE_DEFAULTS,
-} from 'vecline/core';
+import { trace, centerlineTrace, extractPalette, compareImages, TRACE_DEFAULTS } from 'vecline/core';
 import ImageTracer from 'imagetracerjs';
 import { preprocessRaster, type Raster } from '../utils/imageProcessing';
-import { centerlineToDxf, centerlineToEps, centerlineToPdf } from '../utils/centerlineExport';
-import type { ExportFormat, PaletteColor, ProgressStage, VectorOptions, VectorResult } from '../types/vector';
+import { refineSvg } from './svgRefine';
+import { countAnchors } from '../utils/pathParser';
+import type { PaletteColor, ProgressStage, VectorOptions, VectorResult } from '../types/vector';
 
 /**
  * Pure vectorization engine. It has no knowledge of workers or the DOM, so it
  * runs the same inside the Web Worker and under Vitest.
+ *
+ * Outline pipeline: detect the image's real colours → trace with vecline
+ * (shared region boundaries, sub-pixel edges, true circles) → refit the
+ * geometry so straight edges are straight and corners sharp (svgRefine).
  */
 
 export type ProgressCallback = (stage: ProgressStage, percent: number) => void;
 
-/** The preprocessed raster and options of a trace, kept to build exports on demand. */
-export interface TraceContext {
-  raster: Raster;
-  options: VectorOptions;
-}
-
-function countNodes(svg: string): number {
-  try {
-    return countPathNodes(svg);
-  } catch {
-    return (svg.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length;
-  }
-}
+/**
+ * A colour must cover at least this share of the image to count as one of its
+ * real colours. Anti-aliasing blends between two colours stay far below it
+ * (≤ 0.4 % on the samples) while the smallest real colour covers ≥ 1 %.
+ */
+const REAL_COLOUR_MIN_SHARE = 0.004;
+const MAX_AUTO_COLOURS = 32;
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   let clean = hex.replace('#', '');
@@ -47,20 +34,84 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
-function veclineTraceOptions(options: VectorOptions) {
+type VeclinePaletteEntry = ReturnType<typeof extractPalette>[number];
+
+/**
+ * The palette to trace with. Automatic mode keeps only the colours that cover
+ * a real share of the image, so anti-aliasing fringe never takes a slot (and
+ * two similar real colours are never merged to make room for it).
+ */
+function choosePalette(raster: Raster, options: VectorOptions): VeclinePaletteEntry[] {
+  if (!options.autoColors) return extractPalette(raster, Math.min(options.colors, 64)) || [];
+  const all = (extractPalette(raster, MAX_AUTO_COLOURS) || []).sort((a, b) => b.weight - a.weight);
+  const real: VeclinePaletteEntry[] = [];
+  for (const candidate of all) {
+    if (candidate.weight < REAL_COLOUR_MIN_SHARE) continue;
+    if (!isBlendOf(candidate, real)) real.push(candidate);
+  }
+  return real.length >= 2 ? real : all.slice(0, 2);
+}
+
+/**
+ * Anti-aliasing fringe: a colour lying between two larger colours (a mix of
+ * them) that covers clearly less than either. On small images the fringe can
+ * cover several percent, so its share alone does not give it away.
+ */
+function isBlendOf(c: VeclinePaletteEntry, larger: VeclinePaletteEntry[]): boolean {
+  const v = (p: VeclinePaletteEntry) => [p.rgb.r, p.rgb.g, p.rgb.b];
+  const [cr, cg, cb] = v(c);
+  for (let i = 0; i < larger.length; i++) {
+    for (let j = i + 1; j < larger.length; j++) {
+      const a = larger[i];
+      const b = larger[j];
+      if (c.weight > 0.5 * Math.min(a.weight, b.weight)) continue;
+      const [ar, ag, ab] = v(a);
+      const [br, bg, bb] = v(b);
+      const d = [br - ar, bg - ag, bb - ab];
+      const span = Math.hypot(d[0], d[1], d[2]);
+      if (span < 40) continue;
+      const t = ((cr - ar) * d[0] + (cg - ag) * d[1] + (cb - ab) * d[2]) / (span * span);
+      if (t <= 0.05 || t >= 0.95) continue;
+      const off = Math.hypot(ar + d[0] * t - cr, ag + d[1] * t - cg, ab + d[2] * t - cb);
+      if (off <= 0.08 * span) return true;
+    }
+  }
+  return false;
+}
+
+function toPaletteColors(palette: VeclinePaletteEntry[], pixels: number): PaletteColor[] {
+  return palette.map((p) => ({
+    hex: p.hex,
+    r: p.rgb.r,
+    g: p.rgb.g,
+    b: p.rgb.b,
+    a: p.rgb.a,
+    count: Math.round(p.weight * pixels),
+    percentage: Math.round(p.weight * 100),
+  }));
+}
+
+function veclineTraceOptions(options: VectorOptions, palette: VeclinePaletteEntry[]) {
   return {
     ...TRACE_DEFAULTS,
-    colors: options.colors,
+    colors: palette.length || options.colors,
+    // In automatic mode the detected colours are imposed as-is
+    ...(options.autoColors && palette.length ? { fixedPalette: palette.map((p) => p.rgb) } : {}),
     subpixel: options.subpixel,
     tolerance: options.tolerance,
     fitError: options.fitError,
     cornerAngle: options.cornerAngle,
     minArea: options.minArea,
     refineIterations: options.refineIterations,
-    smooth: options.smooth ?? 1,
+    smooth: options.smooth ?? 0,
     background: options.background,
     primitives: options.primitives,
     gradients: options.gradients,
+    // Fit every boundary between two regions once, for both: neighbouring
+    // shapes then share their edge exactly instead of tearing apart
+    mosaic: true,
+    // Merge neighbouring curves that one curve can describe
+    optimizeError: 1.5,
   };
 }
 
@@ -73,42 +124,24 @@ function centerlineOptions(options: VectorOptions) {
   };
 }
 
-function extractPaletteColors(raster: Raster, colors: number): PaletteColor[] {
-  const pixels = raster.width * raster.height;
-  return (extractPalette(raster, Math.min(colors, 64)) || []).map((p) => ({
-    hex: p.hex,
-    r: p.rgb.r,
-    g: p.rgb.g,
-    b: p.rgb.b,
-    a: p.rgb.a,
-    count: Math.round(p.weight * pixels),
-    percentage: Math.round(p.weight * 100),
-  }));
-}
-
-/**
- * Trace a raster into SVG. Heavy exports (DXF/EPS/PDF) are not built here:
- * call {@link exportTrace} with the returned context when the user asks for one.
- */
+/** Trace a raster into SVG. CAD/print exports are built from this SVG later. */
 export function vectorizeRaster(
   input: Raster,
   options: VectorOptions,
   onProgress: ProgressCallback = () => {}
-): { result: VectorResult; context: TraceContext } {
+): VectorResult {
   const startTime = performance.now();
   const raster = preprocessRaster(input, options.contrast || 0, options.denoise || 0);
-  const context: TraceContext = { raster, options };
 
-  const finish = (partial: Omit<VectorResult, 'originalSvg' | 'executionTimeMs' | 'fileSizeBytes' | 'nodesCount' | 'rasterSizeBytes'>) => ({
-    result: {
-      ...partial,
-      originalSvg: partial.svg,
-      nodesCount: countNodes(partial.svg),
-      executionTimeMs: Math.round(performance.now() - startTime),
-      fileSizeBytes: new Blob([partial.svg]).size,
-      rasterSizeBytes: 0,
-    },
-    context,
+  const finish = (
+    partial: Omit<VectorResult, 'originalSvg' | 'executionTimeMs' | 'fileSizeBytes' | 'nodesCount' | 'rasterSizeBytes'>
+  ): VectorResult => ({
+    ...partial,
+    originalSvg: partial.svg,
+    nodesCount: countAnchors(partial.svg),
+    executionTimeMs: Math.round(performance.now() - startTime),
+    fileSizeBytes: new Blob([partial.svg]).size,
+    rasterSizeBytes: 0,
   });
 
   if (options.traceMethod === 'centerline') {
@@ -127,12 +160,17 @@ export function vectorizeRaster(
   }
 
   onProgress('progress.palette', 20);
-  const palette = extractPaletteColors(raster, options.colors);
+  const palette = choosePalette(raster, options);
+  const paletteColors = toPaletteColors(palette, raster.width * raster.height);
+  const colorCount = palette.length || options.colors;
 
+  let svg: string;
+  let shapes: number;
+  let regions: number;
   if (options.engine === 'imagetracer') {
     onProgress('progress.imagetracer', 55);
-    const svg = ImageTracer.imagedataToSVG(raster as unknown as ImageData, {
-      numberofcolors: options.colors,
+    svg = ImageTracer.imagedataToSVG(raster as unknown as ImageData, {
+      numberofcolors: colorCount,
       scale: 1,
       blurradius: options.blurRadius ?? 0,
       blurdelta: 20,
@@ -140,46 +178,23 @@ export function vectorizeRaster(
       linefilter: true,
       corsenabled: false,
     });
-    const shapes = (svg.match(/<path/g) || []).length;
-    return finish({ svg, shapes, colors: options.colors, regions: shapes, palette, isCenterline: false });
+    shapes = regions = (svg.match(/<path/g) || []).length;
+  } else {
+    onProgress('progress.boundaries', 50);
+    const traced = trace(raster, veclineTraceOptions(options, palette));
+    svg = traced.svg;
+    shapes = traced.shapes;
+    regions = traced.regions;
   }
 
-  onProgress('progress.boundaries', 50);
-  const traced = trace(raster, veclineTraceOptions(options));
-  onProgress('progress.fitting', 90);
-  return finish({
-    svg: traced.svg,
-    shapes: traced.shapes,
-    colors: traced.colors,
-    regions: traced.regions,
-    palette,
-    isCenterline: false,
-  });
-}
-
-/**
- * Build a CAD / print export from a previous trace
- */
-export function exportTrace(context: TraceContext, format: ExportFormat): string | Uint8Array {
-  const { raster, options } = context;
-
-  if (options.traceMethod === 'centerline') {
-    const polylines = centerlinePolylines(raster, centerlineOptions(options));
-    const strokeWidth = options.centerlineStrokeWidth || 2;
-    const stroke = options.centerlineStrokeColor || '#000000';
-    if (format === 'dxf') return centerlineToDxf(polylines, raster.height);
-    if (format === 'eps') return centerlineToEps(polylines, raster.width, raster.height, strokeWidth, stroke);
-    return centerlineToPdf(polylines, raster.width, raster.height, strokeWidth, stroke);
+  // Straight edges straight, corners sharp, arcs round. Gradients are left
+  // alone: their stops are fitted to the traced shapes as they are.
+  if (options.refine && !options.gradients) {
+    onProgress('progress.fitting', 85);
+    svg = refineSvg(svg);
   }
 
-  if (options.engine === 'imagetracer') {
-    throw new Error('DXF, EPS and PDF from the engine require Vecline');
-  }
-
-  const geometry = traceGeometry(raster, veclineTraceOptions(options));
-  if (format === 'dxf') return toDxf(geometry);
-  if (format === 'eps') return toEps(geometry);
-  return toPdf(geometry);
+  return finish({ svg, shapes, colors: colorCount, regions, palette: paletteColors, isCenterline: false });
 }
 
 /**

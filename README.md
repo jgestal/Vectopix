@@ -33,7 +33,9 @@
 ## Features
 
 - **A calm, legible workspace**: the canvas is a cutting mat, settings stay in one panel with the advanced ones folded away, and the interface follows your system's light or dark mode.
-- **Sub-pixel vectorization** powered by [vecline](https://www.npmjs.com/package/vecline): colour quantization in Oklab space, anti-aliasing reconstruction and Bézier curve fitting. ImageTracerJS is available as an alternative engine.
+- **Clean geometry, not traced pixels**: straight edges come out as single straight lines, corners are sharp and arcs are true circular arcs. A flat logo becomes the handful of nodes a designer would draw: the sample hexagon logo has 41 nodes instead of several hundred.
+- **Automatic colour detection**: the real colours of the image are found and used as-is, while the blended pixels of anti-aliased edges are ignored, so similar colours are never merged and no ghost outlines appear.
+- **Sub-pixel tracing** powered by [vecline](https://www.npmjs.com/package/vecline): Oklab colour quantization, anti-aliasing reconstruction, shared boundaries between neighbouring shapes and detection of circles, ellipses and rectangles. ImageTracerJS is available as an alternative engine.
 - **Two tracing methods**
   - *Outline*: filled colour regions, for logos, illustrations, pixel art or photos.
   - *Centerline*: single-stroke paths, for laser cutters, plotters, CNC and sketches.
@@ -151,7 +153,8 @@ src/
 ├── i18n/                       Translations: lightweight runtime, one file per language
 ├── config/presets.ts           Default options and the single preset table
 ├── services/
-│   ├── vectorEngine.ts         Pure engine (no DOM, no worker): tracing, export, SSIM
+│   ├── vectorEngine.ts         Pure engine (no DOM, no worker): colour detection, tracing, SSIM
+│   ├── svgRefine.ts            Geometry clean-up: straight lines, sharp corners, circular arcs
 │   └── vectorWorkerClient.ts   Worker client: requests, progress and cancellation
 ├── workers/vector.worker.ts    Thin wrapper around the engine inside the Web Worker
 ├── components/                 Top bar, canvas controls, Viewport (canvas and node editor), settings, dialogs…
@@ -168,10 +171,11 @@ electron/main.cjs               Desktop shell: serves dist/ from a private app:/
 **How a vectorization flows**
 
 1. The image is decoded into a `<canvas>`. Anything above 4 MP is downscaled so tracing stays smooth.
-2. The pixels are transferred (zero-copy) to the Web Worker, which preprocesses and traces them with vecline or ImageTracerJS while reporting progress.
-3. If a new request arrives while one is running, the worker is terminated and a fresh one started: a real cancellation, the old job stops using the CPU.
-4. Once the SVG is on screen, it is rendered in the background and the worker computes its SSIM against the original.
-5. DXF, EPS and PDF are only built when you open their export tab: from the exact trace geometry when nothing was edited, or from the current SVG otherwise, so every change is included.
+2. The pixels are transferred (zero-copy) to the Web Worker, which preprocesses them, detects the real colours and traces them with vecline or ImageTracerJS while reporting progress.
+3. The traced outlines are refitted: each one is resampled, its real corners found (sharp turns, or two straight runs meeting at an angle), and every stretch between corners redrawn as one straight line, a circular arc or as few Bézier curves as possible. Where two lines meet, the corner moves to their exact intersection.
+4. If a new request arrives while one is running, the worker is terminated and a fresh one started: a real cancellation, the old job stops using the CPU.
+5. Once the SVG is on screen, it is rendered in the background and the worker computes its SSIM against the original.
+6. DXF, EPS and PDF are built from the current SVG when you open their export tab, so they share its clean geometry and include every edit.
 
 **Translations**: `src/i18n/locales/es.ts` is the reference catalogue. TypeScript requires every other language to define exactly the same keys, and a test checks that every translation keeps the same `{placeholders}`. To add a language, copy `en.ts`, translate it and register it in `src/i18n/core.ts`.
 

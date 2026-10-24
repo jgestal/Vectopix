@@ -665,6 +665,10 @@ a {
   margin-bottom: 6px;
 }
 
+.control .check-row {
+  padding-top: 2px;
+}
+
 .control-hint {
   margin-top: 4px;
   font-size: var(--text-sm);

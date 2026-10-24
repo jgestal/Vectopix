@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Download, FileText } from 'lucide-react';
 import type { ExportFormat, VectorResult } from '../types/vector';
-import { requestExport } from '../services/vectorWorkerClient';
 import { useI18n, type MessageKey } from '../i18n';
 import { Dialog } from './ui/Dialog';
 import {
@@ -46,20 +45,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [copied, setCopied] = useState(false);
   const { t } = useI18n();
 
-  // DXF / EPS / PDF are built only when their tab is opened (a format with
-  // no entry yet is still loading). An unedited trace uses the worker's exact
-  // geometry; after edits, or for engines the worker can't export, they are
-  // built from the current SVG so every change is included.
-  const hasEdits = result.svg !== result.originalSvg;
+  // DXF / EPS / PDF are built from the current SVG, only when their tab is
+  // opened (a format with no entry yet is still loading). Building from the
+  // SVG means node and colour edits are always included.
   const [cadExports, setCadExports] = useState<Partial<Record<ExportFormat, ExportState>>>({});
   const requestedFormats = useRef(new Set<ExportFormat>());
   useEffect(() => {
     if (!isCadFormat(activeTab) || requestedFormats.current.has(activeTab)) return;
     const format = activeTab;
     requestedFormats.current.add(format);
-    const fromSvg = () =>
-      import('../utils/svgExport').then(({ exportSvg }) => exportSvg(result.svg, format, result.isCenterline));
-    (hasEdits ? fromSvg() : requestExport(format).catch(fromSvg))
+    import('../utils/svgExport')
+      .then(({ exportSvg }) => exportSvg(result.svg, format, result.isCenterline))
       .then((data) => setCadExports((prev) => ({ ...prev, [format]: { status: 'ready', data } })))
       .catch((err: unknown) =>
         setCadExports((prev) => ({
@@ -67,7 +63,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           [format]: { status: 'error', message: err instanceof Error ? err.message : String(err) },
         }))
       );
-  }, [activeTab, hasEdits, result.svg, result.isCenterline]);
+  }, [activeTab, result.svg, result.isCenterline]);
 
   const width = imageDimensions?.width || 400;
   const height = imageDimensions?.height || 400;

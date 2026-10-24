@@ -172,16 +172,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <>
             <section className="settings-section">
-              <Slider
-                id="color-slider"
-                label={t('sidebar.colors')}
-                value={options.colors}
-                display={String(options.colors)}
-                min={2}
-                max={64}
-                step={1}
-                onChange={(v) => updateOption('colors', v)}
-              />
+              <div className="control">
+                <div className="control-row">
+                  <span className="control-label-inline">{t('sidebar.colors')}</span>
+                  <output>{options.autoColors ? palette.length || '' : options.colors}</output>
+                </div>
+                <label className="check-row">
+                  <input
+                    type="checkbox"
+                    checked={options.autoColors}
+                    onChange={(e) => updateOption('autoColors', e.target.checked)}
+                  />
+                  <span>
+                    <span className="check-title">{t('sidebar.autoColors')}</span>
+                    <span className="check-desc">{t('sidebar.autoColorsDesc')}</span>
+                  </span>
+                </label>
+                {!options.autoColors && (
+                  <input
+                    id="color-slider"
+                    type="range"
+                    min={2}
+                    max={64}
+                    step={1}
+                    value={options.colors}
+                    onChange={(e) => updateOption('colors', Number(e.target.value))}
+                    aria-label={t('sidebar.colors')}
+                  />
+                )}
+              </div>
               {palette.length > 0 && (
                 <div className="palette" aria-label={t('sidebar.palette', { count: palette.length })}>
                   {palette.map((color) => (
@@ -204,6 +223,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <ChevronRight size={16} className="advanced-chevron" />
                 {t('sidebar.advanced')}
               </summary>
+
+              <Toggle
+                title={t('sidebar.refine')}
+                desc={t('sidebar.refineDesc')}
+                checked={options.refine}
+                onChange={(v) => updateOption('refine', v)}
+              />
 
               <div className="control">
                 <span className="control-label">{t('sidebar.engine')}</span>

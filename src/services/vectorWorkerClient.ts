@@ -1,5 +1,4 @@
 import type {
-  ExportFormat,
   VectorOptions,
   VectorResult,
   WorkerMessage,
@@ -105,13 +104,6 @@ export async function vectorizeWithWorker(
   );
   if (response.type !== 'SUCCESS') throw new Error('Unexpected engine response');
   return { ...response.result, rasterSizeBytes };
-}
-
-/** Build DXF / EPS / PDF from the latest finished trace. */
-export async function requestExport(format: ExportFormat): Promise<string | Uint8Array> {
-  const response = await send({ type: 'EXPORT', id: nextId('export'), format });
-  if (response.type !== 'EXPORT_RESULT') throw new Error('Unexpected engine response');
-  return response.data;
 }
 
 /** SSIM between two same-sized images, computed off the main thread. */

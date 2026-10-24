@@ -20,6 +20,10 @@ export interface VectorOptions {
   traceMethod: TraceMethod;
   preset: VectorPreset;
   colors: number;
+  /** Detect the image's real colours instead of using `colors`. */
+  autoColors: boolean;
+  /** Refit the traced paths: straight edges, sharp corners, round arcs. */
+  refine: boolean;
   subpixel: boolean;
   tolerance: number;
   fitError: number;
@@ -94,11 +98,6 @@ export type WorkerMessage =
       options: VectorOptions;
     }
   | {
-      type: 'EXPORT';
-      id: string;
-      format: ExportFormat;
-    }
-  | {
       type: 'MEASURE';
       id: string;
       width: number;
@@ -118,11 +117,6 @@ export type WorkerResponse =
       type: 'SUCCESS';
       id: string;
       result: VectorResult;
-    }
-  | {
-      type: 'EXPORT_RESULT';
-      id: string;
-      data: string | Uint8Array;
     }
   | {
       type: 'MEASURE_RESULT';

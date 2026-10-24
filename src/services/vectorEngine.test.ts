@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exportTrace, measureSsim, vectorizeRaster } from './vectorEngine';
+import { measureSsim, vectorizeRaster } from './vectorEngine';
 import { DEFAULT_OPTIONS } from '../config/presets';
 import type { VectorOptions } from '../types/vector';
 
@@ -10,12 +10,55 @@ function discRaster() {
   const data = new Uint8ClampedArray(width * height * 4);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 4;
       const inside = (x - 32) ** 2 + (y - 32) ** 2 < 400;
-      data.set(inside ? [220, 30, 30, 255] : [255, 255, 255, 255], i);
+      data.set(inside ? [220, 30, 30, 255] : [255, 255, 255, 255], (y * width + x) * 4);
     }
   }
   return { width, height, data };
+}
+
+/**
+ * 120×120 white image with a navy square whose edges sit between pixels, so
+ * the border is a ring of anti-aliased blends: the tracer's classic trap.
+ */
+function antialiasedSquare() {
+  const size = 120;
+  const data = new Uint8ClampedArray(size * size * 4);
+  const lo = 20.5;
+  const hi = 99.5;
+  const coverage = (p: number) => Math.max(0, Math.min(1, Math.min(p + 1, hi) - Math.max(p, lo)));
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const c = coverage(x) * coverage(y);
+      const mix = (fg: number) => Math.round(fg * c + 255 * (1 - c));
+      data.set([mix(30), mix(27), mix(75), 255], (y * size + x) * 4);
+    }
+  }
+  return { width: size, height: size, data };
+}
+
+/** 160×160 white image with an anti-aliased triangle: diagonal edges, like a logo facet. */
+function antialiasedTriangle() {
+  const size = 160;
+  const data = new Uint8ClampedArray(size * size * 4);
+  const [a, b, c] = [
+    [80, 15],
+    [145, 140],
+    [15, 140],
+  ];
+  const side = (p: number[], q: number[], x: number, y: number) => (q[0] - p[0]) * (y - p[1]) - (q[1] - p[1]) * (x - p[0]);
+  const inside = (x: number, y: number) => side(a, b, x, y) >= 0 && side(b, c, x, y) >= 0 && side(c, a, x, y) >= 0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      // 4×4 supersampling gives each edge pixel its true coverage
+      let hits = 0;
+      for (let sy = 0; sy < 4; sy++) for (let sx = 0; sx < 4; sx++) if (inside(x + (sx + 0.5) / 4, y + (sy + 0.5) / 4)) hits++;
+      const cov = hits / 16;
+      const mix = (fg: number) => Math.round(fg * cov + 255 * (1 - cov));
+      data.set([mix(79), mix(70), mix(229), 255], (y * size + x) * 4);
+    }
+  }
+  return { width: size, height: size, data };
 }
 
 /** 64×64 white image with a 4px black diagonal stroke, the typical centerline input. */
@@ -34,54 +77,60 @@ function strokeRaster() {
 const options = (overrides: Partial<VectorOptions> = {}): VectorOptions => ({ ...DEFAULT_OPTIONS, ...overrides });
 
 describe('vectorizeRaster', () => {
-  it('traces with vecline and extracts the palette', () => {
+  it('traces with vecline and reports progress in order', () => {
     const stages: number[] = [];
-    const { result } = vectorizeRaster(discRaster(), options(), (_, pct) => stages.push(pct));
+    const result = vectorizeRaster(discRaster(), options(), (_, pct) => stages.push(pct));
 
     expect(result.svg).toMatch(/^<svg/);
     expect(result.shapes).toBeGreaterThan(0);
     expect(result.nodesCount).toBeGreaterThan(0);
-    expect(result.palette.map((p) => p.hex)).toContain('#dc1e1e');
     expect(stages).toEqual([...stages].sort((a, b) => a - b));
   });
 
+  it('detects the real colours and ignores anti-aliasing blends', () => {
+    const result = vectorizeRaster(antialiasedSquare(), options());
+    expect(result.colors).toBe(2);
+    expect(result.palette.map((p) => p.hex).sort()).toEqual(['#1e1b4b', '#fff']);
+  });
+
+  it('draws a square with anti-aliased edges as an exact square', () => {
+    const result = vectorizeRaster(antialiasedSquare(), options());
+    const square = result.svg.match(/<(rect|path)\b[^>]*fill="#1e1b4b"[^>]*>/)?.[0] ?? '';
+    if (square.startsWith('<path')) {
+      const d = square.match(/\sd="([^"]*)"/)?.[1] ?? '';
+      expect(d).not.toMatch(/[cCqQsS]/);
+      expect((d.match(/[lLhHvV]/g) || []).length).toBeLessThanOrEqual(4);
+    } else {
+      expect(square).toMatch(/^<rect/);
+    }
+  });
+
+  it('draws a triangle with anti-aliased diagonal edges as three straight lines', () => {
+    const triangle = (refine: boolean) =>
+      vectorizeRaster(antialiasedTriangle(), options({ refine })).svg.match(/<path\b[^>]*fill="#4f46e5"[^>]*>/)?.[0] ?? '';
+    const clean = triangle(true).match(/\sd="([^"]*)"/)?.[1] ?? '';
+    expect(clean).not.toMatch(/[cCqQsS]/);
+    expect((clean.match(/[lLhHvV]/g) || []).length).toBe(2); // the third side is drawn by z
+    // Without clean-up the raw trace is left as the tracer produced it
+    expect(triangle(false)).not.toBe(triangle(true));
+  });
+
+  it('uses the requested number of colours when automatic detection is off', () => {
+    const result = vectorizeRaster(discRaster(), options({ autoColors: false, colors: 6 }));
+    expect(result.palette.length).toBeLessThanOrEqual(6);
+  });
+
   it('applies preprocessing before ImageTracer too', () => {
-    const plain = vectorizeRaster(discRaster(), options({ engine: 'imagetracer' })).result.svg;
-    const contrasted = vectorizeRaster(discRaster(), options({ engine: 'imagetracer', contrast: 50 })).result.svg;
+    const plain = vectorizeRaster(discRaster(), options({ engine: 'imagetracer' })).svg;
+    const contrasted = vectorizeRaster(discRaster(), options({ engine: 'imagetracer', contrast: 50 })).svg;
     expect(contrasted).not.toBe(plain);
   });
 
   it('traces centerlines with the stroke colour in the palette', () => {
-    const { result } = vectorizeRaster(
-      strokeRaster(),
-      options({ traceMethod: 'centerline', centerlineStrokeColor: '#ff8800' })
-    );
+    const result = vectorizeRaster(strokeRaster(), options({ traceMethod: 'centerline', centerlineStrokeColor: '#ff8800' }));
     expect(result.isCenterline).toBe(true);
     expect(result.shapes).toBeGreaterThan(0);
     expect(result.palette[0]).toMatchObject({ hex: '#ff8800', r: 255, g: 136, b: 0 });
-  });
-});
-
-describe('exportTrace', () => {
-  it('builds DXF, EPS and PDF on demand from the trace context', () => {
-    const { context } = vectorizeRaster(discRaster(), options());
-    expect(exportTrace(context, 'dxf')).toContain('SECTION');
-    expect(exportTrace(context, 'eps')).toMatch(/^%!PS-Adobe/);
-    const pdf = exportTrace(context, 'pdf') as Uint8Array;
-    expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe('%PDF-');
-  });
-
-  it('exports centerline traces in all three formats', () => {
-    const { context } = vectorizeRaster(strokeRaster(), options({ traceMethod: 'centerline' }));
-    expect(exportTrace(context, 'dxf')).toContain('POLYLINE');
-    expect(exportTrace(context, 'eps')).toContain('%%BoundingBox: 0 0 64 64');
-    const pdf = new TextDecoder().decode(exportTrace(context, 'pdf') as Uint8Array);
-    expect(pdf).toMatch(/^%PDF-1\.4[\s\S]*%%EOF$/);
-  });
-
-  it('rejects CAD formats for the ImageTracer engine', () => {
-    const { context } = vectorizeRaster(discRaster(), options({ engine: 'imagetracer' }));
-    expect(() => exportTrace(context, 'dxf')).toThrow(/Vecline/);
   });
 });
 
