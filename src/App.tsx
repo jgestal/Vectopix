@@ -26,7 +26,8 @@ import { ToastContainer } from './components/Toast';
 import { replaceColorInSvg, removeColorFromSvg, normalizeHex } from './utils/paletteUtils';
 import { parseSvgDocument, serializeParsedDoc, simplifySvgPaths } from './utils/pathParser';
 import { rasterizeForComparison } from './utils/fidelity';
-import { readImageFile } from './utils/imageLoading';
+import { readImageFile, readDrop, fetchImage } from './utils/imageLoading';
+import { SAMPLE_IMAGES, generateSampleDataUrl } from './utils/sampleImages';
 import { DEFAULT_OPTIONS, applyPreset } from './config/presets';
 import { useI18n, type MessageKey } from './i18n';
 import { LocalizedError } from './i18n/errors';
@@ -120,7 +121,7 @@ export function App() {
         if (err instanceof VectorizationCanceledError) return;
         console.error('Vectorization error:', err);
         const message =
-          err instanceof LocalizedError ? t(err.key) : err instanceof Error ? err.message : t('toast.unknownError');
+          err instanceof LocalizedError ? t(err.key, err.params) : err instanceof Error ? err.message : t('toast.unknownError');
         showToast(t('toast.vectorizeError', { message }), 'warning');
       } finally {
         if (traceId === traceCounter.current) {
@@ -204,10 +205,38 @@ export function App() {
         handleImageSelected(dataUrl, file.name || t('file.pastedName'));
         if (toastText) showToast(toastText, 'success');
       } catch (err) {
-        showToast(t(err instanceof LocalizedError ? err.key : 'error.fileRead'), 'warning');
+        showToast(err instanceof LocalizedError ? t(err.key, err.params) : t('error.fileRead'), 'warning');
       }
     },
     [handleImageSelected, showToast, t]
+  );
+
+  const loadSample = useCallback(
+    (id: string) => {
+      const sample = SAMPLE_IMAGES.find((s) => s.id === id);
+      if (sample) handleImageSelected(generateSampleDataUrl(sample.id), `${sample.id}.png`, sample.preset);
+    },
+    [handleImageSelected]
+  );
+
+  // One entry point for every drop: system files, gallery samples, web images
+  const handleDrop = useCallback(
+    async (dataTransfer: DataTransfer) => {
+      const dropped = readDrop(dataTransfer);
+      if (!dropped) return;
+      if (dropped.kind === 'sample') {
+        loadSample(dropped.id);
+      } else if (dropped.kind === 'file') {
+        loadFile(dropped.file, t('toast.imageLoaded', { name: dropped.file.name }));
+      } else {
+        try {
+          loadFile(await fetchImage(dropped.url));
+        } catch (err) {
+          if (err instanceof LocalizedError) showToast(t(err.key, err.params), 'warning');
+        }
+      }
+    },
+    [loadFile, loadSample, showToast, t]
   );
 
   const handleNewImage = () => {
@@ -379,14 +408,13 @@ export function App() {
 
   const handleAppDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) loadFile(file, t('toast.imageLoaded', { name: file.name }));
+    handleDrop(e.dataTransfer);
   };
 
   return (
     <div className="studio-app-root" onDragOver={handleAppDragOver} onDrop={handleAppDrop}>
       {!rasterUrl ? (
-        <DropZone onImageSelected={handleImageSelected} onFileSelected={(file) => loadFile(file)} />
+        <DropZone onSampleSelected={loadSample} onFileSelected={(file) => loadFile(file)} onDrop={handleDrop} />
       ) : (
         <div className="studio-layout">
           {/* Top Studio Header */}
@@ -472,13 +500,11 @@ export function App() {
           )}
 
           <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
-
-          <ToastContainer
-            toasts={toasts}
-            onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
-          />
         </div>
       )}
+
+      {/* Outside the layout switch so errors on the landing page are shown too */}
+      <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   );
 }

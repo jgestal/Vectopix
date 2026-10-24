@@ -16,6 +16,7 @@ export const fr: Messages = {
   'landing.featureSubpixel': 'Ajustement de courbes de Bézier sous-pixel',
   'landing.featurePrivate': '100 % privé (aucun envoi)',
   'landing.samplesHeader': 'Ou essayez l’un de ces exemples :',
+  'landing.sampleHint': 'Cliquez dessus ou faites-la glisser dans la zone de dépôt',
 
   'sample.tech-logo.title': 'Logo tech géométrique',
   'sample.tech-logo.category': 'Logos',
@@ -295,6 +296,8 @@ export const fr: Messages = {
   'error.fileRead': 'Impossible de lire le fichier',
   'error.imageDecode': 'Impossible de lire l’image',
   'error.workerCrashed': 'Le moteur de vectorisation s’est arrêté de manière inattendue',
+  'error.unsupportedFormat': 'Format non pris en charge : {format}. Essayez PNG, JPG, WebP, GIF ou BMP.',
+  'error.remoteImage': 'Impossible de récupérer l’image depuis cette page. Enregistrez-la puis déposez le fichier.',
 
   'file.pastedName': 'image-collee.png',
 };

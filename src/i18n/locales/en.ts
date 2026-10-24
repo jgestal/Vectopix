@@ -16,6 +16,7 @@ export const en: Messages = {
   'landing.featureSubpixel': 'Sub-pixel Bézier curve fitting',
   'landing.featurePrivate': '100% private (nothing uploaded)',
   'landing.samplesHeader': 'Or try one of these samples:',
+  'landing.sampleHint': 'Click it or drag it onto the drop zone',
 
   'sample.tech-logo.title': 'Geometric tech logo',
   'sample.tech-logo.category': 'Logos',
@@ -295,6 +296,8 @@ export const en: Messages = {
   'error.fileRead': 'The file could not be read',
   'error.imageDecode': 'The image could not be read',
   'error.workerCrashed': 'The vectorization engine stopped unexpectedly',
+  'error.unsupportedFormat': 'Unsupported format: {format}. Try PNG, JPG, WebP, GIF or BMP.',
+  'error.remoteImage': 'Couldn\'t get the image from that page. Save it to your computer and drop the file.',
 
   'file.pastedName': 'pasted-image.png',
 };

@@ -16,6 +16,7 @@ export const de: Messages = {
   'landing.featureSubpixel': 'Bézier-Kurvenanpassung mit Subpixel-Genauigkeit',
   'landing.featurePrivate': '100 % privat (kein Upload)',
   'landing.samplesHeader': 'Oder probiere eines dieser Beispiele:',
+  'landing.sampleHint': 'Anklicken oder in den Ablagebereich ziehen',
 
   'sample.tech-logo.title': 'Geometrisches Tech-Logo',
   'sample.tech-logo.category': 'Logos',
@@ -295,6 +296,8 @@ export const de: Messages = {
   'error.fileRead': 'Die Datei konnte nicht gelesen werden',
   'error.imageDecode': 'Das Bild konnte nicht gelesen werden',
   'error.workerCrashed': 'Die Vektorisierungs-Engine wurde unerwartet beendet',
+  'error.unsupportedFormat': 'Nicht unterstütztes Format: {format}. Versuche PNG, JPG, WebP, GIF oder BMP.',
+  'error.remoteImage': 'Das Bild konnte nicht von dieser Seite geladen werden. Speichere es und ziehe die Datei hierher.',
 
   'file.pastedName': 'eingefuegtes-bild.png',
 };

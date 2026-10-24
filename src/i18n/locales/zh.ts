@@ -16,6 +16,7 @@ export const zh: Messages = {
   'landing.featureSubpixel': '亚像素贝塞尔曲线拟合',
   'landing.featurePrivate': '100% 私密（不上传任何内容）',
   'landing.samplesHeader': '或者试试这些示例：',
+  'landing.sampleHint': '点击或拖到上传区域',
 
   'sample.tech-logo.title': '几何科技标志',
   'sample.tech-logo.category': '标志',
@@ -294,6 +295,8 @@ export const zh: Messages = {
   'error.fileRead': '无法读取文件',
   'error.imageDecode': '无法读取图片',
   'error.workerCrashed': '矢量化引擎意外停止',
+  'error.unsupportedFormat': '不支持的格式：{format}。请尝试 PNG、JPG、WebP、GIF 或 BMP。',
+  'error.remoteImage': '无法从该网页获取图片。请先保存到电脑，再拖入文件。',
 
   'file.pastedName': 'pasted-image.png',
 };

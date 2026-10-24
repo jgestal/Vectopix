@@ -16,6 +16,7 @@ export const pt: Messages = {
   'landing.featureSubpixel': 'Ajuste de curvas de Bézier subpixel',
   'landing.featurePrivate': '100% privado (nada é enviado)',
   'landing.samplesHeader': 'Ou experimente um destes exemplos:',
+  'landing.sampleHint': 'Clique ou arraste para a área de envio',
 
   'sample.tech-logo.title': 'Logotipo tech geométrico',
   'sample.tech-logo.category': 'Logotipos',
@@ -295,6 +296,8 @@ export const pt: Messages = {
   'error.fileRead': 'Não foi possível ler o arquivo',
   'error.imageDecode': 'Não foi possível ler a imagem',
   'error.workerCrashed': 'O motor de vetorização parou inesperadamente',
+  'error.unsupportedFormat': 'Formato não suportado: {format}. Experimente PNG, JPG, WebP, GIF ou BMP.',
+  'error.remoteImage': 'Não foi possível obter a imagem dessa página. Salve-a no computador e arraste o arquivo.',
 
   'file.pastedName': 'imagem-colada.png',
 };

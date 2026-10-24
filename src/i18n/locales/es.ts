@@ -19,6 +19,7 @@ export const es = {
   'landing.featureSubpixel': 'Ajuste de curvas Bézier sub-píxel',
   'landing.featurePrivate': '100 % privado (sin subir nada)',
   'landing.samplesHeader': 'O prueba con estas muestras:',
+  'landing.sampleHint': 'Haz clic o arrástrala a la zona de carga',
 
   'sample.tech-logo.title': 'Logo tecnológico geométrico',
   'sample.tech-logo.category': 'Logotipos',
@@ -309,6 +310,8 @@ export const es = {
   'error.fileRead': 'No se pudo leer el archivo',
   'error.imageDecode': 'No se pudo leer la imagen',
   'error.workerCrashed': 'El motor de vectorización se ha detenido inesperadamente',
+  'error.unsupportedFormat': 'Formato no compatible: {format}. Prueba con PNG, JPG, WebP, GIF o BMP.',
+  'error.remoteImage': 'No se pudo obtener la imagen de esa página. Guárdala en tu equipo y arrastra el archivo.',
 
   'file.pastedName': 'imagen-pegada.png',
 };

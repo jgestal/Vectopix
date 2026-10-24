@@ -8,20 +8,18 @@ import {
   Layers,
 } from 'lucide-react';
 import { SAMPLE_IMAGES, generateSampleDataUrl } from '../utils/sampleImages';
-import type { SampleImageItem, VectorPreset } from '../types/vector';
+import type { SampleImageItem } from '../types/vector';
+import { EXTRA_IMAGE_EXTENSIONS, SAMPLE_DRAG_TYPE } from '../utils/imageLoading';
 import { useI18n, type MessageKey } from '../i18n';
 import { LanguageSelect } from './LanguageSelect';
 
 interface DropZoneProps {
-  onImageSelected: (
-    fileDataUrl: string,
-    fileName: string,
-    suggestedPreset?: VectorPreset
-  ) => void;
+  onSampleSelected: (id: string) => void;
   onFileSelected: (file: File) => void;
+  onDrop: (dataTransfer: DataTransfer) => void;
 }
 
-export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected, onFileSelected }) => {
+export const DropZone: React.FC<DropZoneProps> = ({ onSampleSelected, onFileSelected, onDrop }) => {
   const { t } = useI18n();
   const sampleText = (id: string, field: 'title' | 'category' | 'description') =>
     t(`sample.${id}.${field}` as MessageKey);
@@ -39,8 +37,9 @@ export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected, onFileSelec
     setIsDragging(true);
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Moving over a child element also fires dragleave on the card
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -48,12 +47,12 @@ export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected, onFileSelec
     // Stop here so the app-level drop handler doesn't load the file a second time
     e.stopPropagation();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) onFileSelected(file);
+    onDrop(e.dataTransfer);
   };
 
-  const handleSampleClick = (sample: SampleImageItem) => {
-    onImageSelected(sampleThumbs[sample.id], `${sample.id}.png`, sample.preset);
+  const handleSampleDragStart = (e: React.DragEvent, sample: SampleImageItem) => {
+    e.dataTransfer.setData(SAMPLE_DRAG_TYPE, sample.id);
+    e.dataTransfer.effectAllowed = 'copy';
   };
 
   return (
@@ -85,7 +84,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected, onFileSelec
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/bmp"
+            accept={['image/*', ...EXTRA_IMAGE_EXTENSIONS].join(',')}
             className="hidden-file-input"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -138,13 +137,17 @@ export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected, onFileSelec
               <button
                 key={sample.id}
                 className="sample-card"
-                onClick={() => handleSampleClick(sample)}
+                onClick={() => onSampleSelected(sample.id)}
+                draggable
+                onDragStart={(e) => handleSampleDragStart(e, sample)}
+                title={t('landing.sampleHint')}
               >
                 <div className="sample-preview">
                   <img
                     src={sampleThumbs[sample.id]}
                     alt={sampleText(sample.id, 'title')}
                     className="sample-thumb"
+                    draggable={false}
                   />
                 </div>
                 <div className="sample-info">

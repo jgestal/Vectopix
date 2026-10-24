@@ -16,6 +16,7 @@ export const ja: Messages = {
   'landing.featureSubpixel': 'サブピクセル精度のベジェ曲線フィッティング',
   'landing.featurePrivate': '100% プライベート（アップロードなし）',
   'landing.samplesHeader': 'または、サンプルで試してみましょう：',
+  'landing.sampleHint': 'クリックするか、ドロップエリアにドラッグしてください',
 
   'sample.tech-logo.title': '幾何学的なテックロゴ',
   'sample.tech-logo.category': 'ロゴ',
@@ -295,6 +296,8 @@ export const ja: Messages = {
   'error.fileRead': 'ファイルを読み込めませんでした',
   'error.imageDecode': '画像を読み込めませんでした',
   'error.workerCrashed': 'ベクター化エンジンが予期せず停止しました',
+  'error.unsupportedFormat': '対応していない形式です：{format}。PNG・JPG・WebP・GIF・BMP をお試しください。',
+  'error.remoteImage': 'そのページから画像を取得できませんでした。画像を保存してからファイルをドロップしてください。',
 
   'file.pastedName': 'pasted-image.png',
 };

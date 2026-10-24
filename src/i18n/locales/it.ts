@@ -16,6 +16,7 @@ export const it: Messages = {
   'landing.featureSubpixel': 'Adattamento delle curve di Bézier sub-pixel',
   'landing.featurePrivate': '100% privato (nessun caricamento)',
   'landing.samplesHeader': 'Oppure prova uno di questi esempi:',
+  'landing.sampleHint': 'Fai clic o trascinala nell’area di caricamento',
 
   'sample.tech-logo.title': 'Logo tech geometrico',
   'sample.tech-logo.category': 'Loghi',
@@ -295,6 +296,8 @@ export const it: Messages = {
   'error.fileRead': 'Impossibile leggere il file',
   'error.imageDecode': 'Impossibile leggere l’immagine',
   'error.workerCrashed': 'Il motore di vettorizzazione si è arrestato inaspettatamente',
+  'error.unsupportedFormat': 'Formato non supportato: {format}. Prova con PNG, JPG, WebP, GIF o BMP.',
+  'error.remoteImage': 'Impossibile ottenere l’immagine da quella pagina. Salvala sul computer e trascina il file.',
 
   'file.pastedName': 'immagine-incollata.png',
 };
