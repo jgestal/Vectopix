@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia MIT" />
 </p>
 
 <p align="center">
@@ -121,3 +122,7 @@ Cada push a `main` ejecuta los tests y publica el build en GitHub Pages (`.githu
 ## Tecnologías
 
 [React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [lucide-react](https://lucide.dev) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
+
+## Licencia
+
+[MIT](LICENSE) © 2026 Juan Gestal

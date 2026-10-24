@@ -29,5 +29,6 @@
     "vite": "^8.3.0",
     "vitest": "^4.1.12"
   },
-  "description": "Vectorizador raster → SVG/DXF/EPS/PDF que funciona 100% en el navegador, con editor de nodos Bézier."
+  "description": "Vectorizador raster → SVG/DXF/EPS/PDF que funciona 100% en el navegador, con editor de nodos Bézier.",
+  "license": "MIT"
 }
