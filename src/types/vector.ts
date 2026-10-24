@@ -62,14 +62,23 @@ export interface VectorResult {
   fileSizeBytes: number;
   rasterSizeBytes: number;
   palette: PaletteColor[];
-  /** SSIM medido renderizando el SVG y comparándolo con el raster original (0–1). */
+  /** SSIM measured by rendering the SVG and comparing it with the source raster (0–1). */
   ssim?: number;
   isCenterline?: boolean;
   centerlineLength?: number;
 }
 
+/** Translation keys of the stages the engine reports. */
+export type ProgressStage =
+  | 'progress.start'
+  | 'progress.skeleton'
+  | 'progress.palette'
+  | 'progress.imagetracer'
+  | 'progress.boundaries'
+  | 'progress.fitting';
+
 export interface WorkerProgress {
-  stage: string;
+  stage: ProgressStage;
   percent: number;
 }
 
@@ -102,7 +111,7 @@ export type WorkerResponse =
   | {
       type: 'PROGRESS';
       id: string;
-      stage: string;
+      stage: ProgressStage;
       percent: number;
     }
   | {
@@ -126,12 +135,9 @@ export type WorkerResponse =
       error: string;
     };
 
+/** Built-in sample; its title and texts live in the i18n catalogue (sample.{id}.*). */
 export interface SampleImageItem {
   id: string;
-  title: string;
-  category: string;
-  description: string;
-  url: string;
   preset: VectorPreset;
 }
 

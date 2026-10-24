@@ -5,73 +5,97 @@
 <h1 align="center">Vectopix</h1>
 
 <p align="center">
-  Convierte imágenes raster (PNG, JPG, WebP, BMP) en vectores limpios — <b>SVG, DXF, EPS y PDF</b> —
-  directamente en el navegador. Sin servidores: tus imágenes nunca salen de tu equipo.
+  <b>English</b> · <a href="README.es.md">Español</a>
+</p>
+
+<p align="center">
+  Turn raster images (PNG, JPG, WebP, BMP) into clean vectors — <b>SVG, DXF, EPS and PDF</b>.
+  It runs entirely on your machine, in the browser or as a desktop app: your images never leave your computer.
 </p>
 
 <p align="center">
   <a href="https://github.com/jgestal/Vectopix/actions/workflows/ci.yml"><img src="https://github.com/jgestal/Vectopix/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white" alt="React 19" />
-  <img src="https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white" alt="Vite" />
-  <img src="https://img.shields.io/badge/licencia-MIT-green" alt="Licencia MIT" />
+  <a href="https://github.com/jgestal/Vectopix/releases/latest"><img src="https://img.shields.io/github/v/release/jgestal/Vectopix?label=download" alt="Latest release" /></a>
+  <img src="https://img.shields.io/badge/languages-8-blue" alt="8 languages" />
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license" />
 </p>
 
 <p align="center">
-  <a href="https://jgestal.github.io/Vectopix/"><b>▶ Probar la app en el navegador</b></a>
+  <a href="https://jgestal.github.io/Vectopix/"><b>▶ Try it in your browser</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/jgestal/Vectopix/releases/latest"><b>⬇ Download for macOS, Windows and Linux</b></a>
 </p>
 
 <p align="center">
-  <img src="docs/studio.png" alt="Vectopix comparando el raster original con el vector generado mediante la cortinilla" width="900" />
+  <img src="docs/en/studio.png" alt="Vectopix comparing the original raster with the generated vector using the split view" width="900" />
 </p>
 
-## Características
+## Features
 
-- **Vectorización sub-píxel** con [vecline](https://www.npmjs.com/package/vecline): cuantización de color en espacio Oklab, reconstrucción del anti-aliasing y ajuste de curvas Bézier. ImageTracerJS está disponible como motor alternativo.
-- **Dos métodos de trazado**
-  - *Contornos*: regiones de color rellenas, para logos, ilustraciones, pixel art o fotos.
-  - *Línea central*: trazos de un solo hilo, para corte láser, plotters, CNC y bocetos.
-- **Presets** para logotipos, ilustración plana, fotografía, bocetos, pixel art y centerline, más control fino de colores, tolerancia, suavizado, esquinas, área mínima, contraste y reducción de ruido.
-- **Re-trazado automático**: al cambiar cualquier ajuste se vuelve a vectorizar (con *debounce*, así que mover un slider no satura el motor).
-- **Fidelidad medida, no estimada**: el SVG resultante se renderiza y se compara con la imagen original mediante SSIM.
-- **Comparación visual**: cortinilla raster/vector, vista doble lado a lado, solo vector o solo raster, modo contornos y rejilla de píxeles al hacer zoom.
-- **Editor de nodos Bézier**: mueve anclas y tiradores, alterna curva/esquina, divide tramos, elimina nodos y simplifica trazados, con deshacer y rehacer. Admite todos los comandos de trazado SVG, arcos incluidos, y guarda las ediciones en formato compacto para que el archivo no engorde.
-- **Gestión de paleta**: sustituye un color en todo el gráfico (incluidos los degradados) o hazlo transparente.
-- **Exportación**: SVG optimizado, PNG a @1x–@8x, componentes React/Vue/Svelte, DXF (láser/CNC), EPS (imprenta) y PDF vectorial. Todos los formatos incluyen tus ediciones de nodos y colores.
-- **Todo en local**: el motor corre en un Web Worker, así que la interfaz no se bloquea, y no hay ninguna subida a servidor.
+- **Sub-pixel vectorization** powered by [vecline](https://www.npmjs.com/package/vecline): colour quantization in Oklab space, anti-aliasing reconstruction and Bézier curve fitting. ImageTracerJS is available as an alternative engine.
+- **Two tracing methods**
+  - *Outline*: filled colour regions, for logos, illustrations, pixel art or photos.
+  - *Centerline*: single-stroke paths, for laser cutters, plotters, CNC and sketches.
+- **Presets** for logos, flat illustration, photos, sketches, pixel art and centerline, plus fine control over colours, tolerance, smoothing, corners, minimum area, contrast and noise reduction.
+- **Automatic re-tracing**: changing any setting re-vectorizes the image (debounced, so dragging a slider doesn't flood the engine).
+- **Measured fidelity, not estimated**: the resulting SVG is rendered and compared with the original image using SSIM.
+- **Visual comparison**: before/after split, side-by-side, vector only or raster only, outline mode and a pixel grid when zoomed in.
+- **Bézier node editor**: move anchors and handles, toggle curve/corner, split segments, delete nodes and simplify paths, with undo and redo. It handles every SVG path command, arcs included, and stores edits compactly so the file doesn't grow.
+- **Palette management**: replace a colour across the whole drawing (gradients included) or make it transparent.
+- **Export**: optimized SVG, PNG at @1x–@8x, React/Vue/Svelte components, DXF (laser/CNC), EPS (print) and vector PDF. Every format includes your node and colour edits.
+- **8 languages**: English, Spanish, German, French, Italian, Portuguese, Chinese and Japanese. The app picks your system language and remembers your choice.
+- **Fully local**: the engine runs in a Web Worker, so the interface never freezes, and nothing is uploaded anywhere. Fonts are bundled too, so the desktop app works offline.
 
-## Capturas
+## Screenshots
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/landing.png" alt="Portada con zona de arrastre y muestras de ejemplo" /></td>
-    <td width="50%"><img src="docs/nodes.png" alt="Editor de nodos Bézier con un ancla seleccionada" /></td>
+    <td width="50%"><img src="docs/en/landing.png" alt="Landing page with the drop zone and sample images" /></td>
+    <td width="50%"><img src="docs/en/nodes.png" alt="Bézier node editor with a selected anchor" /></td>
   </tr>
   <tr>
-    <td align="center"><b>Portada</b>: arrastra, pega o prueba una muestra</td>
-    <td align="center"><b>Editor de nodos</b>: anclas y tiradores Bézier</td>
+    <td align="center"><b>Landing</b>: drop, paste or try a sample</td>
+    <td align="center"><b>Node editor</b>: anchors and Bézier handles</td>
   </tr>
   <tr>
-    <td><img src="docs/side-by-side.png" alt="Vista doble: raster original y vector lado a lado" /></td>
-    <td><img src="docs/wireframe.png" alt="Modo contornos sobre la cortinilla raster/vector" /></td>
+    <td><img src="docs/en/side-by-side.png" alt="Dual view: original raster and vector side by side" /></td>
+    <td><img src="docs/en/wireframe.png" alt="Outline mode over the raster/vector split" /></td>
   </tr>
   <tr>
-    <td align="center"><b>Vista doble</b>: original y vector lado a lado</td>
-    <td align="center"><b>Modo contornos</b>: la estructura de los trazados</td>
+    <td align="center"><b>Dual view</b>: original and vector side by side</td>
+    <td align="center"><b>Outline mode</b>: the structure of the paths</td>
   </tr>
   <tr>
-    <td><img src="docs/centerline.png" alt="Trazado de línea central de una firma" /></td>
-    <td><img src="docs/export.png" alt="Diálogo de exportación con la pestaña DXF" /></td>
+    <td><img src="docs/en/centerline.png" alt="Centerline trace of a signature" /></td>
+    <td><img src="docs/en/export.png" alt="Export dialog on the DXF tab" /></td>
   </tr>
   <tr>
-    <td align="center"><b>Línea central</b>: trazos de un solo hilo para láser y CNC</td>
-    <td align="center"><b>Exportación</b>: SVG, PNG, componentes, DXF, EPS y PDF</td>
+    <td align="center"><b>Centerline</b>: single-stroke paths for laser and CNC</td>
+    <td align="center"><b>Export</b>: SVG, PNG, components, DXF, EPS and PDF</td>
   </tr>
 </table>
 
-## Empezar
+## Download
 
-Requisitos: Node.js 20.19+ o 22.12+ (lo que pide Vite 8).
+Every [release](https://github.com/jgestal/Vectopix/releases/latest) includes:
+
+| Platform | File |
+| --- | --- |
+| macOS (Apple Silicon) | `Vectopix-<version>-mac-arm64.dmg` |
+| macOS (Intel) | `Vectopix-<version>-mac-x64.dmg` |
+| Windows | `Vectopix-<version>-windows-setup.exe` (installer) or `-windows-portable.exe` |
+| Linux | `Vectopix-<version>-linux-x86_64.AppImage` or `-linux-amd64.deb` |
+| Web (self-hosting) | `Vectopix-<version>-web.zip`: upload it to any static web server |
+
+The apps are not signed with a paid developer certificate, so the first launch needs a confirmation:
+
+- **macOS**: open the app, then go to *System Settings → Privacy & Security* and click **Open Anyway**.
+- **Windows**: in the SmartScreen dialog, click **More info → Run anyway**.
+- **Linux**: make the AppImage executable (`chmod +x Vectopix-*.AppImage`) and run it.
+
+## Development
+
+Requirements: Node.js 20.19+ or 22.12+ (required by Vite 8).
 
 ```bash
 git clone https://github.com/jgestal/Vectopix.git
@@ -80,78 +104,83 @@ npm install
 npm run dev
 ```
 
-Abre la URL que muestra Vite (normalmente `http://localhost:5173`). Arrastra una imagen, pégala con <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>V</kbd> o prueba con una de las muestras incluidas.
+Open the URL Vite prints (usually `http://localhost:5173`). Drop an image, paste one with <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>V</kbd> or try one of the built-in samples.
 
-### Scripts
+| Command                | What it does                                              |
+| ---------------------- | --------------------------------------------------------- |
+| `npm run dev`          | Development server with HMR                               |
+| `npm run build`        | Type-check and production build into `dist/`              |
+| `npm run preview`      | Serve the production build                                |
+| `npm test`             | Run the tests (Vitest)                                    |
+| `npm run lint`         | Lint with Oxlint                                          |
+| `npm run desktop`      | Build and open the desktop app (Electron)                 |
+| `npm run dist:desktop` | Build the desktop installers for your OS into `release/`  |
 
-| Comando              | Qué hace                                         |
-| -------------------- | ------------------------------------------------ |
-| `npm run dev`        | Servidor de desarrollo con HMR                   |
-| `npm run build`      | Comprobación de tipos y build de producción en `dist/` |
-| `npm run preview`    | Sirve el build de producción                     |
-| `npm test`           | Ejecuta los tests (Vitest)                       |
-| `npm run test:watch` | Tests en modo observación                        |
-| `npm run lint`       | Lint con Oxlint                                  |
+### Publishing a release
 
-## Atajos de teclado
+1. Bump `version` in `package.json` and commit.
+2. Tag the commit and push the tag: `git tag v1.2.3 && git push origin v1.2.3`.
+3. The **Release** workflow builds the apps on macOS, Windows and Linux plus the web zip, and publishes them as a GitHub release.
 
-| Atajo                                   | Acción                                        |
-| --------------------------------------- | --------------------------------------------- |
-| <kbd>⌘/Ctrl</kbd> + <kbd>Z</kbd>        | Deshacer                                      |
-| <kbd>⌘/Ctrl</kbd> + <kbd>⇧</kbd> + <kbd>Z</kbd> · <kbd>⌘/Ctrl</kbd> + <kbd>Y</kbd> | Rehacer |
-| <kbd>⌘/Ctrl</kbd> + <kbd>C</kbd>        | Copiar el SVG (si no hay texto seleccionado)  |
-| <kbd>⌘/Ctrl</kbd> + <kbd>V</kbd>        | Cargar una imagen desde el portapapeles       |
-| <kbd>N</kbd> / <kbd>E</kbd>             | Editor de nodos                               |
-| <kbd>W</kbd>                            | Modo contornos (wireframe)                    |
-| <kbd>S</kbd>                            | Alternar cortinilla / solo vector             |
-| <kbd>D</kbd>                            | Vista doble lado a lado                       |
-| <kbd>Espacio</kbd> + arrastrar          | Desplazar el lienzo                           |
-| Rueda / pellizco                        | Zoom centrado en el cursor                    |
-| <kbd>Supr</kbd> / <kbd>⌫</kbd>          | Eliminar el nodo seleccionado                 |
-| <kbd>?</kbd>                            | Mostrar todos los atajos                      |
+Every push to `main` also runs the tests and deploys the web version to GitHub Pages.
 
-## Arquitectura
+## Keyboard shortcuts
+
+| Shortcut                                | Action                                         |
+| --------------------------------------- | ---------------------------------------------- |
+| <kbd>⌘/Ctrl</kbd> + <kbd>Z</kbd>        | Undo                                           |
+| <kbd>⌘/Ctrl</kbd> + <kbd>⇧</kbd> + <kbd>Z</kbd> · <kbd>⌘/Ctrl</kbd> + <kbd>Y</kbd> | Redo |
+| <kbd>⌘/Ctrl</kbd> + <kbd>C</kbd>        | Copy the SVG (when no text is selected)        |
+| <kbd>⌘/Ctrl</kbd> + <kbd>V</kbd>        | Load an image from the clipboard               |
+| <kbd>N</kbd> / <kbd>E</kbd>             | Node editor                                    |
+| <kbd>W</kbd>                            | Outline (wireframe) mode                       |
+| <kbd>S</kbd>                            | Toggle split / vector only                     |
+| <kbd>D</kbd>                            | Dual (side-by-side) view                       |
+| <kbd>Space</kbd> + drag                 | Pan the canvas                                 |
+| Wheel / pinch                           | Zoom around the cursor                         |
+| <kbd>Del</kbd> / <kbd>⌫</kbd>           | Delete the selected node                       |
+| <kbd>?</kbd>                            | Show every shortcut                            |
+
+## Architecture
 
 ```
 src/
-├── App.tsx                     Estado de la app: imagen, opciones, resultado, historial
-├── config/presets.ts           Opciones por defecto y tabla única de presets
+├── App.tsx                     App state: image, options, result, history
+├── i18n/                       Translations: lightweight runtime, one file per language
+├── config/presets.ts           Default options and the single preset table
 ├── services/
-│   ├── vectorEngine.ts         Motor puro (sin DOM ni worker): trazado, exportación y SSIM
-│   └── vectorWorkerClient.ts   Cliente del worker: peticiones, progreso y cancelación
-├── workers/vector.worker.ts    Envoltorio fino del motor dentro del Web Worker
-├── components/                 Header, Sidebar, Viewport (lienzo y editor de nodos), modales…
+│   ├── vectorEngine.ts         Pure engine (no DOM, no worker): tracing, export, SSIM
+│   └── vectorWorkerClient.ts   Worker client: requests, progress and cancellation
+├── workers/vector.worker.ts    Thin wrapper around the engine inside the Web Worker
+├── components/                 Header, Sidebar, Viewport (canvas and node editor), dialogs…
 └── utils/
-    ├── pathParser.ts           Parser y editor de trazados SVG (anclas, tiradores, simplificación)
-    ├── centerlineExport.ts     Escritores DXF / EPS / PDF para trazados de línea central
-    ├── svgExport.ts            SVG (editado) → geometría para DXF / EPS / PDF
-    ├── fidelity.ts             Renderiza el SVG para medir su fidelidad frente al original
-    └── …                       Preprocesado, paleta, exportación y carga de imágenes
+    ├── pathParser.ts           SVG path parser and editor (anchors, handles, simplification)
+    ├── svgExport.ts            (Edited) SVG → geometry for DXF / EPS / PDF
+    ├── centerlineExport.ts     DXF / EPS / PDF writers for centerline traces
+    ├── fidelity.ts             Renders the SVG to measure its fidelity against the source
+    └── …                       Preprocessing, palette, export and image loading
+electron/main.cjs               Desktop shell: serves dist/ from a private app:// origin
 ```
 
-**Cómo fluye una vectorización**
+**How a vectorization flows**
 
-1. La imagen se decodifica en un `<canvas>`. Si supera los 4 MP se reduce, para que el trazado siga siendo fluido.
-2. Los píxeles se envían (transferidos, sin copias) al Web Worker, que aplica el preprocesado y traza con vecline o ImageTracerJS mientras informa del progreso.
-3. Si llega una petición nueva mientras otra está en curso, el worker se termina y se crea uno nuevo. Es una cancelación real: el trabajo antiguo no sigue consumiendo CPU.
-4. Con el SVG ya en pantalla, se renderiza en segundo plano y el worker calcula su SSIM frente al original.
-5. DXF, EPS y PDF solo se generan cuando abres su pestaña de exportación. Si no has editado nada, el worker los construye con la geometría exacta del trazado. Si has editado algo (o usas ImageTracer), se construyen a partir del SVG actual, para que incluyan todos los cambios.
+1. The image is decoded into a `<canvas>`. Anything above 4 MP is downscaled so tracing stays smooth.
+2. The pixels are transferred (zero-copy) to the Web Worker, which preprocesses and traces them with vecline or ImageTracerJS while reporting progress.
+3. If a new request arrives while one is running, the worker is terminated and a fresh one started: a real cancellation, the old job stops using the CPU.
+4. Once the SVG is on screen, it is rendered in the background and the worker computes its SSIM against the original.
+5. DXF, EPS and PDF are only built when you open their export tab: from the exact trace geometry when nothing was edited, or from the current SVG otherwise, so every change is included.
 
-El editor de nodos solo reescribe el atributo `d` de los trazados que modificas. Todo lo demás (degradados, `<defs>`, figuras básicas, grupos y atributos) se conserva tal cual. Un trazado que no se pueda leer entero nunca se reescribe.
+**Translations**: `src/i18n/locales/es.ts` is the reference catalogue. TypeScript requires every other language to define exactly the same keys, and a test checks that every translation keeps the same `{placeholders}`. To add a language, copy `en.ts`, translate it and register it in `src/i18n/core.ts`.
 
-## Despliegue
+## Known limitations
 
-Cada push a `main` ejecuta los tests y publica el build en GitHub Pages (`.github/workflows/deploy.yml`). Las rutas del build son relativas (`base: './'`), así que el mismo `dist/` funciona en la raíz de un dominio o en cualquier subruta.
+- When DXF, EPS or PDF are exported from an edited SVG, gradients are flattened to the average colour of their stops and `transform` attributes are not applied (the SVGs the app produces don't use them).
+- SSIM is measured at up to 512 px on the longest side: a reliable fidelity indicator, not a full-resolution comparison.
 
-## Limitaciones conocidas
+## Tech stack
 
-- En las exportaciones DXF, EPS y PDF a partir de un SVG editado, los degradados se aplanan al color medio de sus paradas y no se aplican atributos `transform`. Los SVG que genera la app no usan transformaciones.
-- El SSIM se mide a un máximo de 512 px en el lado mayor: es un indicador fiable de fidelidad, no una comparación a resolución completa.
+[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [Electron](https://www.electronjs.org) · [lucide-react](https://lucide.dev) · [Fontsource](https://fontsource.org) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
 
-## Tecnologías
-
-[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [lucide-react](https://lucide.dev) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
-
-## Licencia
+## License
 
 [MIT](LICENSE) © 2026 Juan Gestal

@@ -26,3 +26,6 @@ dist-ssr
 # Tooling caches
 *.tsbuildinfo
 coverage
+
+# Desktop builds
+release

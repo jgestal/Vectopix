@@ -14,14 +14,14 @@ import {
 import ImageTracer from 'imagetracerjs';
 import { preprocessRaster, type Raster } from '../utils/imageProcessing';
 import { centerlineToDxf, centerlineToEps, centerlineToPdf } from '../utils/centerlineExport';
-import type { ExportFormat, PaletteColor, VectorOptions, VectorResult } from '../types/vector';
+import type { ExportFormat, PaletteColor, ProgressStage, VectorOptions, VectorResult } from '../types/vector';
 
 /**
  * Pure vectorization engine. It has no knowledge of workers or the DOM, so it
  * runs the same inside the Web Worker and under Vitest.
  */
 
-export type ProgressCallback = (stage: string, percent: number) => void;
+export type ProgressCallback = (stage: ProgressStage, percent: number) => void;
 
 /** The preprocessed raster and options of a trace, kept to build exports on demand. */
 export interface TraceContext {
@@ -112,7 +112,7 @@ export function vectorizeRaster(
   });
 
   if (options.traceMethod === 'centerline') {
-    onProgress('Extrayendo esqueleto morfológico y líneas de centro...', 40);
+    onProgress('progress.skeleton', 40);
     const cl = centerlineTrace(raster, centerlineOptions(options));
     const stroke = options.centerlineStrokeColor || '#000000';
     return finish({
@@ -126,11 +126,11 @@ export function vectorizeRaster(
     });
   }
 
-  onProgress('Analizando imagen y cuantizando colores (espacio Oklab)...', 20);
+  onProgress('progress.palette', 20);
   const palette = extractPaletteColors(raster, options.colors);
 
   if (options.engine === 'imagetracer') {
-    onProgress('Trazando caminos con ImageTracerJS...', 55);
+    onProgress('progress.imagetracer', 55);
     const svg = ImageTracer.imagedataToSVG(raster as unknown as ImageData, {
       numberofcolors: options.colors,
       scale: 1,
@@ -144,9 +144,9 @@ export function vectorizeRaster(
     return finish({ svg, shapes, colors: options.colors, regions: shapes, palette, isCenterline: false });
   }
 
-  onProgress('Extrayendo fronteras topológicas y curvas sub-pixel...', 50);
+  onProgress('progress.boundaries', 50);
   const traced = trace(raster, veclineTraceOptions(options));
-  onProgress('Ajustando splines de Bézier y calculando métricas...', 90);
+  onProgress('progress.fitting', 90);
   return finish({
     svg: traced.svg,
     shapes: traced.shapes,
@@ -173,7 +173,7 @@ export function exportTrace(context: TraceContext, format: ExportFormat): string
   }
 
   if (options.engine === 'imagetracer') {
-    throw new Error('DXF, EPS y PDF solo están disponibles con el motor Vecline');
+    throw new Error('DXF, EPS and PDF from the engine require Vecline');
   }
 
   const geometry = traceGeometry(raster, veclineTraceOptions(options));

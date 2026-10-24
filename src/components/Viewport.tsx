@@ -21,6 +21,7 @@ import {
   PlusCircle,
   Sparkles,
 } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 interface ViewportProps {
   rasterUrl: string;
@@ -72,6 +73,7 @@ export const Viewport: React.FC<ViewportProps> = ({
   fitRequest,
   isCenterline,
 }) => {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -306,12 +308,12 @@ export const Viewport: React.FC<ViewportProps> = ({
     if (!selectedNode) return;
     const newDoc = deleteNode(parsedDoc, selectedNode.pathIndex, selectedNode.segmentIndex);
     if (!newDoc) {
-      onShowToast('Un trazado no puede quedarse con menos de 2 nodos', 'warning');
+      onShowToast(t('nodes.minNodes'), 'warning');
       return;
     }
-    onSvgModified(serializeParsedDoc(newDoc), true, 'Nodo eliminado');
+    onSvgModified(serializeParsedDoc(newDoc), true, t('nodes.deleted'));
     setSelectedNodeId(null);
-  }, [selectedNode, parsedDoc, onSvgModified, onShowToast]);
+  }, [selectedNode, parsedDoc, onSvgModified, onShowToast, t]);
 
   // Keyboard shortcut listener for deleting selected node or deselecting
   useEffect(() => {
@@ -338,7 +340,7 @@ export const Viewport: React.FC<ViewportProps> = ({
     if (!selectedNode) return;
     const { pathIndex, segmentIndex } = selectedNode;
     const newDoc = toggleNodeType(parsedDoc, pathIndex, segmentIndex);
-    onSvgModified(serializeParsedDoc(newDoc), true, 'Tipo de nodo alternado');
+    onSvgModified(serializeParsedDoc(newDoc), true, t('nodes.toggled'));
   };
 
   // Split Segment / Insert Midpoint Node
@@ -347,12 +349,12 @@ export const Viewport: React.FC<ViewportProps> = ({
     const { pathIndex, segmentIndex } = selectedNode;
 
     const { newDoc } = splitSegmentAtMidpoint(parsedDoc, pathIndex, segmentIndex);
-    onSvgModified(serializeParsedDoc(newDoc), true, 'Nodo intermedio insertado con subdivisión de Bézier');
+    onSvgModified(serializeParsedDoc(newDoc), true, t('nodes.splitDone'));
     setSelectedNodeId(`p${pathIndex}_s${segmentIndex}_anchor`);
   };
 
   if (!imageDimensions) {
-    return <div className="studio-viewport-empty">No hay imagen cargada</div>;
+    return <div className="studio-viewport-empty">{t('viewport.empty')}</div>;
   }
 
   const { width, height } = imageDimensions;
@@ -466,12 +468,12 @@ export const Viewport: React.FC<ViewportProps> = ({
           {/* Left Board: Original Raster */}
           <div className="sbs-pane" style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}>
             <div className="sbs-pane-badge raster-badge">
-              <span>Raster Original ({width} × {height} px)</span>
+              <span>{t('viewport.rasterBadge', { width, height })}</span>
             </div>
             <div className="sbs-pane-content">
               <img
                 src={rasterUrl}
-                alt="Original Raster"
+                alt={t('viewport.rasterAlt')}
                 width={scaledWidth}
                 height={scaledHeight}
                 className={`raster-img ${zoom >= 4 ? 'pixelated' : ''}`}
@@ -498,7 +500,7 @@ export const Viewport: React.FC<ViewportProps> = ({
           {/* Right Board: Vector Output */}
           <div className="sbs-pane" style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}>
             <div className="sbs-pane-badge vector-badge">
-              <span>Vector Limpio ({parsedDoc.paths.length} trazos)</span>
+              <span>{t('viewport.vectorBadge', { count: parsedDoc.paths.length })}</span>
             </div>
             <div className={`sbs-pane-content vector-layer mode-${renderMode}`}>
               <div
@@ -532,7 +534,7 @@ export const Viewport: React.FC<ViewportProps> = ({
             >
               <img
                 src={rasterUrl}
-                alt="Original Raster"
+                alt={t('viewport.rasterAlt')}
                 width={scaledWidth}
                 height={scaledHeight}
                 className={`raster-img ${zoom >= 4 ? 'pixelated' : ''}`}
@@ -601,7 +603,7 @@ export const Viewport: React.FC<ViewportProps> = ({
             >
               <div className="split-handle">
                 <span className="split-arrow-left">◀</span>
-                <span className="split-tag">Raster | Vector</span>
+                <span className="split-tag">{t('viewport.splitTag')}</span>
                 <span className="split-arrow-right">▶</span>
               </div>
             </div>
@@ -614,14 +616,14 @@ export const Viewport: React.FC<ViewportProps> = ({
         <div className="node-editor-toolbar">
           <div className="node-toolbar-badge">
             <MousePointer size={14} className="text-cyan" />
-            <span>Editor de nodos</span>
+            <span>{t('nodes.editor')}</span>
           </div>
 
           {selectedNode ? (
             <div className="node-toolbar-info">
               <Crosshair size={13} className="text-indigo" />
               <span>
-                Nodo {selectedNode.nodeType === 'anchor' ? 'Ancla' : 'Tirador'}:
+                {t('nodes.node')} {t(selectedNode.nodeType === 'anchor' ? 'nodes.anchor' : 'nodes.handle')}:
                 {' '}
                 <strong>X: {selectedNode.x.toFixed(1)}</strong>,{' '}
                 <strong>Y: {selectedNode.y.toFixed(1)}</strong>
@@ -635,19 +637,19 @@ export const Viewport: React.FC<ViewportProps> = ({
                     onClick={handleToggleCurve}
                     title={
                       selectedNode.isCurve
-                        ? 'Convertir a esquina afilada (línea recta)'
-                        : 'Convertir a curva suave Bézier'
+                        ? t('nodes.toCornerTitle')
+                        : t('nodes.toSmoothTitle')
                     }
                   >
                     {selectedNode.isCurve ? (
                       <>
                         <CornerUpRight size={13} />
-                        <span>Afilada</span>
+                        <span>{t('nodes.corner')}</span>
                       </>
                     ) : (
                       <>
                         <Spline size={13} />
-                        <span>Suave</span>
+                        <span>{t('nodes.smooth')}</span>
                       </>
                     )}
                   </button>
@@ -657,47 +659,45 @@ export const Viewport: React.FC<ViewportProps> = ({
                     <button
                       className="btn-node-tool"
                       onClick={handleSplitSegment}
-                      title="Dividir tramo intermedio e insertar nuevo nodo de control"
+                      title={t('nodes.splitTitle')}
                     >
                       <PlusCircle size={13} />
-                      <span>Dividir Tramo</span>
+                      <span>{t('nodes.split')}</span>
                     </button>
                   )}
 
                   <button
                     className="btn-node-tool danger"
                     onClick={handleDeleteSelectedNode}
-                    title="Eliminar nodo seleccionado (Supr / Backspace)"
+                    title={t('nodes.deleteTitle')}
                   >
                     <Trash2 size={13} />
-                    <span>Eliminar</span>
+                    <span>{t('nodes.delete')}</span>
                   </button>
                 </>
               )}
             </div>
           ) : (
-            <span className="node-toolbar-hint">
-              Haz clic sobre cualquier nodo para editar tiradores o alternar tipo de curva
-            </span>
+            <span className="node-toolbar-hint">{t('nodes.hint')}</span>
           )}
 
           <button
             className="btn-node-tool simplify"
             onClick={onSimplifyNodes}
-            title="Reducir nodos redundantes y simplificar curvas suavemente (Algoritmo Ramer-Douglas-Peucker)"
+            title={t('nodes.simplifyTitle')}
           >
             <Sparkles size={13} className="text-amber" />
-            <span>Reducir Nodos</span>
+            <span>{t('nodes.simplify')}</span>
           </button>
 
           {hasModifications && (
             <button
               className="btn-node-tool reset"
               onClick={onResetEdits}
-              title="Restaurar trazado original antes de editar nodos"
+              title={t('nodes.resetTitle')}
             >
               <RotateCcw size={13} />
-              <span>Restaurar Nodos</span>
+              <span>{t('nodes.reset')}</span>
             </button>
           )}
         </div>
@@ -708,8 +708,8 @@ export const Viewport: React.FC<ViewportProps> = ({
         <div className="viewport-processing-overlay">
           <div className="processing-card">
             <div className="processing-spinner-glow"></div>
-            <div className="processing-title">Vectorizando Imagen...</div>
-            <div className="processing-stage">{progress.stage}</div>
+            <div className="processing-title">{t('viewport.processing')}</div>
+            <div className="processing-stage">{t(progress.stage)}</div>
             <div className="processing-bar-track">
               <div
                 className="processing-bar-fill"
@@ -725,15 +725,15 @@ export const Viewport: React.FC<ViewportProps> = ({
       <div className="viewport-legend">
         {isCenterline ? (
           <>
-            <span className="legend-tag centerline-tag">Línea Central (Centerline)</span>
+            <span className="legend-tag centerline-tag">{t('viewport.legendCenterline')}</span>
             <span className="legend-sep">•</span>
-            <span className="legend-sub">Trazos de un solo hilo para Láser/CNC</span>
+            <span className="legend-sub">{t('viewport.legendCenterlineSub')}</span>
           </>
         ) : (
           <>
-            <span className="legend-tag raster-tag">Raster Original</span>
+            <span className="legend-tag raster-tag">{t('viewport.legendRaster')}</span>
             <span className="legend-sep">⟷</span>
-            <span className="legend-tag vector-tag">Vector Limpio</span>
+            <span className="legend-tag vector-tag">{t('viewport.legendVector')}</span>
           </>
         )}
       </div>

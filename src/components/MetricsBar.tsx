@@ -11,12 +11,14 @@ import {
 } from 'lucide-react';
 import type { VectorResult } from '../types/vector';
 import { formatBytes } from '../utils/exportUtils';
+import { useI18n } from '../i18n';
 
 interface MetricsBarProps {
   result: VectorResult | null;
 }
 
 export const MetricsBar: React.FC<MetricsBarProps> = ({ result }) => {
+  const { t, lang } = useI18n();
   const [copied, setCopied] = useState(false);
 
   if (!result) return null;
@@ -45,25 +47,25 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({ result }) => {
       <div className="metrics-group">
         {result.isCenterline ? (
           <>
-            <div className="metric-item" title="Trazos de línea central generados">
+            <div className="metric-item" title={t('metrics.centerlinesTitle')}>
               <Scissors size={14} className="metric-icon text-amber" />
-              <span className="metric-label">Líneas de Centro:</span>
-              <span className="metric-value text-amber">{result.shapes.toLocaleString()}</span>
+              <span className="metric-label">{t('metrics.centerlines')}:</span>
+              <span className="metric-value text-amber">{result.shapes.toLocaleString(lang)}</span>
             </div>
 
             <div className="metric-sep"></div>
 
-            <div className="metric-item" title="Longitud acumulada de corte o grabado láser">
+            <div className="metric-item" title={t('metrics.lengthTitle')}>
               <Activity size={14} className="metric-icon" />
-              <span className="metric-label">Longitud de trazo:</span>
-              <span className="metric-value">{result.centerlineLength?.toLocaleString() || 0} px</span>
+              <span className="metric-label">{t('metrics.length')}:</span>
+              <span className="metric-value">{result.centerlineLength?.toLocaleString(lang) || 0} px</span>
             </div>
           </>
         ) : (
-          <div className="metric-item" title="Caminos y polígonos vectoriales creados">
+          <div className="metric-item" title={t('metrics.pathsTitle')}>
             <Activity size={14} className="metric-icon" />
-            <span className="metric-label">Trazos:</span>
-            <span className="metric-value">{result.shapes.toLocaleString()}</span>
+            <span className="metric-label">{t('metrics.paths')}:</span>
+            <span className="metric-value">{result.shapes.toLocaleString(lang)}</span>
           </div>
         )}
 
@@ -71,26 +73,26 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({ result }) => {
 
         <div
           className="metric-item"
-          title="Nodos y puntos de control Bézier totales (mínimos = curvas más limpias)"
+          title={t('metrics.nodesTitle')}
         >
           <GitCommit size={14} className="metric-icon" />
-          <span className="metric-label">Nodos Bézier:</span>
-          <span className="metric-value">{result.nodesCount.toLocaleString()}</span>
+          <span className="metric-label">{t('metrics.nodes')}:</span>
+          <span className="metric-value">{result.nodesCount.toLocaleString(lang)}</span>
         </div>
 
         <div className="metric-sep"></div>
 
-        <div className="metric-item" title="Tiempo de procesamiento en Web Worker">
+        <div className="metric-item" title={t('metrics.timeTitle')}>
           <Clock size={14} className="metric-icon" />
-          <span className="metric-label">Tiempo:</span>
+          <span className="metric-label">{t('metrics.time')}:</span>
           <span className="metric-value">{result.executionTimeMs} ms</span>
         </div>
 
         <div className="metric-sep"></div>
 
-        <div className="metric-item" title="Tamaño del archivo">
+        <div className="metric-item" title={t('metrics.sizeTitle')}>
           <HardDrive size={14} className="metric-icon" />
-          <span className="metric-label">Peso:</span>
+          <span className="metric-label">{t('metrics.size')}:</span>
           <span className="metric-value">
             {formatBytes(result.fileSizeBytes)}
             {compressionRatio > 0 && (
@@ -104,10 +106,10 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({ result }) => {
             <div className="metric-sep"></div>
             <div
               className="metric-item"
-              title="SSIM medido: el SVG se renderiza y se compara con la imagen original (a máx. 512 px)"
+              title={t('metrics.fidelityTitle')}
             >
               <Zap size={14} className="metric-icon text-cyan" />
-              <span className="metric-label">Fidelidad:</span>
+              <span className="metric-label">{t('metrics.fidelity')}:</span>
               <span className="metric-value text-cyan">
                 {(result.ssim * 100).toFixed(1)}% SSIM
               </span>
@@ -120,17 +122,17 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({ result }) => {
         <button
           className="btn-quick-copy"
           onClick={handleCopySvg}
-          title="Copiar código SVG al portapapeles"
+          title={t('metrics.copyTitle')}
         >
           {copied ? (
             <>
               <Check size={14} className="text-emerald" />
-              <span className="text-emerald">¡Copiado!</span>
+              <span className="text-emerald">{t('metrics.copied')}</span>
             </>
           ) : (
             <>
               <Copy size={14} />
-              <span>Copiar SVG</span>
+              <span>{t('metrics.copy')}</span>
             </>
           )}
         </button>

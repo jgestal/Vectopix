@@ -17,6 +17,8 @@ import {
   Columns,
 } from 'lucide-react';
 import type { ViewMode, RenderMode, TracingEngine } from '../types/vector';
+import { useI18n } from '../i18n';
+import { LanguageSelect } from './LanguageSelect';
 
 interface HeaderProps {
   imageName: string;
@@ -61,6 +63,8 @@ export const Header: React.FC<HeaderProps> = ({
   onRedo,
   onOpenShortcuts,
 }) => {
+  const { t } = useI18n();
+
   return (
     <header className="studio-header">
       <div className="header-brand">
@@ -81,16 +85,16 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="image-dims">
               {imageDimensions.width} × {imageDimensions.height} px
             </span>
-            <span className="engine-badge" title="Motor activo">
+            <span className="engine-badge" title={t('header.activeEngine')}>
               {isCenterline ? (
                 <>
                   <Scissors size={12} className="text-amber" />
-                  <span>Centerline Skeleton</span>
+                  <span>{t('header.engineCenterline')}</span>
                 </>
               ) : (
                 <>
                   <Cpu size={12} />
-                  <span>{engine === 'vecline' ? 'Vecline Sub-Pixel' : 'ImageTracerJS'}</span>
+                  <span>{t(engine === 'vecline' ? 'header.engineVecline' : 'header.engineImageTracer')}</span>
                 </>
               )}
             </span>
@@ -106,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="btn-history"
               onClick={onUndo}
               disabled={!canUndo}
-              title="Deshacer edición de nodos (Cmd/Ctrl + Z)"
+              title={t('header.undo')}
             >
               <Undo2 size={15} />
             </button>
@@ -114,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="btn-history"
               onClick={onRedo}
               disabled={!canRedo}
-              title="Rehacer edición de nodos (Cmd/Ctrl + Shift + Z)"
+              title={t('header.redo')}
             >
               <Redo2 size={15} />
             </button>
@@ -122,64 +126,64 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* View Mode: Split, Vector, Raster */}
-        <div className="view-mode-group" role="group" aria-label="Modo de Vista">
+        <div className="view-mode-group" role="group" aria-label={t('header.viewMode')}>
           <button
             className={`btn-icon ${viewMode === 'split' ? 'active' : ''}`}
             onClick={() => setViewMode('split')}
-            title="Comparador Split (Cortinilla Antes/Después) [S]"
+            title={t('header.viewSplitTitle')}
           >
             <SplitSquareVertical size={16} />
-            <span className="btn-label">Split</span>
+            <span className="btn-label">{t('header.viewSplit')}</span>
           </button>
           <button
             className={`btn-icon ${viewMode === 'vector' ? 'active' : ''}`}
             onClick={() => setViewMode('vector')}
-            title="Solo Vector"
+            title={t('header.viewVectorTitle')}
           >
             <Sparkles size={16} />
-            <span className="btn-label">Vector</span>
+            <span className="btn-label">{t('header.viewVector')}</span>
           </button>
           <button
             className={`btn-icon ${viewMode === 'raster' ? 'active' : ''}`}
             onClick={() => setViewMode('raster')}
-            title="Solo Original Raster"
+            title={t('header.viewRasterTitle')}
           >
             <Eye size={16} />
-            <span className="btn-label">Raster</span>
+            <span className="btn-label">{t('header.viewRaster')}</span>
           </button>
           <button
             className={`btn-icon ${viewMode === 'side-by-side' ? 'active' : ''}`}
             onClick={() => setViewMode('side-by-side')}
-            title="Vista Doble Panel (Original y Vector uno al lado del otro) [D]"
+            title={t('header.viewSideBySideTitle')}
           >
             <Columns size={16} />
-            <span className="btn-label">Doble</span>
+            <span className="btn-label">{t('header.viewSideBySide')}</span>
           </button>
         </div>
 
         {/* Vector Display Mode: Full, Wireframe, Nodes (Editor) */}
-        <div className="render-mode-group" role="group" aria-label="Estilo del Vector">
+        <div className="render-mode-group" role="group" aria-label={t('header.renderStyle')}>
           <button
             className={`render-pill ${renderMode === 'full' ? 'active' : ''}`}
             onClick={() => setRenderMode('full')}
-            title="Relleno normal con colores"
+            title={t('header.renderFullTitle')}
           >
-            Relleno
+            {t('header.renderFull')}
           </button>
           <button
             className={`render-pill ${renderMode === 'wireframe' ? 'active' : ''}`}
             onClick={() => setRenderMode('wireframe')}
-            title="Estructura alámbrica (Wireframe) [W]"
+            title={t('header.renderWireframeTitle')}
           >
-            Contornos
+            {t('header.renderWireframe')}
           </button>
           <button
             className={`render-pill render-pill-editor ${renderMode === 'nodes' ? 'active' : ''}`}
             onClick={() => setRenderMode('nodes')}
-            title="Editor de Nodos interactivo: Arrastra anclas y tiradores Bézier [E / N]"
+            title={t('header.renderNodesTitle')}
           >
             <MousePointer size={12} />
-            <span>Editor Nodos</span>
+            <span>{t('header.renderNodes')}</span>
           </button>
         </div>
 
@@ -188,38 +192,40 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             className="btn-zoom"
             onClick={() => setZoom((z) => Math.max(0.1, Math.round((z - 0.25) * 100) / 100))}
-            title="Alejar (Zoom Out)"
+            title={t('header.zoomOut')}
           >
             <ZoomOut size={15} />
           </button>
           <button
             className="zoom-readout"
             onClick={onResetZoom}
-            title="Restablecer zoom al 100%"
+            title={t('header.zoomReset')}
           >
             {Math.round(zoom * 100)}%
           </button>
           <button
             className="btn-zoom"
             onClick={() => setZoom((z) => Math.min(24, Math.round((z + 0.25) * 100) / 100))}
-            title="Acercar (Zoom In)"
+            title={t('header.zoomIn')}
           >
             <ZoomIn size={15} />
           </button>
           <button
             className="btn-zoom"
             onClick={onResetZoom}
-            title="Ajustar a pantalla"
+            title={t('header.fit')}
           >
             <Maximize2 size={15} />
           </button>
         </div>
 
+        <LanguageSelect compact />
+
         {/* Help Shortcuts Button */}
         <button
           className="btn-help-shortcuts"
           onClick={onOpenShortcuts}
-          title="Ver Atajos de Teclado (?)"
+          title={t('header.shortcuts')}
         >
           <HelpCircle size={16} />
         </button>
@@ -229,20 +235,20 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             className="btn-secondary"
             onClick={onNewImage}
-            title="Subir o elegir otra imagen"
+            title={t('header.newTitle')}
           >
             <Upload size={15} />
-            <span>Nueva</span>
+            <span>{t('header.new')}</span>
           </button>
 
           <button
             className="btn-primary"
             onClick={onOpenExport}
             disabled={isProcessing}
-            title="Descargar o Exportar Vector (SVG, PNG @2x/@4x, React, DXF, EPS, PDF)"
+            title={t('header.exportTitle')}
           >
             <Download size={15} />
-            <span>Exportar</span>
+            <span>{t('header.export')}</span>
           </button>
         </div>
       </div>

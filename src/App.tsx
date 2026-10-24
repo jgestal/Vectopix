@@ -28,6 +28,8 @@ import { parseSvgDocument, serializeParsedDoc, simplifySvgPaths } from './utils/
 import { rasterizeForComparison } from './utils/fidelity';
 import { readImageFile } from './utils/imageLoading';
 import { DEFAULT_OPTIONS, applyPreset } from './config/presets';
+import { useI18n, type MessageKey } from './i18n';
+import { LocalizedError } from './i18n/errors';
 import './App.css';
 
 /** Larger images are downscaled before tracing to keep the worker responsive. */
@@ -51,6 +53,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export function App() {
+  const { t } = useI18n();
   const [rasterUrl, setRasterUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>('vector-image.png');
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -105,7 +108,7 @@ export function App() {
     async (data: ImageData, sizeBytes: number, opts: VectorOptions) => {
       const traceId = ++traceCounter.current;
       setIsProcessing(true);
-      setProgress({ stage: 'Iniciando Web Worker...', percent: 5 });
+      setProgress({ stage: 'progress.start', percent: 5 });
 
       try {
         const res = await vectorizeWithWorker(data, sizeBytes, opts, setProgress);
@@ -116,10 +119,9 @@ export function App() {
       } catch (err: unknown) {
         if (err instanceof VectorizationCanceledError) return;
         console.error('Vectorization error:', err);
-        showToast(
-          `Error al vectorizar: ${err instanceof Error ? err.message : 'error desconocido'}`,
-          'warning'
-        );
+        const message =
+          err instanceof LocalizedError ? t(err.key) : err instanceof Error ? err.message : t('toast.unknownError');
+        showToast(t('toast.vectorizeError', { message }), 'warning');
       } finally {
         if (traceId === traceCounter.current) {
           setIsProcessing(false);
@@ -127,7 +129,7 @@ export function App() {
         }
       }
     },
-    [showToast, measureFidelity]
+    [showToast, measureFidelity, t]
   );
 
   // Re-trace whenever the image or any setting changes. A new image traces at
@@ -149,7 +151,9 @@ export function App() {
 
   const handleApplyPreset = (preset: VectorPreset) => {
     setOptions((prev) => applyPreset(preset, prev));
-    showToast(`Preset "${preset}" aplicado`, 'info');
+    const nameKey =
+      preset === 'sketch' && options.traceMethod === 'centerline' ? 'preset.sketch-centerline.name' : `preset.${preset}.name`;
+    showToast(t('toast.presetApplied', { preset: t(nameKey as MessageKey) }), 'info');
   };
 
   // Image Loader: the single entry point for files, drops, pastes and samples
@@ -172,7 +176,7 @@ export function App() {
         ctx.drawImage(img, 0, 0, width, height);
         if (scale < 1) {
           showToast(
-            `Imagen reducida de ${naturalWidth}×${naturalHeight} a ${width}×${height} px para vectorizarla con fluidez`,
+            t('toast.imageDownscaled', { from: `${naturalWidth}×${naturalHeight}`, to: `${width}×${height}` }),
             'warning'
           );
         }
@@ -187,23 +191,23 @@ export function App() {
         setHistoryIndex(-1);
         setOptions((prev) => applyPreset(suggestedPreset || 'logo', prev));
       };
-      img.onerror = () => showToast('No se pudo leer la imagen', 'warning');
+      img.onerror = () => showToast(t('error.imageDecode'), 'warning');
       img.src = dataUrl;
     },
-    [showToast]
+    [showToast, t]
   );
 
   const loadFile = useCallback(
     async (file: File, toastText?: string) => {
       try {
         const dataUrl = await readImageFile(file);
-        handleImageSelected(dataUrl, file.name || 'imagen-pegada.png');
+        handleImageSelected(dataUrl, file.name || t('file.pastedName'));
         if (toastText) showToast(toastText, 'success');
       } catch (err) {
-        showToast(err instanceof Error ? err.message : 'No se pudo leer el archivo', 'warning');
+        showToast(t(err instanceof LocalizedError ? err.key : 'error.fileRead'), 'warning');
       }
     },
-    [handleImageSelected, showToast]
+    [handleImageSelected, showToast, t]
   );
 
   const handleNewImage = () => {
@@ -263,16 +267,16 @@ export function App() {
   );
 
   const handleUndo = useCallback(() => {
-    if (historyIndex > 0) restoreHistory(historyIndex - 1, 'Deshacer realizado');
-  }, [historyIndex, restoreHistory]);
+    if (historyIndex > 0) restoreHistory(historyIndex - 1, t('toast.undo'));
+  }, [historyIndex, restoreHistory, t]);
 
   const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) restoreHistory(historyIndex + 1, 'Rehacer realizado');
-  }, [historyIndex, history.length, restoreHistory]);
+    if (historyIndex < history.length - 1) restoreHistory(historyIndex + 1, t('toast.redo'));
+  }, [historyIndex, history.length, restoreHistory, t]);
 
   const handleResetEdits = () => {
     if (!result) return;
-    applySvgUpdate(result.originalSvg, true, 'Nodos restaurados al estado original', history[0]?.palette);
+    applySvgUpdate(result.originalSvg, true, t('toast.nodesRestored'), history[0]?.palette);
   };
 
   const handleSimplifyNodes = useCallback(() => {
@@ -280,30 +284,30 @@ export function App() {
     const parsed = parseSvgDocument(result.svg);
     const { newDoc, removedCount, originalNodes } = simplifySvgPaths(parsed, 1.2);
     if (removedCount <= 0) {
-      showToast('Los trazados ya tienen la cantidad mínima de nodos optimizada', 'info');
+      showToast(t('toast.alreadySimplified'), 'info');
       return;
     }
     const pct = Math.round((removedCount / originalNodes) * 100);
     applySvgUpdate(
       serializeParsedDoc(newDoc),
       true,
-      `Trazados simplificados: ${removedCount} nodos eliminados (-${pct}%)`
+      t('toast.simplified', { count: removedCount, pct })
     );
-  }, [result, applySvgUpdate, showToast]);
+  }, [result, applySvgUpdate, showToast, t]);
 
   // Palette Actions
   const handleReplaceColor = (oldHex: string, newHex: string) => {
     if (!result) return;
     const target = normalizeHex(oldHex);
     const palette = result.palette.map((p) => (normalizeHex(p.hex) === target ? { ...p, hex: newHex } : p));
-    applySvgUpdate(replaceColorInSvg(result.svg, oldHex, newHex), true, `Color ${oldHex} cambiado a ${newHex}`, palette);
+    applySvgUpdate(replaceColorInSvg(result.svg, oldHex, newHex), true, t('toast.colorReplaced', { from: oldHex, to: newHex }), palette);
   };
 
   const handleRemoveColor = (targetHex: string) => {
     if (!result) return;
     const target = normalizeHex(targetHex);
     const palette = result.palette.filter((p) => normalizeHex(p.hex) !== target);
-    applySvgUpdate(removeColorFromSvg(result.svg, targetHex), true, `Color ${targetHex} hecho transparente`, palette);
+    applySvgUpdate(removeColorFromSvg(result.svg, targetHex), true, t('toast.colorRemoved', { color: targetHex }), palette);
   };
 
   // Global Keyboard Shortcuts
@@ -325,7 +329,7 @@ export function App() {
         } else if (key === 'c' && !window.getSelection()?.toString() && result) {
           e.preventDefault();
           navigator.clipboard.writeText(result.svg);
-          showToast('Código SVG copiado al portapapeles', 'success');
+          showToast(t('toast.svgCopied'), 'success');
         }
         return;
       }
@@ -341,10 +345,10 @@ export function App() {
         setSelectedPaletteColor(null);
       } else if (key === 'w') {
         setRenderMode((prev) => (prev === 'wireframe' ? 'full' : 'wireframe'));
-        showToast('Modo Contornos alternado', 'info');
+        showToast(t('toast.wireframeToggled'), 'info');
       } else if (key === 'e' || key === 'n') {
         setRenderMode((prev) => (prev === 'nodes' ? 'full' : 'nodes'));
-        showToast('Editor de Nodos alternado', 'info');
+        showToast(t('toast.nodeEditorToggled'), 'info');
       } else if (key === 's') {
         setViewMode((prev) => (prev === 'split' ? 'vector' : 'split'));
       } else if (key === 'd') {
@@ -354,19 +358,19 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, showToast, result]);
+  }, [handleUndo, handleRedo, showToast, result, t]);
 
   // Global Paste Listener (Ctrl+V / Cmd+V) to load images at any time
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       const item = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith('image/'));
       const file = item?.getAsFile();
-      if (file) loadFile(file, 'Imagen cargada desde portapapeles');
+      if (file) loadFile(file, t('toast.imagePasted'));
     };
 
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [loadFile]);
+  }, [loadFile, t]);
 
   // Global Drag and Drop Handler on Window
   const handleAppDragOver = (e: React.DragEvent) => {
@@ -376,7 +380,7 @@ export function App() {
   const handleAppDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (file) loadFile(file, `Imagen ${file.name} cargada`);
+    if (file) loadFile(file, t('toast.imageLoaded', { name: file.name }));
   };
 
   return (

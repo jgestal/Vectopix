@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Check, Trash2, Copy, Palette } from 'lucide-react';
 import type { PaletteColor } from '../types/vector';
 import { normalizeHex } from '../utils/paletteUtils';
+import { useI18n } from '../i18n';
 
 const HEX_PATTERN = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -18,6 +19,7 @@ export const ColorModal: React.FC<ColorModalProps> = ({
   onReplaceColor,
   onRemoveColor,
 }) => {
+  const { t, lang } = useI18n();
   // App remounts this modal per color (via `key`), so state starts fresh each time
   const [selectedHex, setSelectedHex] = useState<string>(color.hex);
   const [copied, setCopied] = useState(false);
@@ -45,7 +47,7 @@ export const ColorModal: React.FC<ColorModalProps> = ({
         <div className="color-modal-header">
           <div className="color-modal-title">
             <Palette size={16} className="text-cyan" />
-            <span>Gestionar Color de la Paleta</span>
+            <span>{t('color.title')}</span>
           </div>
           <button className="modal-close" onClick={onClose}>
             <X size={16} />
@@ -65,14 +67,14 @@ export const ColorModal: React.FC<ColorModalProps> = ({
                 RGB({color.r}, {color.g}, {color.b})
               </div>
               <div className="swatch-coverage-badge">
-                {color.percentage}% de cobertura ({color.count.toLocaleString()} px)
+                {t('color.coverage', { pct: color.percentage, count: color.count.toLocaleString(lang) })}
               </div>
             </div>
           </div>
 
           {/* Color Replacement Picker */}
           <div className="replacement-section">
-            <label className="section-sub-label">Sustituir por un nuevo color:</label>
+            <label className="section-sub-label">{t('color.replaceLabel')}</label>
             <div className="replacement-picker-row">
               <input
                 type="color"
@@ -92,7 +94,7 @@ export const ColorModal: React.FC<ColorModalProps> = ({
                 disabled={!isValidHex || selectedHex.toLowerCase() === color.hex.toLowerCase()}
               >
                 <Check size={14} />
-                <span>Aplicar Cambio</span>
+                <span>{t('color.apply')}</span>
               </button>
             </div>
           </div>
@@ -103,12 +105,12 @@ export const ColorModal: React.FC<ColorModalProps> = ({
               {copied ? (
                 <>
                   <Check size={14} className="text-emerald" />
-                  <span className="text-emerald">HEX Copiado</span>
+                  <span className="text-emerald">{t('color.copied')}</span>
                 </>
               ) : (
                 <>
                   <Copy size={14} />
-                  <span>Copiar HEX</span>
+                  <span>{t('color.copyHex')}</span>
                 </>
               )}
             </button>
@@ -116,10 +118,10 @@ export const ColorModal: React.FC<ColorModalProps> = ({
             <button
               className="btn-color-action danger"
               onClick={handleRemove}
-              title="Eliminar todos los trazados que usen este color (hacer transparente)"
+              title={t('color.makeTransparentTitle')}
             >
               <Trash2 size={14} />
-              <span>Hacer Transparente</span>
+              <span>{t('color.makeTransparent')}</span>
             </button>
           </div>
         </div>

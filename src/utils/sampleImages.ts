@@ -227,34 +227,18 @@ export function generateSampleDataUrl(id: string): string {
 export const SAMPLE_IMAGES: SampleImageItem[] = [
   {
     id: 'tech-logo',
-    title: 'Logo Tecnológico Geométrico',
-    category: 'Logotipos',
-    description: 'Bordes limpios y polígonos con anti-aliasing nítido.',
-    url: '',
     preset: 'logo',
   },
   {
     id: 'badge-crest',
-    title: 'Emblema Heráldico Vintage',
-    category: 'Insignias',
-    description: 'Curvas continuas Bézier y formas cerradas concéntricas.',
-    url: '',
     preset: 'flat-art',
   },
   {
     id: 'hand-sketch',
-    title: 'Firma / Trazo Caligráfico',
-    category: 'Bocetos',
-    description: 'Trazo orgánico monocromo para prueba de contraste.',
-    url: '',
     preset: 'sketch',
   },
   {
     id: 'pixel-heart',
-    title: 'Corazón Pixel Art 8-bit',
-    category: 'Pixel Art',
-    description: 'Matriz ortogonal perfecta para modo Pixel Art bit-exact.',
-    url: '',
     preset: 'pixel-art',
   },
 ];

@@ -1,7 +1,7 @@
 {
   "name": "Vectopix",
   "short_name": "Vectopix",
-  "description": "Vectoriza imágenes raster a SVG, DXF, EPS y PDF directamente en el navegador.",
+  "description": "Turn raster images into SVG, DXF, EPS and PDF, right in your browser.",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0b0d14",

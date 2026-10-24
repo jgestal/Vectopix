@@ -1,0 +1,91 @@
+name: Release
+
+# Push a tag like v1.2.3 to build the desktop apps for every platform and
+# publish them, together with the static web build, as a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: --mac
+          - os: windows-latest
+            platform: --win
+          - os: ubuntu-latest
+            platform: --linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check that the tag matches package.json
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match package.json version $version"; exit 1; }
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx electron-builder ${{ matrix.platform }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm run build
+      - name: Package the static web build
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          cd dist && zip -qr "../Vectopix-${version}-web.zip" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: Vectopix-*-web.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [desktop, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Write release notes
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          sed "s/{{VERSION}}/${version}/g" .github/release-notes.md > notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Vectopix ${{ github.ref_name }}
+          body_path: notes.md
+          files: artifacts/*
+          fail_on_unmatched_files: true

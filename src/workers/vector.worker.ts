@@ -24,7 +24,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
       }
 
       case 'EXPORT': {
-        if (!lastTrace) throw new Error('No hay ningún trazado disponible para exportar');
+        if (!lastTrace) throw new Error('No trace available to export');
         const data = exportTrace(lastTrace, msg.format);
         post(
           { type: 'EXPORT_RESULT', id: msg.id, data },

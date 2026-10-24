@@ -16,6 +16,7 @@ import type {
   PaletteColor,
   TraceMethod,
 } from '../types/vector';
+import { useI18n } from '../i18n';
 
 interface SidebarProps {
   options: VectorOptions;
@@ -42,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSimplifyNodes,
   nodesCount,
 }) => {
+  const { t } = useI18n();
   const updateOption = <K extends keyof VectorOptions>(
     key: K,
     val: VectorOptions[K]
@@ -67,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="sidebar-section">
         <div className="section-title">
           <GitFork size={16} className="section-icon" />
-          <span>Método de Vectorización</span>
+          <span>{t('sidebar.method')}</span>
         </div>
         <div className="method-toggle-group">
           <button
@@ -76,9 +78,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="method-btn-title">
               <Activity size={14} />
-              <span>Contornos (Outline)</span>
+              <span>{t('sidebar.outline')}</span>
             </div>
-            <div className="method-btn-desc">Polígonos y curvas cerradas con relleno</div>
+            <div className="method-btn-desc">{t('sidebar.outlineDesc')}</div>
           </button>
 
           <button
@@ -87,9 +89,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="method-btn-title">
               <Scissors size={14} />
-              <span>Línea Central (Centerline)</span>
+              <span>{t('sidebar.centerline')}</span>
             </div>
-            <div className="method-btn-desc">Esqueleto de un solo trazo para Láser/CNC/Bocetos</div>
+            <div className="method-btn-desc">{t('sidebar.centerlineDesc')}</div>
           </button>
         </div>
       </div>
@@ -98,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="sidebar-section">
         <div className="section-title">
           <Wand2 size={16} className="section-icon" />
-          <span>Presets de Vectorización</span>
+          <span>{t('sidebar.presets')}</span>
         </div>
         <div className="presets-grid">
           {options.traceMethod === 'centerline' ? (
@@ -107,15 +109,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className={`preset-card ${options.preset === 'centerline-sketch' ? 'active' : ''}`}
                 onClick={() => onApplyPreset('centerline-sketch')}
               >
-                <div className="preset-name">Boceto a Trazo Único</div>
-                <div className="preset-desc">Firma, grabado y caligrafía de trazo continuo</div>
+                <div className="preset-name">{t('preset.centerline-sketch.name')}</div>
+                <div className="preset-desc">{t('preset.centerline-sketch.desc')}</div>
               </button>
               <button
                 className={`preset-card ${options.preset === 'sketch' ? 'active' : ''}`}
                 onClick={() => onApplyPreset('sketch')}
               >
-                <div className="preset-name">Plano Técnico / CAD</div>
-                <div className="preset-desc">Líneas de centro limpias exportables a DXF</div>
+                <div className="preset-name">{t('preset.sketch-centerline.name')}</div>
+                <div className="preset-desc">{t('preset.sketch-centerline.desc')}</div>
               </button>
             </>
           ) : (
@@ -124,40 +126,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className={`preset-card ${options.preset === 'logo' ? 'active' : ''}`}
                 onClick={() => onApplyPreset('logo')}
               >
-                <div className="preset-name">Logotipo / Icono</div>
-                <div className="preset-desc">Bordes afilados, sub-pixel, nodos mínimos</div>
+                <div className="preset-name">{t('preset.logo.name')}</div>
+                <div className="preset-desc">{t('preset.logo.desc')}</div>
               </button>
 
               <button
                 className={`preset-card ${options.preset === 'flat-art' ? 'active' : ''}`}
                 onClick={() => onApplyPreset('flat-art')}
               >
-                <div className="preset-name">Ilustración Plana</div>
-                <div className="preset-desc">Paleta suave, equilibrio curvas y detalle</div>
+                <div className="preset-name">{t('preset.flat-art.name')}</div>
+                <div className="preset-desc">{t('preset.flat-art.desc')}</div>
               </button>
 
               <button
                 className={`preset-card ${options.preset === 'photo' ? 'active' : ''}`}
                 onClick={() => onApplyPreset('photo')}
               >
-                <div className="preset-name">Fotografía / Color</div>
-                <div className="preset-desc">Gradientes tonales y alta paleta (32 col)</div>
+                <div className="preset-name">{t('preset.photo.name')}</div>
+                <div className="preset-desc">{t('preset.photo.desc')}</div>
               </button>
 
               <button
                 className={`preset-card ${options.preset === 'sketch' ? 'active' : ''}`}
                 onClick={() => onApplyPreset('sketch')}
               >
-                <div className="preset-name">Boceto Monocromo</div>
-                <div className="preset-desc">Alto contraste, 2 colores, sin fondo</div>
+                <div className="preset-name">{t('preset.sketch.name')}</div>
+                <div className="preset-desc">{t('preset.sketch.desc')}</div>
               </button>
 
               <button
                 className={`preset-card ${options.preset === 'pixel-art' ? 'active' : ''}`}
                 onClick={() => onApplyPreset('pixel-art')}
               >
-                <div className="preset-name">Pixel Art Bit-Exact</div>
-                <div className="preset-desc">Rejilla geométrica ortogonal sin suavizado</div>
+                <div className="preset-name">{t('preset.pixel-art.name')}</div>
+                <div className="preset-desc">{t('preset.pixel-art.desc')}</div>
               </button>
             </>
           )}
@@ -169,12 +171,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="sidebar-section">
           <div className="section-title">
             <Scissors size={16} className="section-icon" />
-            <span>Parámetros de Línea Central</span>
+            <span>{t('sidebar.centerlineParams')}</span>
           </div>
 
           <div className="control-group">
             <div className="control-header">
-              <label htmlFor="cl-width-slider">Grosor de Trazo (Stroke)</label>
+              <label htmlFor="cl-width-slider">{t('sidebar.strokeWidth')}</label>
               <span className="control-val">{options.centerlineStrokeWidth} px</span>
             </div>
             <input
@@ -191,7 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <div className="control-group">
             <div className="control-header">
-              <label htmlFor="cl-color-input">Color del Trazo</label>
+              <label htmlFor="cl-color-input">{t('sidebar.strokeColor')}</label>
               <span className="control-val">{options.centerlineStrokeColor}</span>
             </div>
             <div className="color-picker-row">
@@ -209,10 +211,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="toggle-list">
             <label className="toggle-item">
               <div className="toggle-info">
-                <span className="toggle-title">Umbral Adaptativo (Bradley)</span>
-                <span className="toggle-sub">
-                  Compensa sombras e iluminación irregular
-                </span>
+                <span className="toggle-title">{t('sidebar.adaptive')}</span>
+                <span className="toggle-sub">{t('sidebar.adaptiveDesc')}</span>
               </div>
               <input
                 type="checkbox"
@@ -224,10 +224,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <label className="toggle-item">
               <div className="toggle-info">
-                <span className="toggle-title">Tinta Oscura sobre Claro</span>
-                <span className="toggle-sub">
-                  Invierte si el dibujo es claro sobre fondo oscuro
-                </span>
+                <span className="toggle-title">{t('sidebar.darkOnLight')}</span>
+                <span className="toggle-sub">{t('sidebar.darkOnLightDesc')}</span>
               </div>
               <input
                 type="checkbox"
@@ -244,7 +242,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="sidebar-section">
             <div className="section-title">
               <Sliders size={16} className="section-icon" />
-              <span>Motor Algorítmico</span>
+              <span>{t('sidebar.engine')}</span>
             </div>
             <div className="engine-toggle-group">
               <button
@@ -252,10 +250,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => updateOption('engine', 'vecline')}
               >
                 <div className="engine-title">
-                  <span>Vecline (Sub-Pixel)</span>
-                  <span className="rec-tag">Recomendado</span>
+                  <span>{t('sidebar.engineVecline')}</span>
+                  <span className="rec-tag">{t('sidebar.recommended')}</span>
                 </div>
-                <div className="engine-sub">Curvas Bézier continuas tipo Vector Magic</div>
+                <div className="engine-sub">{t('sidebar.engineVeclineDesc')}</div>
               </button>
 
               <button
@@ -265,7 +263,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="engine-title">
                   <span>ImageTracerJS</span>
                 </div>
-                <div className="engine-sub">Trazado clásico por capas policromáticas</div>
+                <div className="engine-sub">{t('sidebar.engineImageTracerDesc')}</div>
               </button>
             </div>
           </div>
@@ -274,12 +272,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="sidebar-section">
             <div className="section-title">
               <SlidersHorizontal size={16} className="section-icon" />
-              <span>Pre-procesamiento de Imagen</span>
+              <span>{t('sidebar.preprocessing')}</span>
             </div>
 
             <div className="control-group">
               <div className="control-header">
-                <label htmlFor="contrast-slider">Contraste / Nitidez</label>
+                <label htmlFor="contrast-slider">{t('sidebar.contrast')}</label>
                 <span className="control-val">{options.contrast > 0 ? `+${options.contrast}` : options.contrast}%</span>
               </div>
               <input
@@ -296,7 +294,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <div className="control-group">
               <div className="control-header">
-                <label htmlFor="denoise-slider">Reducción de Ruido JPEG</label>
+                <label htmlFor="denoise-slider">{t('sidebar.denoise')}</label>
                 <span className="control-val">{options.denoise}</span>
               </div>
               <input
@@ -316,13 +314,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="sidebar-section">
             <div className="section-title">
               <Sliders size={16} className="section-icon" />
-              <span>Ajustes de Precisión</span>
+              <span>{t('sidebar.precision')}</span>
             </div>
 
             {/* Colors */}
             <div className="control-group">
               <div className="control-header">
-                <label htmlFor="color-slider">Cantidad de Colores</label>
+                <label htmlFor="color-slider">{t('sidebar.colors')}</label>
                 <span className="control-val">{options.colors}</span>
               </div>
               <input
@@ -336,16 +334,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="studio-slider"
               />
               <div className="slider-ticks">
-                <span>2 (B/N)</span>
-                <span>16 (Estándar)</span>
-                <span>64 (Fidelidad)</span>
+                <span>{t('sidebar.colorsMin')}</span>
+                <span>{t('sidebar.colorsMid')}</span>
+                <span>{t('sidebar.colorsMax')}</span>
               </div>
             </div>
 
             {/* Curve Fitting Error (Tolerance) */}
             <div className="control-group">
               <div className="control-header">
-                <label htmlFor="tolerance-slider">Tolerancia de Nodos y Curvas</label>
+                <label htmlFor="tolerance-slider">{t('sidebar.tolerance')}</label>
                 <span className="control-val">{options.fitError.toFixed(2)}</span>
               </div>
               <input
@@ -366,22 +364,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="studio-slider"
               />
               <div className="slider-ticks">
-                <span>0.1 (Fiel a píxeles / + nodos)</span>
-                <span>0.75 (Estándar VM)</span>
-                <span>1.5 (Menos nodos)</span>
+                <span>{t('sidebar.toleranceMin')}</span>
+                <span>{t('sidebar.toleranceMid')}</span>
+                <span>{t('sidebar.toleranceMax')}</span>
               </div>
             </div>
 
             {/* Bézier Smoothing */}
             <div className="control-group">
               <div className="control-header">
-                <label htmlFor="smooth-slider">Suavizado de Splines (Bézier Smooth)</label>
+                <label htmlFor="smooth-slider">{t('sidebar.smooth')}</label>
                 <span className="control-val">
-                  {options.smooth === 0
-                    ? 'Desactivado (0)'
-                    : options.smooth === 2
-                    ? 'Ultra Suave (2)'
-                    : 'Estándar (1)'}
+                  {t(
+                    options.smooth === 0
+                      ? 'sidebar.smoothOff'
+                      : options.smooth === 2
+                        ? 'sidebar.smoothUltra'
+                        : 'sidebar.smoothStandard'
+                  )}
                 </span>
               </div>
               <input
@@ -395,16 +395,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="studio-slider"
               />
               <div className="slider-ticks">
-                <span>0 (Poligonal)</span>
-                <span>1 (Vector Magic)</span>
-                <span>2 (Ultra Suave)</span>
+                <span>{t('sidebar.smoothMin')}</span>
+                <span>{t('sidebar.smoothMid')}</span>
+                <span>{t('sidebar.smoothMax')}</span>
               </div>
             </div>
 
             {/* Noise Filter (Min Area) */}
             <div className="control-group">
               <div className="control-header">
-                <label htmlFor="minarea-slider">Filtro de Ruido (Área mínima)</label>
+                <label htmlFor="minarea-slider">{t('sidebar.minArea')}</label>
                 <span className="control-val">{options.minArea} px</span>
               </div>
               <input
@@ -418,16 +418,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="studio-slider"
               />
               <div className="slider-ticks">
-                <span>0 (Todo)</span>
+                <span>{t('sidebar.minAreaMin')}</span>
                 <span>10 px</span>
-                <span>40 px (Eliminar motas)</span>
+                <span>{t('sidebar.minAreaMax')}</span>
               </div>
             </div>
 
             {/* Corner Angle */}
             <div className="control-group">
               <div className="control-header">
-                <label htmlFor="corner-slider">Umbral de Esquina Afilada</label>
+                <label htmlFor="corner-slider">{t('sidebar.cornerAngle')}</label>
                 <span className="control-val">{options.cornerAngle}°</span>
               </div>
               <input
@@ -447,16 +447,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="sidebar-section">
             <div className="section-title">
               <Sparkles size={16} className="section-icon" />
-              <span>Filtros y Optimización</span>
+              <span>{t('sidebar.filters')}</span>
             </div>
 
             <div className="toggle-list">
               <label className="toggle-item">
                 <div className="toggle-info">
-                  <span className="toggle-title">Reconstrucción Sub-Pixel</span>
-                  <span className="toggle-sub">
-                    Deduce bordes ideales en base al anti-aliasing (tipo Vector Magic)
-                  </span>
+                  <span className="toggle-title">{t('sidebar.subpixel')}</span>
+                  <span className="toggle-sub">{t('sidebar.subpixelDesc')}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -468,10 +466,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <label className="toggle-item">
                 <div className="toggle-info">
-                  <span className="toggle-title">Fondo Transparente</span>
-                  <span className="toggle-sub">
-                    Elimina automáticamente el color de fondo predominante
-                  </span>
+                  <span className="toggle-title">{t('sidebar.transparent')}</span>
+                  <span className="toggle-sub">{t('sidebar.transparentDesc')}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -483,10 +479,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <label className="toggle-item">
                 <div className="toggle-info">
-                  <span className="toggle-title">Detectar Primitivas</span>
-                  <span className="toggle-sub">
-                    Sustituye arcos por rectángulos y círculos exactos
-                  </span>
+                  <span className="toggle-title">{t('sidebar.primitives')}</span>
+                  <span className="toggle-sub">{t('sidebar.primitivesDesc')}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -498,10 +492,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <label className="toggle-item">
                 <div className="toggle-info">
-                  <span className="toggle-title">Soporte de Gradientes</span>
-                  <span className="toggle-sub">
-                    Detecta y vectoriza degradados lineales suaves
-                  </span>
+                  <span className="toggle-title">{t('sidebar.gradients')}</span>
+                  <span className="toggle-sub">{t('sidebar.gradientsDesc')}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -517,12 +509,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="sidebar-optimize-card">
                 <div className="sidebar-optimize-header">
                   <Sparkles size={14} className="text-amber" />
-                  <span className="sidebar-optimize-title">Reducción Inteligente de Nodos</span>
+                  <span className="sidebar-optimize-title">{t('sidebar.simplifyTitle')}</span>
                 </div>
                 <p className="sidebar-optimize-desc">
-                  Elimina micro-nodos redundantes y alinea segmentos colineales (RDP) conservando la curvatura original.
+                  {t('sidebar.simplifyDesc')}
                   {nodesCount !== undefined && (
-                    <span className="sidebar-optimize-count"> Nodos actuales: <strong>{nodesCount}</strong></span>
+                    <span className="sidebar-optimize-count"> {t('sidebar.currentNodes')} <strong>{nodesCount}</strong></span>
                   )}
                 </p>
                 <button
@@ -531,7 +523,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   disabled={isProcessing}
                 >
                   <Sparkles size={14} />
-                  <span>Reducir Nodos del SVG</span>
+                  <span>{t('sidebar.simplifyButton')}</span>
                 </button>
               </div>
             )}
@@ -542,10 +534,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="sidebar-section">
               <div className="section-title">
                 <Palette size={16} className="section-icon" />
-                <span>Paleta Activa ({palette.length} colores)</span>
+                <span>{t('sidebar.palette', { count: palette.length })}</span>
               </div>
               <div className="palette-instruction">
-                Haz clic en cualquier muestra para cambiarla, hacerla transparente o copiar su código HEX.
+                {t('sidebar.paletteHint')}
               </div>
 
               <div className="palette-grid">
@@ -554,7 +546,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     key={idx}
                     className="palette-swatch"
                     style={{ backgroundColor: col.hex }}
-                    title={`${col.hex} (${col.percentage}%) - Clic para gestionar`}
+                    title={t('sidebar.swatchTitle', { hex: col.hex, pct: col.percentage })}
                     onClick={() => onSelectColor(col)}
                   >
                     <span className="swatch-hover-val">{col.hex}</span>
@@ -576,13 +568,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {isProcessing ? (
             <>
               <div className="spinner-sm"></div>
-              <span>Procesando...</span>
+              <span>{t('sidebar.processing')}</span>
             </>
           ) : (
             <>
               <RotateCcw size={16} />
               <span>
-                {isCenterline ? 'Trazar Línea Central' : 'Re-vectorizar ahora'}
+                {t(isCenterline ? 'sidebar.traceCenterline' : 'sidebar.retrace')}
               </span>
             </>
           )}

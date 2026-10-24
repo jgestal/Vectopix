@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { ExportFormat, VectorResult } from '../types/vector';
 import { requestExport } from '../services/vectorWorkerClient';
+import { useI18n } from '../i18n';
 import {
   downloadFile,
   downloadBlob,
@@ -53,6 +54,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [minifySvgEnabled, setMinifySvgEnabled] = useState<boolean>(true);
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
 
   // DXF / EPS / PDF are built only when their tab is opened (a format with
   // no entry yet is still loading). An unedited trace uses the worker's exact
@@ -92,7 +94,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   const cadText = (format: ExportFormat): string => {
     const state = cadExports[format];
-    if (!state) return `/* Generando ${format.toUpperCase()}... */`;
+    if (!state) return `/* ${t('export.generating', { format: format.toUpperCase() })} */`;
     if (state.status === 'error') return `/* ${state.message} */`;
     return typeof state.data === 'string' ? state.data : '';
   };
@@ -113,10 +115,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         return cadText(activeTab);
       case 'pdf':
         return cadData('pdf')
-          ? `Documento Adobe PDF Vectorial (versión 1.4)\nDimensiones: ${width} × ${height} pt\nEstado: Listo para descargar`
+          ? t('export.pdfInfo', { width, height })
           : cadText('pdf');
       case 'png':
-        return `PNG Rasterizado de Alta Resolución (${width * pngScale} × ${height * pngScale} px a escala ${pngScale}x, fondo ${pngBgColor})`;
+        return t('export.pngInfo', { width: width * pngScale, height: height * pngScale, scale: pngScale });
     }
   };
 
@@ -125,7 +127,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       case 'svg': {
         const svgContent = optimizedSvg;
         downloadFile(svgContent, `${nameWithoutExt}.svg`, 'image/svg+xml');
-        onShowToast(`Archivo ${nameWithoutExt}.svg descargado`, 'success');
+        onShowToast(t('export.downloaded', { file: `${nameWithoutExt}.svg` }), 'success');
         break;
       }
       case 'png':
@@ -133,9 +135,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           setIsExportingPng(true);
           const blob = await exportSvgToPngBlob(result.svg, width, height, pngScale, pngBgColor);
           downloadBlob(blob, `${nameWithoutExt}_@${pngScale}x.png`);
-          onShowToast(`PNG @${pngScale}x descargado con éxito`, 'success');
+          onShowToast(t('export.downloaded', { file: `${nameWithoutExt}_@${pngScale}x.png` }), 'success');
         } catch {
-          onShowToast('Error al rasterizar PNG', 'warning');
+          onShowToast(t('export.pngError'), 'warning');
         } finally {
           setIsExportingPng(false);
         }
@@ -143,7 +145,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       case 'components': {
         const ext = componentFramework === 'react' ? 'tsx' : componentFramework;
         downloadFile(componentCode, `VectorGraphic.${ext}`, 'text/plain');
-        onShowToast(`Componente ${componentFramework.toUpperCase()} descargado`, 'success');
+        onShowToast(t('export.downloaded', { file: `VectorGraphic.${ext}` }), 'success');
         break;
       }
       case 'dxf':
@@ -151,16 +153,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       case 'pdf': {
         const data = cadData(activeTab);
         if (!data) {
-          onShowToast(`${activeTab.toUpperCase()} aún no está disponible`, 'warning');
+          onShowToast(t('export.notAvailable', { format: activeTab.toUpperCase() }), 'warning');
         } else if (activeTab === 'pdf') {
           downloadPdf(data, `${nameWithoutExt}.pdf`);
-          onShowToast('Documento Vectorial PDF descargado', 'success');
+          onShowToast(t('export.downloaded', { file: `${nameWithoutExt}.pdf` }), 'success');
         } else if (activeTab === 'dxf') {
           downloadFile(data as string, `${nameWithoutExt}.dxf`, 'application/dxf');
-          onShowToast('Archivo CAD DXF descargado', 'success');
+          onShowToast(t('export.downloaded', { file: `${nameWithoutExt}.dxf` }), 'success');
         } else {
           downloadFile(data as string, `${nameWithoutExt}.eps`, 'application/postscript');
-          onShowToast('Archivo EPS descargado', 'success');
+          onShowToast(t('export.downloaded', { file: `${nameWithoutExt}.eps` }), 'success');
         }
         break;
       }
@@ -171,7 +173,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     const text = getActiveContent();
     await navigator.clipboard.writeText(text);
     setCopied(true);
-    onShowToast('Copiado al portapapeles', 'success');
+    onShowToast(t('export.copiedToast'), 'success');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -181,12 +183,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         {/* Header */}
         <div className="modal-header">
           <div className="modal-title-group">
-            <h2 className="modal-title">Exportar Gráfico Vectorial</h2>
+            <h2 className="modal-title">{t('export.title')}</h2>
             <span className="modal-subtitle">
-              Formatos optimizados para desarrollo web, diseño UI, corte láser, CNC e imprenta
+              {t('export.subtitle')}
             </span>
           </div>
-          <button className="modal-close" onClick={onClose} title="Cerrar">
+          <button className="modal-close" onClick={onClose} title={t('export.close')}>
             <X size={18} />
           </button>
         </div>
@@ -198,7 +200,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             onClick={() => setActiveTab('svg')}
           >
             <FileCode size={16} />
-            <span>SVG Estándar</span>
+            <span>{t('export.tabSvg')}</span>
           </button>
 
           <button
@@ -206,7 +208,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             onClick={() => setActiveTab('png')}
           >
             <ImageIcon size={16} />
-            <span>Alta Res. PNG</span>
+            <span>{t('export.tabPng')}</span>
           </button>
 
           <button
@@ -214,7 +216,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             onClick={() => setActiveTab('components')}
           >
             <Code2 size={16} />
-            <span>Componentes UI</span>
+            <span>{t('export.tabComponents')}</span>
           </button>
 
           <button
@@ -222,7 +224,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             onClick={() => setActiveTab('dxf')}
           >
             <Scissors size={16} />
-            <span>DXF (Láser / CNC)</span>
+            <span>{t('export.tabDxf')}</span>
           </button>
 
           <button
@@ -230,7 +232,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             onClick={() => setActiveTab('eps')}
           >
             <Printer size={16} />
-            <span>EPS (Imprenta)</span>
+            <span>{t('export.tabEps')}</span>
           </button>
 
           <button
@@ -238,14 +240,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             onClick={() => setActiveTab('pdf')}
           >
             <FileText size={16} />
-            <span>PDF Vectorial</span>
+            <span>{t('export.tabPdf')}</span>
           </button>
         </div>
 
         {/* Tab-Specific Sub-Bars */}
         {activeTab === 'svg' && (
           <div className="export-subbar">
-            <span className="subbar-label">Optimización:</span>
+            <span className="subbar-label">{t('export.optimization')}</span>
             <label className="subbar-checkbox-label">
               <input
                 type="checkbox"
@@ -254,7 +256,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 className="studio-switch"
               />
               <span className="text-secondary text-sm">
-                Minificar y optimizar coordenadas (reduce peso y elimina metadatos innecesarios)
+                {t('export.minify')}
               </span>
             </label>
           </div>
@@ -263,7 +265,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         {activeTab === 'png' && (
           <div className="export-subbar">
             <div className="subbar-group">
-              <span className="subbar-label">Escala:</span>
+              <span className="subbar-label">{t('export.scale')}</span>
               <div className="scale-selector">
                 {[1, 2, 4, 8].map((s) => (
                   <button
@@ -278,25 +280,25 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
 
             <div className="subbar-group">
-              <span className="subbar-label">Fondo:</span>
+              <span className="subbar-label">{t('export.background')}</span>
               <div className="scale-selector">
                 <button
                   className={`scale-btn ${pngBgColor === 'transparent' ? 'active' : ''}`}
                   onClick={() => setPngBgColor('transparent')}
                 >
-                  Transparente
+                  {t('export.bgTransparent')}
                 </button>
                 <button
                   className={`scale-btn ${pngBgColor === '#ffffff' ? 'active' : ''}`}
                   onClick={() => setPngBgColor('#ffffff')}
                 >
-                  Blanco
+                  {t('export.bgWhite')}
                 </button>
                 <button
                   className={`scale-btn ${pngBgColor === '#0f172a' ? 'active' : ''}`}
                   onClick={() => setPngBgColor('#0f172a')}
                 >
-                  Oscuro
+                  {t('export.bgDark')}
                 </button>
               </div>
             </div>
@@ -305,7 +307,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
         {activeTab === 'components' && (
           <div className="export-subbar">
-            <span className="subbar-label">Framework:</span>
+            <span className="subbar-label">{t('export.framework')}</span>
             <div className="framework-selector">
               {(['react', 'vue', 'svelte'] as const).map((fw) => (
                 <button
@@ -326,11 +328,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <span className="file-info-badge">
               {activeTab === 'svg' &&
                 `image/svg+xml • ${formatBytes(new Blob([optimizedSvg]).size)}`}
-              {activeTab === 'png' && `PNG Rasterizado 32-bit • @${pngScale}x`}
-              {activeTab === 'components' && `${componentFramework.toUpperCase()} Component`}
-              {activeTab === 'dxf' && 'Autodesk Drawing Exchange Format (DXF R12)'}
-              {activeTab === 'eps' && 'Encapsulated PostScript (EPS 3.0)'}
-              {activeTab === 'pdf' && 'Documento Adobe PDF 1.4 Vectorial'}
+              {activeTab === 'png' && t('export.badgePng', { scale: pngScale })}
+              {activeTab === 'components' && t('export.badgeComponent', { framework: componentFramework.toUpperCase() })}
+              {activeTab === 'dxf' && t('export.badgeDxf')}
+              {activeTab === 'eps' && t('export.badgeEps')}
+              {activeTab === 'pdf' && t('export.badgePdf')}
             </span>
 
             {activeTab !== 'png' && (
@@ -338,12 +340,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 {copied ? (
                   <>
                     <Check size={14} className="text-emerald" />
-                    <span className="text-emerald">Copiado al portapapeles</span>
+                    <span className="text-emerald">{t('export.copied')}</span>
                   </>
                 ) : (
                   <>
                     <Copy size={14} />
-                    <span>Copiar Código</span>
+                    <span>{t('export.copyCode')}</span>
                   </>
                 )}
               </button>
@@ -363,11 +365,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </div>
               <div className="png-preview-meta">
                 <span>
-                  Resolución final de descarga:{' '}
+                  {t('export.pngResolution')}{' '}
                   <strong>{width * pngScale} × {height * pngScale} px</strong>
                 </span>
                 <span>
-                  Fondo: {pngBgColor === 'transparent' ? 'Transparente (canal Alpha)' : pngBgColor}
+                  {t('export.pngBackground')} {pngBgColor === 'transparent' ? t('export.pngTransparentAlpha') : pngBgColor}
                 </span>
               </div>
             </div>
@@ -377,24 +379,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <FileText size={36} className="text-cyan" />
               </div>
               <h3 className="pdf-preview-title">
-                {pdfState?.status === 'ready' ? 'Documento Vectorial PDF Listo para Descarga' : 'Generando PDF...'}
+                {t(pdfState?.status === 'ready' ? 'export.pdfReadyTitle' : 'export.pdfGenerating')}
               </h3>
               <p className="pdf-preview-desc">
-                Generado con curvas de Bézier cúbicas exactas, resolución infinita y soporte directo
-                para imprenta profesional, Illustrator, CorelDraw e InDesign.
+                {t('export.pdfDesc')}
               </p>
               <div className="pdf-specs-grid">
                 <div className="spec-item">
-                  <span className="spec-lbl">Dimensiones:</span>
+                  <span className="spec-lbl">{t('export.pdfDimensions')}</span>
                   <span className="spec-val">{width} × {height} pt</span>
                 </div>
                 <div className="spec-item">
-                  <span className="spec-lbl">Espacio de Color:</span>
-                  <span className="spec-val">sRGB / CMYK Compatible</span>
+                  <span className="spec-lbl">{t('export.pdfColorSpace')}</span>
+                  <span className="spec-val">sRGB</span>
                 </div>
                 <div className="spec-item">
-                  <span className="spec-lbl">Tipo de trazado:</span>
-                  <span className="spec-val">{result.isCenterline ? 'Centerline Polylines' : 'Bézier Splines'}</span>
+                  <span className="spec-lbl">{t('export.pdfPathType')}</span>
+                  <span className="spec-val">{t(result.isCenterline ? 'export.pdfPolylines' : 'export.pdfSplines')}</span>
                 </div>
               </div>
             </div>
@@ -408,7 +409,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         {/* Footer */}
         <div className="modal-footer">
           <button className="btn-secondary" onClick={onClose}>
-            Cancelar
+            {t('export.cancel')}
           </button>
           <button
             className="btn-primary"
@@ -418,8 +419,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <Download size={16} />
             <span>
               {isExportingPng
-                ? 'Generando PNG...'
-                : `Descargar ${activeTab === 'components' ? componentFramework.toUpperCase() : activeTab.toUpperCase()}`}
+                ? t('export.generatingPng')
+                : t('export.download', {
+                    format: activeTab === 'components' ? componentFramework.toUpperCase() : activeTab.toUpperCase(),
+                  })}
             </span>
           </button>
         </div>

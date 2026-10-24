@@ -6,11 +6,12 @@ import type {
   WorkerResponse,
   WorkerProgress,
 } from '../types/vector';
+import { LocalizedError } from '../i18n/errors';
 
 /** Rejection reason when a trace is superseded by a newer one. */
 export class VectorizationCanceledError extends Error {
   constructor() {
-    super('Vectorización cancelada por una petición más reciente');
+    super('Vectorization superseded by a newer request');
     this.name = 'VectorizationCanceledError';
   }
 }
@@ -63,7 +64,7 @@ function getWorker(): Worker {
   // caller waiting forever.
   worker.onerror = (e) => {
     e.preventDefault();
-    resetWorker(new Error(e.message || 'El motor de vectorización se ha detenido inesperadamente'));
+    resetWorker(new LocalizedError('error.workerCrashed'));
   };
 
   return worker;
@@ -102,14 +103,14 @@ export async function vectorizeWithWorker(
     [buffer],
     onProgress
   );
-  if (response.type !== 'SUCCESS') throw new Error('Respuesta inesperada del motor');
+  if (response.type !== 'SUCCESS') throw new Error('Unexpected engine response');
   return { ...response.result, rasterSizeBytes };
 }
 
 /** Build DXF / EPS / PDF from the latest finished trace. */
 export async function requestExport(format: ExportFormat): Promise<string | Uint8Array> {
   const response = await send({ type: 'EXPORT', id: nextId('export'), format });
-  if (response.type !== 'EXPORT_RESULT') throw new Error('Respuesta inesperada del motor');
+  if (response.type !== 'EXPORT_RESULT') throw new Error('Unexpected engine response');
   return response.data;
 }
 
@@ -128,6 +129,6 @@ export async function measureSsimWithWorker(reference: ImageData, candidate: Ima
     },
     [ref, cand]
   );
-  if (response.type !== 'MEASURE_RESULT') throw new Error('Respuesta inesperada del motor');
+  if (response.type !== 'MEASURE_RESULT') throw new Error('Unexpected engine response');
   return response.ssim;
 }

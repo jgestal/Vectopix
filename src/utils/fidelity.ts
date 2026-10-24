@@ -57,7 +57,7 @@ function loadSvgImage(svg: string): Promise<HTMLImageElement> {
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('No se pudo renderizar el SVG'));
+      reject(new Error('Could not render the SVG'));
     };
     img.src = url;
   });
