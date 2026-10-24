@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   X,
   Download,
@@ -11,7 +11,8 @@ import {
   Image as ImageIcon,
   FileText,
 } from 'lucide-react';
-import type { VectorResult } from '../types/vector';
+import type { ExportFormat, VectorResult } from '../types/vector';
+import { requestExport } from '../services/vectorWorkerClient';
 import {
   downloadFile,
   downloadBlob,
@@ -23,9 +24,8 @@ import {
 import { minifySvg } from '../utils/imageProcessing';
 
 interface ExportModalProps {
-  isOpen: boolean;
   onClose: () => void;
-  result: VectorResult | null;
+  result: VectorResult;
   baseFileName: string;
   imageDimensions: { width: number; height: number } | null;
   onShowToast: (text: string, type?: 'info' | 'success' | 'warning') => void;
@@ -33,8 +33,13 @@ interface ExportModalProps {
 
 type ExportTab = 'svg' | 'png' | 'components' | 'dxf' | 'eps' | 'pdf';
 
+type ExportState =
+  | { status: 'ready'; data: string | Uint8Array }
+  | { status: 'error'; message: string };
+
+const isCadFormat = (tab: ExportTab): tab is ExportFormat => tab === 'dxf' || tab === 'eps' || tab === 'pdf';
+
 export const ExportModal: React.FC<ExportModalProps> = ({
-  isOpen,
   onClose,
   result,
   baseFileName,
@@ -49,17 +54,49 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  if (!isOpen || !result) return null;
+  // DXF / EPS / PDF are built by the worker only when their tab is opened
+  // (a format with no entry yet is still loading)
+  const [cadExports, setCadExports] = useState<Partial<Record<ExportFormat, ExportState>>>({});
+  const requestedFormats = useRef(new Set<ExportFormat>());
+  useEffect(() => {
+    if (!isCadFormat(activeTab) || requestedFormats.current.has(activeTab)) return;
+    const format = activeTab;
+    requestedFormats.current.add(format);
+    requestExport(format)
+      .then((data) => setCadExports((prev) => ({ ...prev, [format]: { status: 'ready', data } })))
+      .catch((err: unknown) =>
+        setCadExports((prev) => ({
+          ...prev,
+          [format]: { status: 'error', message: err instanceof Error ? err.message : String(err) },
+        }))
+      );
+  }, [activeTab]);
 
   const width = imageDimensions?.width || 400;
   const height = imageDimensions?.height || 400;
   const nameWithoutExt = baseFileName.replace(/\.[^/.]+$/, '');
+  const hasEdits = result.svg !== result.originalSvg;
 
-  const optimizedSvg = minifySvgEnabled ? minifySvg(result.svg) : result.svg;
-  const componentCode = convertSvgToComponent(optimizedSvg, componentFramework);
-  const dxfContent = result.dxf || '';
-  const epsContent = result.eps || '';
-  const hasPdf = Boolean(result.pdf);
+  const optimizedSvg = useMemo(
+    () => (minifySvgEnabled ? minifySvg(result.svg) : result.svg),
+    [minifySvgEnabled, result.svg]
+  );
+  const componentCode = useMemo(
+    () => (activeTab === 'components' ? convertSvgToComponent(optimizedSvg, componentFramework) : ''),
+    [activeTab, optimizedSvg, componentFramework]
+  );
+
+  const cadText = (format: ExportFormat): string => {
+    const state = cadExports[format];
+    if (!state) return `/* Generando ${format.toUpperCase()}... */`;
+    if (state.status === 'error') return `/* ${state.message} */`;
+    return typeof state.data === 'string' ? state.data : '';
+  };
+  const cadData = (format: ExportFormat) => {
+    const state = cadExports[format];
+    return state?.status === 'ready' ? state.data : null;
+  };
+  const pdfState = cadExports.pdf;
 
   const getActiveContent = (): string => {
     switch (activeTab) {
@@ -68,13 +105,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       case 'components':
         return componentCode;
       case 'dxf':
-        return dxfContent || '/* Generando formato DXF... */';
       case 'eps':
-        return epsContent || '/* Generando formato EPS... */';
+        return cadText(activeTab);
       case 'pdf':
-        return hasPdf
-          ? `Documento Adobe PDF Vectorial (versión 1.4)\nDimensiones: ${width} × ${height} pt\nCurvas: Bézier cúbicas con precisión sub-pixel\nEstado: Listo para descargar`
-          : '/* Formato PDF no generado para este trazado */';
+        return cadData('pdf')
+          ? `Documento Adobe PDF Vectorial (versión 1.4)\nDimensiones: ${width} × ${height} pt\nEstado: Listo para descargar`
+          : cadText('pdf');
       case 'png':
         return `PNG Rasterizado de Alta Resolución (${width * pngScale} × ${height * pngScale} px a escala ${pngScale}x, fondo ${pngBgColor})`;
     }
@@ -107,25 +143,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         break;
       }
       case 'dxf':
-        if (dxfContent) {
-          downloadFile(dxfContent, `${nameWithoutExt}.dxf`, 'application/dxf');
-          onShowToast('Archivo CAD DXF descargado', 'success');
-        }
-        break;
       case 'eps':
-        if (epsContent) {
-          downloadFile(epsContent, `${nameWithoutExt}.eps`, 'application/postscript');
+      case 'pdf': {
+        const data = cadData(activeTab);
+        if (!data) {
+          onShowToast(`${activeTab.toUpperCase()} aún no está disponible`, 'warning');
+        } else if (activeTab === 'pdf') {
+          downloadPdf(data, `${nameWithoutExt}.pdf`);
+          onShowToast('Documento Vectorial PDF descargado', 'success');
+        } else if (activeTab === 'dxf') {
+          downloadFile(data as string, `${nameWithoutExt}.dxf`, 'application/dxf');
+          onShowToast('Archivo CAD DXF descargado', 'success');
+        } else {
+          downloadFile(data as string, `${nameWithoutExt}.eps`, 'application/postscript');
           onShowToast('Archivo EPS descargado', 'success');
         }
         break;
-      case 'pdf':
-        if (result.pdf) {
-          downloadPdf(result.pdf, `${nameWithoutExt}.pdf`);
-          onShowToast('Documento Vectorial PDF descargado', 'success');
-        } else {
-          onShowToast('Formato PDF no disponible', 'warning');
-        }
-        break;
+      }
     }
   };
 
@@ -203,6 +237,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <span>PDF Vectorial</span>
           </button>
         </div>
+
+        {isCadFormat(activeTab) && hasEdits && (
+          <div className="export-subbar export-notice">
+            Los formatos DXF, EPS y PDF se generan a partir del trazado original: las ediciones de
+            nodos y colores solo se incluyen en SVG, PNG y componentes.
+          </div>
+        )}
 
         {/* Tab-Specific Sub-Bars */}
         {activeTab === 'svg' && (
@@ -333,12 +374,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 </span>
               </div>
             </div>
-          ) : activeTab === 'pdf' ? (
+          ) : activeTab === 'pdf' && pdfState?.status !== 'error' ? (
             <div className="pdf-preview-card">
               <div className="pdf-icon-badge">
                 <FileText size={36} className="text-cyan" />
               </div>
-              <h3 className="pdf-preview-title">Documento Vectorial PDF Listo para Descarga</h3>
+              <h3 className="pdf-preview-title">
+                {pdfState?.status === 'ready' ? 'Documento Vectorial PDF Listo para Descarga' : 'Generando PDF...'}
+              </h3>
               <p className="pdf-preview-desc">
                 Generado con curvas de Bézier cúbicas exactas, resolución infinita y soporte directo
                 para imprenta profesional, Illustrator, CorelDraw e InDesign.
@@ -373,7 +416,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           <button
             className="btn-primary"
             onClick={handleDownload}
-            disabled={isExportingPng}
+            disabled={isExportingPng || (isCadFormat(activeTab) && !cadData(activeTab))}
           >
             <Download size={16} />
             <span>

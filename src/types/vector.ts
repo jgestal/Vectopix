@@ -39,8 +39,6 @@ export interface VectorOptions {
   centerlineStrokeColor: string;
   centerlineAdaptive: boolean;
   centerlineBlackOnWhite: boolean;
-  centerlineLineCap: 'round' | 'square' | 'butt';
-  centerlineLineJoin: 'round' | 'miter' | 'bevel';
 }
 
 export interface PaletteColor {
@@ -63,11 +61,9 @@ export interface VectorResult {
   executionTimeMs: number;
   fileSizeBytes: number;
   rasterSizeBytes: number;
-  dxf?: string;
-  eps?: string;
-  pdf?: string | Uint8Array;
   palette: PaletteColor[];
-  estimatedSsim?: number;
+  /** SSIM medido renderizando el SVG y comparándolo con el raster original (0–1). */
+  ssim?: number;
   isCenterline?: boolean;
   centerlineLength?: number;
 }
@@ -77,6 +73,8 @@ export interface WorkerProgress {
   percent: number;
 }
 
+export type ExportFormat = 'dxf' | 'eps' | 'pdf';
+
 export type WorkerMessage =
   | {
       type: 'VECTORIZE';
@@ -84,11 +82,20 @@ export type WorkerMessage =
       width: number;
       height: number;
       buffer: ArrayBuffer;
-      rasterSizeBytes: number;
       options: VectorOptions;
     }
   | {
-      type: 'CANCEL';
+      type: 'EXPORT';
+      id: string;
+      format: ExportFormat;
+    }
+  | {
+      type: 'MEASURE';
+      id: string;
+      width: number;
+      height: number;
+      reference: ArrayBuffer;
+      candidate: ArrayBuffer;
     };
 
 export type WorkerResponse =
@@ -102,6 +109,16 @@ export type WorkerResponse =
       type: 'SUCCESS';
       id: string;
       result: VectorResult;
+    }
+  | {
+      type: 'EXPORT_RESULT';
+      id: string;
+      data: string | Uint8Array;
+    }
+  | {
+      type: 'MEASURE_RESULT';
+      id: string;
+      ssim: number;
     }
   | {
       type: 'ERROR';

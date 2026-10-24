@@ -1,12 +1,14 @@
 {
   "name": "vectorapp",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,8 +23,11 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "happy-dom": "^21.0.4",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0"
-  }
+    "vite": "^8.3.0",
+    "vitest": "^4.1.12"
+  },
+  "description": "Vectorizador raster → SVG/DXF/EPS/PDF que funciona 100% en el navegador, con editor de nodos Bézier."
 }

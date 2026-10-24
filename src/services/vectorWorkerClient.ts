@@ -1,84 +1,133 @@
 import type {
+  ExportFormat,
   VectorOptions,
   VectorResult,
   WorkerMessage,
   WorkerResponse,
   WorkerProgress,
 } from '../types/vector';
-import { vectorizeImage } from './vectorEngine';
 
-let workerInstance: Worker | null = null;
-let currentRequestId = 0;
-let pendingReject: ((reason?: unknown) => void) | null = null;
-
-function getWorker(): Worker {
-  if (!workerInstance) {
-    workerInstance = new Worker(
-      new URL('../workers/vector.worker.ts', import.meta.url),
-      { type: 'module' }
-    );
+/** Rejection reason when a trace is superseded by a newer one. */
+export class VectorizationCanceledError extends Error {
+  constructor() {
+    super('Vectorización cancelada por una petición más reciente');
+    this.name = 'VectorizationCanceledError';
   }
-  return workerInstance;
 }
 
-export function vectorizeWithWorker(
+interface PendingRequest {
+  resolve: (response: WorkerResponse) => void;
+  reject: (reason: Error) => void;
+  onProgress?: (progress: WorkerProgress) => void;
+}
+
+let worker: Worker | null = null;
+let requestCounter = 0;
+let activeTraceId: string | null = null;
+const pending = new Map<string, PendingRequest>();
+
+function rejectAll(reason: Error) {
+  for (const req of pending.values()) req.reject(reason);
+  pending.clear();
+  activeTraceId = null;
+}
+
+function resetWorker(reason: Error) {
+  worker?.terminate();
+  worker = null;
+  rejectAll(reason);
+}
+
+function getWorker(): Worker {
+  if (worker) return worker;
+
+  worker = new Worker(new URL('../workers/vector.worker.ts', import.meta.url), { type: 'module' });
+
+  worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+    const response = e.data;
+    const req = pending.get(response.id);
+    if (!req) return;
+
+    if (response.type === 'PROGRESS') {
+      req.onProgress?.({ stage: response.stage, percent: response.percent });
+      return;
+    }
+
+    pending.delete(response.id);
+    if (response.id === activeTraceId) activeTraceId = null;
+    if (response.type === 'ERROR') req.reject(new Error(response.error));
+    else req.resolve(response);
+  };
+
+  // A crash (e.g. out of memory on a huge image) would otherwise leave every
+  // caller waiting forever.
+  worker.onerror = (e) => {
+    e.preventDefault();
+    resetWorker(new Error(e.message || 'El motor de vectorización se ha detenido inesperadamente'));
+  };
+
+  return worker;
+}
+
+function send(
+  message: WorkerMessage,
+  transfer: Transferable[] = [],
+  onProgress?: (progress: WorkerProgress) => void
+): Promise<WorkerResponse> {
+  const target = getWorker();
+  return new Promise((resolve, reject) => {
+    pending.set(message.id, { resolve, reject, onProgress });
+    target.postMessage(message, transfer);
+  });
+}
+
+const nextId = (prefix: string) => `${prefix}_${++requestCounter}`;
+
+export async function vectorizeWithWorker(
   imageData: ImageData,
   rasterSizeBytes: number,
   options: VectorOptions,
   onProgress?: (progress: WorkerProgress) => void
 ): Promise<VectorResult> {
-  // If workers are not supported (e.g. testing environments), fallback to direct engine
-  if (typeof Worker === 'undefined') {
-    return vectorizeImage(imageData, options);
-  }
+  // The engine is synchronous inside the worker, so a running trace cannot be
+  // interrupted cooperatively: terminating the worker is the only real cancel.
+  if (activeTraceId) resetWorker(new VectorizationCanceledError());
 
-  // Cancel any previous pending request
-  if (pendingReject) {
-    pendingReject(new Error('Canceled by subsequent vectorization request'));
-    pendingReject = null;
-  }
+  const id = nextId('trace');
+  activeTraceId = id;
+  const buffer = imageData.data.buffer.slice(0);
 
-  const id = `req_${++currentRequestId}`;
-  const worker = getWorker();
+  const response = await send(
+    { type: 'VECTORIZE', id, width: imageData.width, height: imageData.height, buffer, options },
+    [buffer],
+    onProgress
+  );
+  if (response.type !== 'SUCCESS') throw new Error('Respuesta inesperada del motor');
+  return { ...response.result, rasterSizeBytes };
+}
 
-  return new Promise<VectorResult>((resolve, reject) => {
-    pendingReject = reject;
+/** Build DXF / EPS / PDF from the latest finished trace. */
+export async function requestExport(format: ExportFormat): Promise<string | Uint8Array> {
+  const response = await send({ type: 'EXPORT', id: nextId('export'), format });
+  if (response.type !== 'EXPORT_RESULT') throw new Error('Respuesta inesperada del motor');
+  return response.data;
+}
 
-    const handleMessage = (e: MessageEvent<WorkerResponse>) => {
-      const response = e.data;
-      if (response.id !== id) return;
-
-      if (response.type === 'PROGRESS') {
-        onProgress?.({
-          stage: response.stage,
-          percent: response.percent,
-        });
-      } else if (response.type === 'SUCCESS') {
-        worker.removeEventListener('message', handleMessage);
-        pendingReject = null;
-        resolve(response.result);
-      } else if (response.type === 'ERROR') {
-        worker.removeEventListener('message', handleMessage);
-        pendingReject = null;
-        reject(new Error(response.error));
-      }
-    };
-
-    worker.addEventListener('message', handleMessage);
-
-    // Clone the buffer to transfer to worker
-    const buffer = imageData.data.buffer.slice(0);
-
-    const message: WorkerMessage = {
-      type: 'VECTORIZE',
-      id,
-      width: imageData.width,
-      height: imageData.height,
-      buffer,
-      rasterSizeBytes,
-      options,
-    };
-
-    worker.postMessage(message, [buffer]);
-  });
+/** SSIM between two same-sized images, computed off the main thread. */
+export async function measureSsimWithWorker(reference: ImageData, candidate: ImageData): Promise<number> {
+  const ref = reference.data.buffer.slice(0);
+  const cand = candidate.data.buffer.slice(0);
+  const response = await send(
+    {
+      type: 'MEASURE',
+      id: nextId('measure'),
+      width: reference.width,
+      height: reference.height,
+      reference: ref,
+      candidate: cand,
+    },
+    [ref, cand]
+  );
+  if (response.type !== 'MEASURE_RESULT') throw new Error('Respuesta inesperada del motor');
+  return response.ssim;
 }

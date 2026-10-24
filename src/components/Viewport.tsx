@@ -6,7 +6,8 @@ import {
   extractInteractiveNodes,
   toggleNodeType,
   splitSegmentAtMidpoint,
-  simplifySvgPaths,
+  moveNode,
+  deleteNode,
   type ParsedSvgDoc,
   type InteractiveNode,
 } from '../utils/pathParser';
@@ -34,7 +35,23 @@ interface ViewportProps {
   progress: WorkerProgress | null;
   onSvgModified: (newSvg: string, commitHistory?: boolean, toastText?: string) => void;
   onResetEdits: () => void;
+  onSimplifyNodes: () => void;
+  onShowToast: (text: string, type?: 'info' | 'success' | 'warning') => void;
+  /** Incremented by the parent to request a fit-to-screen. */
+  fitRequest: number;
   isCenterline?: boolean;
+}
+
+type DraggedNode = Pick<InteractiveNode, 'id' | 'pathIndex' | 'segmentIndex' | 'nodeType'>;
+
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 24;
+const FIT_PADDING = 80;
+
+/** Path index encoded in an interactive node id (`p{path}_s{segment}_{type}`). */
+function pathIndexFromNodeId(id: string | null): number | null {
+  const match = id?.match(/^p(\d+)_/);
+  return match ? Number(match[1]) : null;
 }
 
 export const Viewport: React.FC<ViewportProps> = ({
@@ -50,9 +67,13 @@ export const Viewport: React.FC<ViewportProps> = ({
   progress,
   onSvgModified,
   onResetEdits,
+  onSimplifyNodes,
+  onShowToast,
+  fitRequest,
   isCenterline,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<SVGSVGElement>(null);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -62,29 +83,55 @@ export const Viewport: React.FC<ViewportProps> = ({
 
   // Node Editor State
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [activeDraggingNode, setActiveDraggingNode] = useState<{
-    id: string;
-    pathIndex: number;
-    segmentIndex: number;
-    nodeType: 'anchor' | 'cp1' | 'cp2';
-  } | null>(null);
+  const [activeDraggingNode, setActiveDraggingNode] = useState<DraggedNode | null>(null);
 
   const hasDraggedNodeRef = useRef(false);
   const latestSvgRef = useRef(svgContent);
+  const dragFrameRef = useRef<number | null>(null);
+  const zoomRef = useRef(zoom);
+  const panRef = useRef(pan);
 
   useEffect(() => {
     latestSvgRef.current = svgContent;
   }, [svgContent]);
 
-  // Center image when dimensions or viewMode changes
+  useEffect(() => {
+    zoomRef.current = zoom;
+    panRef.current = pan;
+  }, [zoom, pan]);
+
+  // Fit the artboard to the viewport for a new image or an explicit fit
+  // request, and re-center it (keeping the zoom) when the layout changes
+  const lastFitRef = useRef<{ dims: typeof imageDimensions; request: number } | null>(null);
   useEffect(() => {
     if (!containerRef.current || !imageDimensions) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const effectiveWidth = viewMode === 'side-by-side' ? imageDimensions.width * 2 * zoom + 40 : imageDimensions.width * zoom;
-    const cx = (rect.width - effectiveWidth) / 2;
-    const cy = (rect.height - imageDimensions.height * zoom) / 2;
-    setPan({ x: cx, y: cy });
-  }, [imageDimensions, viewMode]);
+    const isSideBySide = viewMode === 'side-by-side';
+    const contentWidth = (z: number) => (isSideBySide ? imageDimensions.width * 2 * z + 32 : imageDimensions.width * z);
+
+    const last = lastFitRef.current;
+    const shouldFit = !last || last.dims !== imageDimensions || last.request !== fitRequest;
+    lastFitRef.current = { dims: imageDimensions, request: fitRequest };
+
+    let z = zoomRef.current;
+    if (shouldFit) {
+      const widthFactor = isSideBySide ? 2 : 1;
+      z = Math.max(
+        MIN_ZOOM,
+        Math.min(
+          1,
+          (rect.width - FIT_PADDING) / (imageDimensions.width * widthFactor),
+          (rect.height - FIT_PADDING) / imageDimensions.height
+        )
+      );
+      setZoom(z);
+    }
+
+    setPan({
+      x: (rect.width - contentWidth(z)) / 2,
+      y: (rect.height - imageDimensions.height * z) / 2,
+    });
+  }, [imageDimensions, viewMode, fitRequest, setZoom]);
 
   // Listen to Spacebar for pan navigation
   useEffect(() => {
@@ -116,11 +163,13 @@ export const Viewport: React.FC<ViewportProps> = ({
     return parseSvgDocument(svgContent);
   }, [svgContent]);
 
-  // Extract interactive nodes
+  // Anchors of every path, but Bézier handles only for the selected path:
+  // showing every handle of a complex trace is unreadable and slow
+  const selectedPathIndex = pathIndexFromNodeId(selectedNodeId);
   const interactiveNodes: InteractiveNode[] = useMemo(() => {
     if (renderMode !== 'nodes') return [];
-    return extractInteractiveNodes(parsedDoc.paths, null);
-  }, [parsedDoc, renderMode]);
+    return extractInteractiveNodes(parsedDoc.paths, selectedPathIndex ?? -1);
+  }, [parsedDoc, renderMode, selectedPathIndex]);
 
   // Selected Node Details
   const selectedNode = useMemo(() => {
@@ -130,24 +179,35 @@ export const Viewport: React.FC<ViewportProps> = ({
 
   const hasModifications = svgContent !== originalSvg;
 
-  // Handle Mouse Wheel Zoom
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    if (!containerRef.current) return;
+  // Mouse wheel zoom around the cursor. Registered natively because React
+  // attaches wheel listeners as passive, where preventDefault is ignored.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
-    const newZoom = Math.min(24, Math.max(0.1, zoom * zoomFactor));
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const currentZoom = zoomRef.current;
+      const currentPan = panRef.current;
+      // Trackpad pinch arrives as ctrl+wheel with small deltas
+      const intensity = e.ctrlKey ? 0.01 : 0.0015;
+      const factor = Math.exp(-e.deltaY * intensity);
+      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentZoom * factor));
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
 
-    const newPanX = mouseX - (mouseX - pan.x) * (newZoom / zoom);
-    const newPanY = mouseY - (mouseY - pan.y) * (newZoom / zoom);
+      setZoom(newZoom);
+      setPan({
+        x: mouseX - (mouseX - currentPan.x) * (newZoom / currentZoom),
+        y: mouseY - (mouseY - currentPan.y) * (newZoom / currentZoom),
+      });
+    };
 
-    setZoom(newZoom);
-    setPan({ x: newPanX, y: newPanY });
-  };
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [setZoom, imageDimensions]);
 
   // Canvas Pan Interaction
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -161,10 +221,7 @@ export const Viewport: React.FC<ViewportProps> = ({
   };
 
   // Node Dragging Interaction
-  const handleNodeMouseDown = (
-    e: React.MouseEvent,
-    node: InteractiveNode
-  ) => {
+  const handleNodeMouseDown = (e: React.MouseEvent, node: InteractiveNode) => {
     if (isSpacePressed) return;
     e.stopPropagation();
     e.preventDefault();
@@ -183,57 +240,29 @@ export const Viewport: React.FC<ViewportProps> = ({
       // 1. Dragging Split Slider
       if (isDraggingSplit && containerRef.current && imageDimensions) {
         const rect = containerRef.current.getBoundingClientRect();
-        const artboardX = pan.x;
         const artboardWidth = imageDimensions.width * zoom;
-        const mouseX = e.clientX - rect.left;
-        const relPos = ((mouseX - artboardX) / artboardWidth) * 100;
+        const relPos = ((e.clientX - rect.left - pan.x) / artboardWidth) * 100;
         setSplitPos(Math.max(0, Math.min(100, relPos)));
         return;
       }
 
-      // 2. Dragging Interactive Anchor or Control Point
-      if (activeDraggingNode && imageDimensions) {
-        const artboardX = (e.clientX - pan.x) / zoom;
-        const artboardY = (e.clientY - pan.y) / zoom;
+      // 2. Dragging an anchor or control point, at most once per frame.
+      // Coordinates come from the overlay's own box, so they are right in
+      // every layout (split, solo or the right pane of side-by-side).
+      if (activeDraggingNode && overlayRef.current && imageDimensions) {
+        const rect = overlayRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * imageDimensions.width;
+        const y = ((e.clientY - rect.top) / rect.height) * imageDimensions.height;
 
-        const updatedPaths = [...parsedDoc.paths];
-        const targetPath = { ...updatedPaths[activeDraggingNode.pathIndex] };
-        const segments = [...targetPath.segments];
-        const targetSeg = { ...segments[activeDraggingNode.segmentIndex] };
-
-        if (activeDraggingNode.nodeType === 'anchor') {
-          const dx = artboardX - targetSeg.x;
-          const dy = artboardY - targetSeg.y;
-          targetSeg.x = artboardX;
-          targetSeg.y = artboardY;
-
-          // If this is a cubic curve, move its control point 2 proportionally
-          if (targetSeg.cp2x !== undefined && targetSeg.cp2y !== undefined) {
-            targetSeg.cp2x += dx;
-            targetSeg.cp2y += dy;
-          }
-        } else if (activeDraggingNode.nodeType === 'cp1') {
-          targetSeg.cp1x = artboardX;
-          targetSeg.cp1y = artboardY;
-        } else if (activeDraggingNode.nodeType === 'cp2') {
-          targetSeg.cp2x = artboardX;
-          targetSeg.cp2y = artboardY;
-        }
-
-        segments[activeDraggingNode.segmentIndex] = targetSeg;
-        targetPath.segments = segments;
-        updatedPaths[activeDraggingNode.pathIndex] = targetPath;
-
-        const newDoc: ParsedSvgDoc = {
-          ...parsedDoc,
-          paths: updatedPaths,
-        };
-
-        const newSvg = serializeParsedDoc(newDoc);
-        latestSvgRef.current = newSvg;
-        hasDraggedNodeRef.current = true;
-        // Non-committing update during active drag (smooth 60fps without undo flooding)
-        onSvgModified(newSvg, false);
+        if (dragFrameRef.current !== null) cancelAnimationFrame(dragFrameRef.current);
+        dragFrameRef.current = requestAnimationFrame(() => {
+          dragFrameRef.current = null;
+          const newSvg = serializeParsedDoc(moveNode(parsedDoc, activeDraggingNode, x, y));
+          latestSvgRef.current = newSvg;
+          hasDraggedNodeRef.current = true;
+          // Non-committing update during the drag; mouseup commits one undo step
+          onSvgModified(newSvg, false);
+        });
         return;
       }
 
@@ -245,21 +274,14 @@ export const Viewport: React.FC<ViewportProps> = ({
         });
       }
     },
-    [
-      isDraggingSplit,
-      activeDraggingNode,
-      isPanning,
-      pan.x,
-      pan.y,
-      panStart,
-      zoom,
-      imageDimensions,
-      parsedDoc,
-      onSvgModified,
-    ]
+    [isDraggingSplit, activeDraggingNode, isPanning, pan.x, panStart, zoom, imageDimensions, parsedDoc, onSvgModified]
   );
 
   const handleMouseUp = useCallback(() => {
+    if (dragFrameRef.current !== null) {
+      cancelAnimationFrame(dragFrameRef.current);
+      dragFrameRef.current = null;
+    }
     if (activeDraggingNode && hasDraggedNodeRef.current) {
       // Commit final drag state into undo history
       onSvgModified(latestSvgRef.current, true);
@@ -279,6 +301,18 @@ export const Viewport: React.FC<ViewportProps> = ({
     };
   }, [handleMouseMove, handleMouseUp]);
 
+  // Delete Selected Node
+  const handleDeleteSelectedNode = useCallback(() => {
+    if (!selectedNode) return;
+    const newDoc = deleteNode(parsedDoc, selectedNode.pathIndex, selectedNode.segmentIndex);
+    if (!newDoc) {
+      onShowToast('Un trazado no puede quedarse con menos de 2 nodos', 'warning');
+      return;
+    }
+    onSvgModified(serializeParsedDoc(newDoc), true, 'Nodo eliminado');
+    setSelectedNodeId(null);
+  }, [selectedNode, parsedDoc, onSvgModified, onShowToast]);
+
   // Keyboard shortcut listener for deleting selected node or deselecting
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -297,70 +331,24 @@ export const Viewport: React.FC<ViewportProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNode, parsedDoc]);
-
-  // Delete Selected Node
-  const handleDeleteSelectedNode = () => {
-    if (!selectedNode) return;
-    const { pathIndex, segmentIndex } = selectedNode;
-    const updatedPaths = [...parsedDoc.paths];
-    const targetPath = { ...updatedPaths[pathIndex] };
-    const segments = [...targetPath.segments];
-
-    if (segments.length <= 2) {
-      alert('Un trazado no puede tener menos de 2 nodos.');
-      return;
-    }
-
-    segments.splice(segmentIndex, 1);
-    targetPath.segments = segments;
-    updatedPaths[pathIndex] = targetPath;
-
-    const newDoc: ParsedSvgDoc = {
-      ...parsedDoc,
-      paths: updatedPaths,
-    };
-
-    const newSvg = serializeParsedDoc(newDoc);
-    onSvgModified(newSvg, true, 'Nodo eliminado');
-    setSelectedNodeId(null);
-  };
+  }, [selectedNode, handleDeleteSelectedNode]);
 
   // Toggle Node Curve / Corner Type
   const handleToggleCurve = () => {
     if (!selectedNode) return;
     const { pathIndex, segmentIndex } = selectedNode;
     const newDoc = toggleNodeType(parsedDoc, pathIndex, segmentIndex);
-    const newSvg = serializeParsedDoc(newDoc);
-    onSvgModified(newSvg, true, 'Tipo de nodo alternado');
+    onSvgModified(serializeParsedDoc(newDoc), true, 'Tipo de nodo alternado');
   };
 
   // Split Segment / Insert Midpoint Node
   const handleSplitSegment = () => {
-    if (!selectedNode) return;
+    if (!selectedNode || selectedNode.segmentType === 'M') return;
     const { pathIndex, segmentIndex } = selectedNode;
-    if (segmentIndex <= 0) return;
 
     const { newDoc } = splitSegmentAtMidpoint(parsedDoc, pathIndex, segmentIndex);
-    const newSvg = serializeParsedDoc(newDoc);
-    onSvgModified(newSvg, true, 'Nodo intermedio insertado con subdivisión de Bézier');
+    onSvgModified(serializeParsedDoc(newDoc), true, 'Nodo intermedio insertado con subdivisión de Bézier');
     setSelectedNodeId(`p${pathIndex}_s${segmentIndex}_anchor`);
-  };
-
-  // Simplify & Reduce Nodes across all paths
-  const handleSimplifyAllPaths = () => {
-    const { newDoc, removedCount, originalNodes } = simplifySvgPaths(parsedDoc, 1.2);
-    if (removedCount <= 0) {
-      alert('Los trazados ya tienen la cantidad mínima de nodos optimizada.');
-      return;
-    }
-    const newSvg = serializeParsedDoc(newDoc);
-    const pct = Math.round((removedCount / originalNodes) * 100);
-    onSvgModified(
-      newSvg,
-      true,
-      `Trazados simplificados: ${removedCount} nodos eliminados (-${pct}%)`
-    );
   };
 
   if (!imageDimensions) {
@@ -371,14 +359,8 @@ export const Viewport: React.FC<ViewportProps> = ({
   const scaledWidth = width * zoom;
   const scaledHeight = height * zoom;
 
-  // Process SVG for Wireframe mode
-  let processedSvg = svgContent;
-  if (renderMode === 'wireframe') {
-    processedSvg = svgContent.replace(
-      /<path\b([^>]*)fill="[^"]*"/gi,
-      '<path $1 fill="none" stroke="#06b6d4" stroke-width="1"'
-    );
-  }
+  // Wireframe styling is applied in CSS (.mode-wireframe), for every shape type
+  const processedSvg = svgContent;
 
   // Node handle radius scaled inversely with zoom
   const handleRadius = Math.max(3, Math.min(8, 5.5 / Math.sqrt(zoom)));
@@ -387,6 +369,7 @@ export const Viewport: React.FC<ViewportProps> = ({
   // Render SVG node editor handles
   const renderNodeHandlesSvg = () => (
     <svg
+      ref={overlayRef}
       className="artboard-layer node-editor-overlay"
       viewBox={`0 0 ${width} ${height}`}
       width={scaledWidth}
@@ -465,7 +448,6 @@ export const Viewport: React.FC<ViewportProps> = ({
     <div
       ref={containerRef}
       className={`studio-viewport ${isPanning ? 'is-panning' : ''} ${isSpacePressed ? 'is-space-pressed' : ''}`}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
     >
       {/* Background Grid Pattern */}
@@ -632,7 +614,7 @@ export const Viewport: React.FC<ViewportProps> = ({
         <div className="node-editor-toolbar">
           <div className="node-toolbar-badge">
             <MousePointer size={14} className="text-cyan" />
-            <span>Editor de Nodos Activo: Arrastra anclas y tiradores Bézier</span>
+            <span>Editor de nodos</span>
           </div>
 
           {selectedNode ? (
@@ -647,6 +629,7 @@ export const Viewport: React.FC<ViewportProps> = ({
 
               {selectedNode.nodeType === 'anchor' && (
                 <>
+                  {selectedNode.segmentType !== 'M' && (
                   <button
                     className="btn-node-tool"
                     onClick={handleToggleCurve}
@@ -668,8 +651,9 @@ export const Viewport: React.FC<ViewportProps> = ({
                       </>
                     )}
                   </button>
+                  )}
 
-                  {selectedNode.segmentIndex > 0 && (
+                  {selectedNode.segmentType !== 'M' && (
                     <button
                       className="btn-node-tool"
                       onClick={handleSplitSegment}
@@ -699,7 +683,7 @@ export const Viewport: React.FC<ViewportProps> = ({
 
           <button
             className="btn-node-tool simplify"
-            onClick={handleSimplifyAllPaths}
+            onClick={onSimplifyNodes}
             title="Reducir nodos redundantes y simplificar curvas suavemente (Algoritmo Ramer-Douglas-Peucker)"
           >
             <Sparkles size={13} className="text-amber" />

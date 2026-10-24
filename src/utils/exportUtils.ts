@@ -1,4 +1,4 @@
-import { toComponent } from 'vecline';
+import { toComponent } from 'vecline/core';
 
 export function downloadFile(
   content: string,

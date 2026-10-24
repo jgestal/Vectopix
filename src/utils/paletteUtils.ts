@@ -22,24 +22,21 @@ export function replaceColorInSvg(svg: string, oldHex: string, newHex: string): 
 
   const elements = doc.querySelectorAll('*');
   elements.forEach((el) => {
-    // Check fill
-    const fill = el.getAttribute('fill');
-    if (fill && normalizeHex(fill) === normOld) {
-      el.setAttribute('fill', normNew);
-    }
-
-    // Check stroke
-    const stroke = el.getAttribute('stroke');
-    if (stroke && normalizeHex(stroke) === normOld) {
-      el.setAttribute('stroke', normNew);
+    // Paint attributes, including gradient stops
+    for (const attr of ['fill', 'stroke', 'stop-color']) {
+      const value = el.getAttribute(attr);
+      if (value && normalizeHex(value) === normOld) {
+        el.setAttribute(attr, normNew);
+      }
     }
 
     // Check inline style
     const style = el.getAttribute('style');
     if (style) {
-      const updatedStyle = style
-        .replace(new RegExp(`fill:\\s*${oldHex}`, 'gi'), `fill: ${normNew}`)
-        .replace(new RegExp(`stroke:\\s*${oldHex}`, 'gi'), `stroke: ${normNew}`);
+      const updatedStyle = style.replace(
+        /(fill|stroke|stop-color)\s*:\s*(#[0-9a-f]{3,6})\b/gi,
+        (match, prop: string, value: string) => (normalizeHex(value) === normOld ? `${prop}: ${normNew}` : match)
+      );
       el.setAttribute('style', updatedStyle);
     }
   });
@@ -55,7 +52,7 @@ export function removeColorFromSvg(svg: string, targetHex: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svg, 'image/svg+xml');
 
-  const elements = doc.querySelectorAll('path, rect, circle, polygon');
+  const elements = doc.querySelectorAll('path, rect, circle, ellipse, polygon');
   elements.forEach((el) => {
     const fill = el.getAttribute('fill');
     if (fill && normalizeHex(fill) === normTarget) {

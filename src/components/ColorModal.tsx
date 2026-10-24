@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Check, Trash2, Copy, Palette } from 'lucide-react';
 import type { PaletteColor } from '../types/vector';
+import { normalizeHex } from '../utils/paletteUtils';
+
+const HEX_PATTERN = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 interface ColorModalProps {
-  color: PaletteColor | null;
+  color: PaletteColor;
   onClose: () => void;
   onReplaceColor: (oldHex: string, newHex: string) => void;
   onRemoveColor: (hex: string) => void;
@@ -15,17 +18,10 @@ export const ColorModal: React.FC<ColorModalProps> = ({
   onReplaceColor,
   onRemoveColor,
 }) => {
-  const [selectedHex, setSelectedHex] = useState<string>(color?.hex || '#ffffff');
+  // App remounts this modal per color (via `key`), so state starts fresh each time
+  const [selectedHex, setSelectedHex] = useState<string>(color.hex);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (color) {
-      setSelectedHex(color.hex);
-      setCopied(false);
-    }
-  }, [color]);
-
-  if (!color) return null;
+  const isValidHex = HEX_PATTERN.test(selectedHex);
 
   const handleCopyHex = async () => {
     await navigator.clipboard.writeText(color.hex);
@@ -80,7 +76,7 @@ export const ColorModal: React.FC<ColorModalProps> = ({
             <div className="replacement-picker-row">
               <input
                 type="color"
-                value={selectedHex}
+                value={isValidHex ? normalizeHex(selectedHex) : '#000000'}
                 onChange={(e) => setSelectedHex(e.target.value)}
                 className="modal-color-input"
               />
@@ -93,7 +89,7 @@ export const ColorModal: React.FC<ColorModalProps> = ({
               <button
                 className="btn-apply-color"
                 onClick={handleApplyReplacement}
-                disabled={selectedHex.toLowerCase() === color.hex.toLowerCase()}
+                disabled={!isValidHex || selectedHex.toLowerCase() === color.hex.toLowerCase()}
               >
                 <Check size={14} />
                 <span>Aplicar Cambio</span>

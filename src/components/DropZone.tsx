@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   UploadCloud,
   Sparkles,
@@ -16,48 +16,18 @@ interface DropZoneProps {
     fileName: string,
     suggestedPreset?: VectorPreset
   ) => void;
+  onFileSelected: (file: File) => void;
 }
 
-export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected }) => {
+export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected, onFileSelected }) => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Global Paste Listener (Ctrl+V / Cmd+V)
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          if (file) {
-            loadFile(file);
-            break;
-          }
-        }
-      }
-    };
-
-    window.addEventListener('paste', handlePaste);
-    return () => window.removeEventListener('paste', handlePaste);
-  }, []);
-
-  const loadFile = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor selecciona un archivo de imagen válido (PNG, JPG, WebP, BMP).');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (result) {
-        onImageSelected(result, file.name);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
+  // Pasting is handled globally by App; samples are rendered once
+  const sampleThumbs = useMemo(
+    () => Object.fromEntries(SAMPLE_IMAGES.map((sample) => [sample.id, generateSampleDataUrl(sample.id)])),
+    []
+  );
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -70,15 +40,15 @@ export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected }) => {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    // Stop here so the app-level drop handler doesn't load the file a second time
+    e.stopPropagation();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      loadFile(e.dataTransfer.files[0]);
-    }
+    const file = e.dataTransfer.files?.[0];
+    if (file) onFileSelected(file);
   };
 
   const handleSampleClick = (sample: SampleImageItem) => {
-    const dataUrl = generateSampleDataUrl(sample.id);
-    onImageSelected(dataUrl, `${sample.id}.png`, sample.preset);
+    onImageSelected(sampleThumbs[sample.id], `${sample.id}.png`, sample.preset);
   };
 
   return (
@@ -111,9 +81,9 @@ export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected }) => {
             accept="image/png,image/jpeg,image/webp,image/bmp"
             className="hidden-file-input"
             onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                loadFile(e.target.files[0]);
-              }
+              const file = e.target.files?.[0];
+              if (file) onFileSelected(file);
+              e.target.value = '';
             }}
           />
 
@@ -165,7 +135,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ onImageSelected }) => {
               >
                 <div className="sample-preview">
                   <img
-                    src={generateSampleDataUrl(sample.id)}
+                    src={sampleThumbs[sample.id]}
                     alt={sample.title}
                     className="sample-thumb"
                   />

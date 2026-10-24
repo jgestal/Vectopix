@@ -99,17 +99,17 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({ result }) => {
           </span>
         </div>
 
-        {result.estimatedSsim && (
+        {result.ssim !== undefined && (
           <>
             <div className="metric-sep"></div>
             <div
               className="metric-item"
-              title="Fidelidad de contorno estimada (SSIM)"
+              title="SSIM medido: el SVG se renderiza y se compara con la imagen original (a máx. 512 px)"
             >
               <Zap size={14} className="metric-icon text-cyan" />
               <span className="metric-label">Fidelidad:</span>
               <span className="metric-value text-cyan">
-                {(result.estimatedSsim * 100).toFixed(1)}% SSIM
+                {(result.ssim * 100).toFixed(1)}% SSIM
               </span>
             </div>
           </>

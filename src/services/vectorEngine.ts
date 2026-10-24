@@ -5,152 +5,50 @@ import {
   centerlinePolylines,
   toDxf,
   toEps,
+  toPdf,
   countPathNodes,
   extractPalette,
+  compareImages,
   TRACE_DEFAULTS,
-} from 'vecline';
+} from 'vecline/core';
 import ImageTracer from 'imagetracerjs';
-import {
-  preprocessRaster,
-  generateCenterlinePdf,
-  toPdf,
-} from '../utils/imageProcessing';
-import type { VectorOptions, VectorResult, PaletteColor } from '../types/vector';
+import { preprocessRaster, type Raster } from '../utils/imageProcessing';
+import { centerlineToDxf, centerlineToEps, centerlineToPdf } from '../utils/centerlineExport';
+import type { ExportFormat, PaletteColor, VectorOptions, VectorResult } from '../types/vector';
 
-function generateCenterlineDxf(
-  polylines: { x: number; y: number }[][],
-  height: number
-): string {
-  let dxf = '0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
-  for (const poly of polylines) {
-    if (poly.length < 2) continue;
-    dxf += '0\nPOLYLINE\n8\nCENTERLINE\n66\n1\n70\n0\n';
-    for (const pt of poly) {
-      dxf += `0\nVERTEX\n8\nCENTERLINE\n10\n${pt.x.toFixed(2)}\n20\n${(height - pt.y).toFixed(2)}\n30\n0.0\n`;
-    }
-    dxf += '0\nSEQEND\n';
-  }
-  dxf += '0\nENDSEC\n0\nEOF\n';
-  return dxf;
+/**
+ * Pure vectorization engine. It has no knowledge of workers or the DOM, so it
+ * runs the same inside the Web Worker and under Vitest.
+ */
+
+export type ProgressCallback = (stage: string, percent: number) => void;
+
+/** The preprocessed raster and options of a trace, kept to build exports on demand. */
+export interface TraceContext {
+  raster: Raster;
+  options: VectorOptions;
 }
 
-export async function vectorizeImage(
-  imageData: ImageData,
-  options: VectorOptions,
-  rasterSizeBytes = 0
-): Promise<VectorResult> {
-  const startTime = performance.now();
-  const rawRaster = {
-    width: imageData.width,
-    height: imageData.height,
-    data: imageData.data,
+function countNodes(svg: string): number {
+  try {
+    return countPathNodes(svg);
+  } catch {
+    return (svg.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length;
+  }
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  let clean = hex.replace('#', '');
+  if (clean.length === 3) clean = clean.split('').map((c) => c + c).join('');
+  return {
+    r: parseInt(clean.slice(0, 2), 16) || 0,
+    g: parseInt(clean.slice(2, 4), 16) || 0,
+    b: parseInt(clean.slice(4, 6), 16) || 0,
   };
+}
 
-  const raster = preprocessRaster(rawRaster, options.contrast || 0, options.denoise || 0);
-
-  if (options.traceMethod === 'centerline') {
-    const clResult = centerlineTrace(raster, {
-      stroke: options.centerlineStrokeColor || '#000000',
-      strokeWidth: options.centerlineStrokeWidth || 2,
-      adaptive: options.centerlineAdaptive,
-      blackOnWhite: options.centerlineBlackOnWhite,
-    });
-
-    const polylines = centerlinePolylines(raster, {
-      adaptive: options.centerlineAdaptive,
-      blackOnWhite: options.centerlineBlackOnWhite,
-    });
-
-    const dxf = generateCenterlineDxf(polylines, raster.height);
-    const pdf = generateCenterlinePdf(
-      polylines,
-      raster.width,
-      raster.height,
-      options.centerlineStrokeWidth || 2,
-      options.centerlineStrokeColor || '#000000'
-    );
-
-    const executionTimeMs = Math.round(performance.now() - startTime);
-    const fileSizeBytes = new Blob([clResult.svg]).size;
-    const nodesCount = (clResult.svg.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length;
-
-    return {
-      svg: clResult.svg,
-      originalSvg: clResult.svg,
-      shapes: clResult.paths,
-      colors: 1,
-      regions: clResult.paths,
-      nodesCount,
-      executionTimeMs,
-      fileSizeBytes,
-      rasterSizeBytes,
-      dxf,
-      pdf,
-      palette: [
-        {
-          hex: options.centerlineStrokeColor || '#000000',
-          r: 0,
-          g: 0,
-          b: 0,
-          a: 255,
-          count: clResult.inkPixels,
-          percentage: 100,
-        },
-      ],
-      isCenterline: true,
-      centerlineLength: Math.round(clResult.length),
-      estimatedSsim: 0.95,
-    };
-  }
-
-  if (options.engine === 'imagetracer') {
-    return new Promise((resolve) => {
-      const itOptions = {
-        numberofcolors: options.colors,
-        scale: 1,
-        blurradius: options.blurRadius ?? 0,
-        blurdelta: 20,
-        pathomit: options.minArea,
-        linefilter: true,
-        corsenabled: false,
-      };
-
-      const svgString = ImageTracer.imagedataToSVG(
-        { width: raster.width, height: raster.height, data: raster.data } as unknown as ImageData,
-        itOptions
-      );
-      const executionTimeMs = Math.round(performance.now() - startTime);
-
-      resolve({
-        svg: svgString,
-        originalSvg: svgString,
-        shapes: (svgString.match(/<path/g) || []).length,
-        colors: options.colors,
-        regions: 0,
-        nodesCount: (svgString.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length,
-        executionTimeMs,
-        fileSizeBytes: new Blob([svgString]).size,
-        rasterSizeBytes,
-        palette: [],
-        estimatedSsim: 0.94,
-        isCenterline: false,
-      });
-    });
-  }
-
-  // Vecline Engine (Sub-pixel, Bézier Curve Fitting, Vector Magic style)
-  const rawPalette = extractPalette(raster, Math.min(options.colors, 64)) || [];
-  const palette: PaletteColor[] = rawPalette.map((p) => ({
-    hex: p.hex,
-    r: p.rgb.r,
-    g: p.rgb.g,
-    b: p.rgb.b,
-    a: p.rgb.a,
-    count: Math.round(p.weight * raster.width * raster.height),
-    percentage: Math.round(p.weight * 100),
-  }));
-
-  const traceOptions = {
+function veclineTraceOptions(options: VectorOptions) {
+  return {
     ...TRACE_DEFAULTS,
     colors: options.colors,
     subpixel: options.subpixel,
@@ -164,45 +62,129 @@ export async function vectorizeImage(
     primitives: options.primitives,
     gradients: options.gradients,
   };
+}
 
-  const result = trace(raster, traceOptions);
-  const executionTimeMs = Math.round(performance.now() - startTime);
-
-  let nodesCount = 0;
-  try {
-    nodesCount = countPathNodes(result.svg);
-  } catch {
-    nodesCount = (result.svg.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length;
-  }
-
-  let dxf: string | undefined;
-  let eps: string | undefined;
-  let pdf: Uint8Array | undefined;
-
-  try {
-    const geometry = traceGeometry(raster, traceOptions);
-    dxf = toDxf(geometry);
-    eps = toEps(geometry);
-    pdf = toPdf(geometry);
-  } catch {
-    // Exporters are optional fallbacks
-  }
-
+function centerlineOptions(options: VectorOptions) {
   return {
-    svg: result.svg,
-    originalSvg: result.svg,
-    shapes: result.shapes,
-    colors: result.colors,
-    regions: result.regions,
-    nodesCount,
-    executionTimeMs,
-    fileSizeBytes: new Blob([result.svg]).size,
-    rasterSizeBytes,
-    dxf,
-    eps,
-    pdf,
-    palette,
-    estimatedSsim: 0.98,
-    isCenterline: false,
+    stroke: options.centerlineStrokeColor || '#000000',
+    strokeWidth: options.centerlineStrokeWidth || 2,
+    adaptive: options.centerlineAdaptive,
+    blackOnWhite: options.centerlineBlackOnWhite,
   };
+}
+
+function extractPaletteColors(raster: Raster, colors: number): PaletteColor[] {
+  const pixels = raster.width * raster.height;
+  return (extractPalette(raster, Math.min(colors, 64)) || []).map((p) => ({
+    hex: p.hex,
+    r: p.rgb.r,
+    g: p.rgb.g,
+    b: p.rgb.b,
+    a: p.rgb.a,
+    count: Math.round(p.weight * pixels),
+    percentage: Math.round(p.weight * 100),
+  }));
+}
+
+/**
+ * Trace a raster into SVG. Heavy exports (DXF/EPS/PDF) are not built here:
+ * call {@link exportTrace} with the returned context when the user asks for one.
+ */
+export function vectorizeRaster(
+  input: Raster,
+  options: VectorOptions,
+  onProgress: ProgressCallback = () => {}
+): { result: VectorResult; context: TraceContext } {
+  const startTime = performance.now();
+  const raster = preprocessRaster(input, options.contrast || 0, options.denoise || 0);
+  const context: TraceContext = { raster, options };
+
+  const finish = (partial: Omit<VectorResult, 'originalSvg' | 'executionTimeMs' | 'fileSizeBytes' | 'nodesCount' | 'rasterSizeBytes'>) => ({
+    result: {
+      ...partial,
+      originalSvg: partial.svg,
+      nodesCount: countNodes(partial.svg),
+      executionTimeMs: Math.round(performance.now() - startTime),
+      fileSizeBytes: new Blob([partial.svg]).size,
+      rasterSizeBytes: 0,
+    },
+    context,
+  });
+
+  if (options.traceMethod === 'centerline') {
+    onProgress('Extrayendo esqueleto morfológico y líneas de centro...', 40);
+    const cl = centerlineTrace(raster, centerlineOptions(options));
+    const stroke = options.centerlineStrokeColor || '#000000';
+    return finish({
+      svg: cl.svg,
+      shapes: cl.paths,
+      colors: 1,
+      regions: cl.paths,
+      palette: [{ hex: stroke, ...hexToRgb(stroke), a: 255, count: cl.inkPixels, percentage: 100 }],
+      isCenterline: true,
+      centerlineLength: Math.round(cl.length),
+    });
+  }
+
+  onProgress('Analizando imagen y cuantizando colores (espacio Oklab)...', 20);
+  const palette = extractPaletteColors(raster, options.colors);
+
+  if (options.engine === 'imagetracer') {
+    onProgress('Trazando caminos con ImageTracerJS...', 55);
+    const svg = ImageTracer.imagedataToSVG(raster as unknown as ImageData, {
+      numberofcolors: options.colors,
+      scale: 1,
+      blurradius: options.blurRadius ?? 0,
+      blurdelta: 20,
+      pathomit: options.minArea,
+      linefilter: true,
+      corsenabled: false,
+    });
+    const shapes = (svg.match(/<path/g) || []).length;
+    return finish({ svg, shapes, colors: options.colors, regions: shapes, palette, isCenterline: false });
+  }
+
+  onProgress('Extrayendo fronteras topológicas y curvas sub-pixel...', 50);
+  const traced = trace(raster, veclineTraceOptions(options));
+  onProgress('Ajustando splines de Bézier y calculando métricas...', 90);
+  return finish({
+    svg: traced.svg,
+    shapes: traced.shapes,
+    colors: traced.colors,
+    regions: traced.regions,
+    palette,
+    isCenterline: false,
+  });
+}
+
+/**
+ * Build a CAD / print export from a previous trace
+ */
+export function exportTrace(context: TraceContext, format: ExportFormat): string | Uint8Array {
+  const { raster, options } = context;
+
+  if (options.traceMethod === 'centerline') {
+    const polylines = centerlinePolylines(raster, centerlineOptions(options));
+    const strokeWidth = options.centerlineStrokeWidth || 2;
+    const stroke = options.centerlineStrokeColor || '#000000';
+    if (format === 'dxf') return centerlineToDxf(polylines, raster.height);
+    if (format === 'eps') return centerlineToEps(polylines, raster.width, raster.height, strokeWidth, stroke);
+    return centerlineToPdf(polylines, raster.width, raster.height, strokeWidth, stroke);
+  }
+
+  if (options.engine === 'imagetracer') {
+    throw new Error('DXF, EPS y PDF solo están disponibles con el motor Vecline');
+  }
+
+  const geometry = traceGeometry(raster, veclineTraceOptions(options));
+  if (format === 'dxf') return toDxf(geometry);
+  if (format === 'eps') return toEps(geometry);
+  return toPdf(geometry);
+}
+
+/**
+ * Structural similarity between the source raster and the rendered SVG (0–1)
+ */
+export function measureSsim(reference: Raster, candidate: Raster): number {
+  return compareImages(reference, candidate, { skipDeltaE: true }).ssim;
 }

@@ -9,7 +9,11 @@ import type {
   PaletteColor,
   ToastMessage,
 } from './types/vector';
-import { vectorizeWithWorker } from './services/vectorWorkerClient';
+import {
+  vectorizeWithWorker,
+  measureSsimWithWorker,
+  VectorizationCanceledError,
+} from './services/vectorWorkerClient';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Viewport } from './components/Viewport';
@@ -19,46 +23,37 @@ import { DropZone } from './components/DropZone';
 import { ColorModal } from './components/ColorModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { ToastContainer } from './components/Toast';
-import { replaceColorInSvg, removeColorFromSvg } from './utils/paletteUtils';
-import {
-  parseSvgDocument,
-  serializeParsedDoc,
-  simplifySvgPaths,
-} from './utils/pathParser';
+import { replaceColorInSvg, removeColorFromSvg, normalizeHex } from './utils/paletteUtils';
+import { parseSvgDocument, serializeParsedDoc, simplifySvgPaths } from './utils/pathParser';
+import { rasterizeForComparison } from './utils/fidelity';
+import { readImageFile } from './utils/imageLoading';
+import { DEFAULT_OPTIONS, applyPreset } from './config/presets';
 import './App.css';
 
-const DEFAULT_OPTIONS: VectorOptions = {
-  engine: 'vecline',
-  traceMethod: 'outline',
-  preset: 'logo',
-  colors: 12,
-  subpixel: true,
-  tolerance: 0.75,
-  fitError: 0.75,
-  cornerAngle: 75,
-  minArea: 8,
-  refineIterations: 6,
-  smooth: 1,
-  background: true,
-  primitives: false,
-  gradients: false,
-  contrast: 0,
-  denoise: 0,
-  centerlineStrokeWidth: 2,
-  centerlineStrokeColor: '#000000',
-  centerlineAdaptive: false,
-  centerlineBlackOnWhite: true,
-  centerlineLineCap: 'round',
-  centerlineLineJoin: 'round',
-};
+/** Larger images are downscaled before tracing to keep the worker responsive. */
+const MAX_PIXELS = 4_000_000;
+
+/** Delay before re-tracing after a setting changes, so sliders don't flood the worker. */
+const RETRACE_DEBOUNCE_MS = 400;
+
+interface HistoryEntry {
+  svg: string;
+  palette: PaletteColor[];
+}
+
+function countNodes(svg: string): number {
+  return (svg.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length;
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
+}
 
 export function App() {
   const [rasterUrl, setRasterUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>('vector-image.png');
-  const [imageDimensions, setImageDimensions] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [imageData, setImageData] = useState<ImageData | null>(null);
   const [rasterSizeBytes, setRasterSizeBytes] = useState<number>(0);
 
@@ -70,6 +65,7 @@ export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('split');
   const [renderMode, setRenderMode] = useState<RenderMode>('full');
   const [zoom, setZoom] = useState<number>(1);
+  const [fitRequest, setFitRequest] = useState<number>(0);
 
   // Modals & Floating UI State
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
@@ -78,9 +74,11 @@ export function App() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // History stack for node & palette modifications
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const toastIdCounter = useRef(0);
+  const traceCounter = useRef(0);
+  const lastTracedImage = useRef<ImageData | null>(null);
 
   const showToast = useCallback((text: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const id = `toast_${++toastIdCounter.current}`;
@@ -90,234 +88,123 @@ export function App() {
     }, 2800);
   }, []);
 
+  // Measure real fidelity in the background: render the SVG, compare with the source
+  const measureFidelity = useCallback(async (traceId: number, source: ImageData, svg: string) => {
+    try {
+      const { reference, candidate } = await rasterizeForComparison(source, svg);
+      const ssim = await measureSsimWithWorker(reference, candidate);
+      if (traceId !== traceCounter.current) return;
+      setResult((prev) => (prev && prev.originalSvg === svg ? { ...prev, ssim } : prev));
+    } catch {
+      // Fidelity is informative only; a failed measurement just isn't shown
+    }
+  }, []);
+
   // Core Vectorization Runner
   const runVectorization = useCallback(
     async (data: ImageData, sizeBytes: number, opts: VectorOptions) => {
+      const traceId = ++traceCounter.current;
       setIsProcessing(true);
       setProgress({ stage: 'Iniciando Web Worker...', percent: 5 });
 
       try {
-        const res = await vectorizeWithWorker(data, sizeBytes, opts, (prog) => {
-          setProgress(prog);
-        });
+        const res = await vectorizeWithWorker(data, sizeBytes, opts, setProgress);
         setResult(res);
-        setHistory([res.svg]);
+        setHistory([{ svg: res.svg, palette: res.palette }]);
         setHistoryIndex(0);
-        showToast('Vectorización completada', 'success');
+        measureFidelity(traceId, data, res.svg);
       } catch (err: unknown) {
-        if (err instanceof Error && err.message.includes('Canceled')) {
-          return;
-        }
+        if (err instanceof VectorizationCanceledError) return;
         console.error('Vectorization error:', err);
-        showToast('Error al vectorizar imagen', 'warning');
+        showToast(
+          `Error al vectorizar: ${err instanceof Error ? err.message : 'error desconocido'}`,
+          'warning'
+        );
       } finally {
-        setIsProcessing(false);
-        setProgress(null);
+        if (traceId === traceCounter.current) {
+          setIsProcessing(false);
+          setProgress(null);
+        }
       }
+    },
+    [showToast, measureFidelity]
+  );
+
+  // Re-trace whenever the image or any setting changes. A new image traces at
+  // once; setting changes are debounced so dragging a slider traces only once.
+  useEffect(() => {
+    if (!imageData) return;
+    const isNewImage = lastTracedImage.current !== imageData;
+    lastTracedImage.current = imageData;
+    const timer = setTimeout(
+      () => runVectorization(imageData, rasterSizeBytes, options),
+      isNewImage ? 0 : RETRACE_DEBOUNCE_MS
+    );
+    return () => clearTimeout(timer);
+  }, [imageData, rasterSizeBytes, options, runVectorization]);
+
+  const handleRetrace = useCallback(() => {
+    if (imageData) runVectorization(imageData, rasterSizeBytes, options);
+  }, [imageData, rasterSizeBytes, options, runVectorization]);
+
+  const handleApplyPreset = (preset: VectorPreset) => {
+    setOptions((prev) => applyPreset(preset, prev));
+    showToast(`Preset "${preset}" aplicado`, 'info');
+  };
+
+  // Image Loader: the single entry point for files, drops, pastes and samples
+  const handleImageSelected = useCallback(
+    (dataUrl: string, name: string, suggestedPreset?: VectorPreset) => {
+      const img = new Image();
+      img.onload = () => {
+        const naturalWidth = img.naturalWidth || img.width;
+        const naturalHeight = img.naturalHeight || img.height;
+        const scale = Math.min(1, Math.sqrt(MAX_PIXELS / (naturalWidth * naturalHeight)));
+        const width = Math.max(1, Math.round(naturalWidth * scale));
+        const height = Math.max(1, Math.round(naturalHeight * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return;
+
+        ctx.drawImage(img, 0, 0, width, height);
+        if (scale < 1) {
+          showToast(
+            `Imagen reducida de ${naturalWidth}×${naturalHeight} a ${width}×${height} px para vectorizarla con fluidez`,
+            'warning'
+          );
+        }
+
+        setRasterUrl(dataUrl);
+        setFileName(name);
+        setImageDimensions({ width, height });
+        setImageData(ctx.getImageData(0, 0, width, height));
+        setRasterSizeBytes(Math.round((dataUrl.length * 3) / 4));
+        setResult(null);
+        setHistory([]);
+        setHistoryIndex(-1);
+        setOptions((prev) => applyPreset(suggestedPreset || 'logo', prev));
+      };
+      img.onerror = () => showToast('No se pudo leer la imagen', 'warning');
+      img.src = dataUrl;
     },
     [showToast]
   );
 
-  // Trigger vectorization on options change
-  const handleRetrace = useCallback(() => {
-    if (imageData) {
-      runVectorization(imageData, rasterSizeBytes, options);
-    }
-  }, [imageData, rasterSizeBytes, options, runVectorization]);
-
-  // Handle Preset Selection
-  const handleApplyPreset = (preset: VectorPreset) => {
-    let presetOptions: Partial<VectorOptions> = {};
-
-    switch (preset) {
-      case 'centerline-sketch':
-        presetOptions = {
-          traceMethod: 'centerline',
-          centerlineStrokeWidth: 2,
-          centerlineStrokeColor: '#000000',
-          centerlineAdaptive: true,
-          centerlineBlackOnWhite: true,
-        };
-        break;
-      case 'logo':
-        presetOptions = {
-          traceMethod: 'outline',
-          colors: 8,
-          subpixel: true,
-          tolerance: 0.75,
-          fitError: 0.75,
-          cornerAngle: 75,
-          minArea: 8,
-          smooth: 1,
-          refineIterations: 6,
-          background: true,
-          primitives: false,
-          gradients: false,
-        };
-        break;
-      case 'flat-art':
-        presetOptions = {
-          traceMethod: 'outline',
-          colors: 16,
-          subpixel: true,
-          tolerance: 0.85,
-          fitError: 0.85,
-          cornerAngle: 80,
-          minArea: 6,
-          smooth: 1,
-          refineIterations: 6,
-          background: true,
-          primitives: false,
-          gradients: false,
-        };
-        break;
-      case 'photo':
-        presetOptions = {
-          traceMethod: 'outline',
-          colors: 32,
-          subpixel: true,
-          tolerance: 0.6,
-          fitError: 0.5,
-          cornerAngle: 90,
-          minArea: 2,
-          background: true,
-          primitives: false,
-          gradients: true,
-        };
-        break;
-      case 'sketch':
-        if (options.traceMethod === 'centerline') {
-          presetOptions = {
-            traceMethod: 'centerline',
-            centerlineStrokeWidth: 1.5,
-            centerlineStrokeColor: '#000000',
-            centerlineAdaptive: false,
-            centerlineBlackOnWhite: true,
-          };
-        } else {
-          presetOptions = {
-            traceMethod: 'outline',
-            colors: 2,
-            subpixel: true,
-            tolerance: 0.3,
-            fitError: 0.3,
-            cornerAngle: 70,
-            minArea: 6,
-            background: false,
-            primitives: false,
-            gradients: false,
-          };
-        }
-        break;
-      case 'pixel-art':
-        presetOptions = {
-          traceMethod: 'outline',
-          colors: 16,
-          subpixel: false,
-          tolerance: 0.05,
-          fitError: 0.05,
-          cornerAngle: 90,
-          minArea: 0,
-          background: true,
-          primitives: false,
-          gradients: false,
-        };
-        break;
-      default:
-        break;
-    }
-
-    const updated: VectorOptions = {
-      ...options,
-      ...presetOptions,
-      preset,
-    };
-
-    setOptions(updated);
-    showToast(`Preset "${preset}" aplicado`, 'info');
-    if (imageData) {
-      runVectorization(imageData, rasterSizeBytes, updated);
-    }
-  };
-
-  // Image Loader
-  const handleImageSelected = (
-    dataUrl: string,
-    name: string,
-    suggestedPreset?: VectorPreset
-  ) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const width = img.naturalWidth || img.width;
-      const height = img.naturalHeight || img.height;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.drawImage(img, 0, 0);
-      const rawImageData = ctx.getImageData(0, 0, width, height);
-      const approxSize = Math.round((dataUrl.length * 3) / 4);
-
-      setRasterUrl(dataUrl);
-      setFileName(name);
-      setImageDimensions({ width, height });
-      setImageData(rawImageData);
-      setRasterSizeBytes(approxSize);
-      setZoom(1);
-
-      const targetPreset = suggestedPreset || 'logo';
-      let presetOpts: Partial<VectorOptions> = {};
-      if (targetPreset === 'pixel-art') {
-        presetOpts = {
-          traceMethod: 'outline',
-          colors: 16,
-          subpixel: false,
-          tolerance: 0.05,
-          fitError: 0.05,
-          minArea: 0,
-        };
-      } else if (targetPreset === 'sketch') {
-        presetOpts = {
-          traceMethod: 'outline',
-          colors: 2,
-          background: false,
-          subpixel: true,
-        };
-      } else if (targetPreset === 'photo') {
-        presetOpts = {
-          traceMethod: 'outline',
-          colors: 32,
-          gradients: true,
-          subpixel: true,
-        };
-      } else if (targetPreset === 'centerline-sketch') {
-        presetOpts = {
-          traceMethod: 'centerline',
-          centerlineStrokeWidth: 2,
-          centerlineAdaptive: true,
-        };
+  const loadFile = useCallback(
+    async (file: File, toastText?: string) => {
+      try {
+        const dataUrl = await readImageFile(file);
+        handleImageSelected(dataUrl, file.name || 'imagen-pegada.png');
+        if (toastText) showToast(toastText, 'success');
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'No se pudo leer el archivo', 'warning');
       }
-
-      const activeOpts: VectorOptions = {
-        ...options,
-        ...presetOpts,
-        preset: targetPreset,
-      };
-
-      setOptions(activeOpts);
-      runVectorization(rawImageData, approxSize, activeOpts);
-    };
-
-    img.src = dataUrl;
-  };
-
-  const handleResetZoom = () => {
-    setZoom(1);
-  };
+    },
+    [handleImageSelected, showToast]
+  );
 
   const handleNewImage = () => {
     setRasterUrl(null);
@@ -330,71 +217,62 @@ export function App() {
 
   // Node & Palette Mutation Pipeline
   const applySvgUpdate = useCallback(
-    (newSvg: string, commitHistory = true, toastText?: string) => {
-      if (!result) return;
-      const fileSizeBytes = new Blob([newSvg]).size;
-      const nodesCount = (newSvg.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length;
-
-      if (commitHistory) {
-        const newHistory = history.slice(0, historyIndex + 1);
-        newHistory.push(newSvg);
-        setHistory(newHistory);
-        setHistoryIndex(newHistory.length - 1);
-      }
-
+    (newSvg: string, commitHistory = true, toastText?: string, palette?: PaletteColor[]) => {
       setResult((prev) =>
         prev
           ? {
               ...prev,
               svg: newSvg,
-              fileSizeBytes,
-              nodesCount,
+              palette: palette ?? prev.palette,
+              fileSizeBytes: new Blob([newSvg]).size,
+              nodesCount: countNodes(newSvg),
             }
           : null
       );
 
-      if (toastText) {
-        showToast(toastText, 'info');
+      if (commitHistory && result) {
+        const entry = { svg: newSvg, palette: palette ?? result.palette };
+        setHistory((prev) => [...prev.slice(0, historyIndex + 1), entry]);
+        setHistoryIndex(historyIndex + 1);
       }
+
+      if (toastText) showToast(toastText, 'info');
     },
-    [history, historyIndex, result, showToast]
+    [historyIndex, result, showToast]
+  );
+
+  const restoreHistory = useCallback(
+    (index: number, toastText: string) => {
+      const entry = history[index];
+      if (!entry) return;
+      setHistoryIndex(index);
+      setResult((prev) =>
+        prev
+          ? {
+              ...prev,
+              svg: entry.svg,
+              palette: entry.palette,
+              fileSizeBytes: new Blob([entry.svg]).size,
+              nodesCount: countNodes(entry.svg),
+            }
+          : null
+      );
+      showToast(toastText, 'info');
+    },
+    [history, showToast]
   );
 
   const handleUndo = useCallback(() => {
-    if (historyIndex > 0 && result) {
-      const prevSvg = history[historyIndex - 1];
-      const fileSizeBytes = new Blob([prevSvg]).size;
-      const nodesCount = (prevSvg.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length;
-      setHistoryIndex(historyIndex - 1);
-      setResult({
-        ...result,
-        svg: prevSvg,
-        fileSizeBytes,
-        nodesCount,
-      });
-      showToast('Deshacer realizado', 'info');
-    }
-  }, [history, historyIndex, result, showToast]);
+    if (historyIndex > 0) restoreHistory(historyIndex - 1, 'Deshacer realizado');
+  }, [historyIndex, restoreHistory]);
 
   const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1 && result) {
-      const nextSvg = history[historyIndex + 1];
-      const fileSizeBytes = new Blob([nextSvg]).size;
-      const nodesCount = (nextSvg.match(/[MLHVCSQTAZmlhvcsqtaz]/g) || []).length;
-      setHistoryIndex(historyIndex + 1);
-      setResult({
-        ...result,
-        svg: nextSvg,
-        fileSizeBytes,
-        nodesCount,
-      });
-      showToast('Rehacer realizado', 'info');
-    }
-  }, [history, historyIndex, result, showToast]);
+    if (historyIndex < history.length - 1) restoreHistory(historyIndex + 1, 'Rehacer realizado');
+  }, [historyIndex, history.length, restoreHistory]);
 
   const handleResetEdits = () => {
     if (!result) return;
-    applySvgUpdate(result.originalSvg, true, 'Nodos restaurados al estado original');
+    applySvgUpdate(result.originalSvg, true, 'Nodos restaurados al estado original', history[0]?.palette);
   };
 
   const handleSimplifyNodes = useCallback(() => {
@@ -405,10 +283,9 @@ export function App() {
       showToast('Los trazados ya tienen la cantidad mínima de nodos optimizada', 'info');
       return;
     }
-    const newSvg = serializeParsedDoc(newDoc);
     const pct = Math.round((removedCount / originalNodes) * 100);
     applySvgUpdate(
-      newSvg,
+      serializeParsedDoc(newDoc),
       true,
       `Trazados simplificados: ${removedCount} nodos eliminados (-${pct}%)`
     );
@@ -417,91 +294,61 @@ export function App() {
   // Palette Actions
   const handleReplaceColor = (oldHex: string, newHex: string) => {
     if (!result) return;
-    const newSvg = replaceColorInSvg(result.svg, oldHex, newHex);
-    // Update active palette swatch
-    const updatedPalette = result.palette.map((p) =>
-      p.hex.toLowerCase() === oldHex.toLowerCase() ? { ...p, hex: newHex } : p
-    );
-    setResult((prev) => (prev ? { ...prev, palette: updatedPalette } : null));
-    applySvgUpdate(newSvg, true, `Color ${oldHex} cambiado a ${newHex}`);
+    const target = normalizeHex(oldHex);
+    const palette = result.palette.map((p) => (normalizeHex(p.hex) === target ? { ...p, hex: newHex } : p));
+    applySvgUpdate(replaceColorInSvg(result.svg, oldHex, newHex), true, `Color ${oldHex} cambiado a ${newHex}`, palette);
   };
 
   const handleRemoveColor = (targetHex: string) => {
     if (!result) return;
-    const newSvg = removeColorFromSvg(result.svg, targetHex);
-    const updatedPalette = result.palette.filter(
-      (p) => p.hex.toLowerCase() !== targetHex.toLowerCase()
-    );
-    setResult((prev) => (prev ? { ...prev, palette: updatedPalette } : null));
-    applySvgUpdate(newSvg, true, `Color ${targetHex} hecho transparente`);
+    const target = normalizeHex(targetHex);
+    const palette = result.palette.filter((p) => normalizeHex(p.hex) !== target);
+    applySvgUpdate(removeColorFromSvg(result.svg, targetHex), true, `Color ${targetHex} hecho transparente`, palette);
   };
 
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if inside an input or textarea
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (isEditableTarget(e.target)) return;
 
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const modifier = isMac ? e.metaKey : e.ctrlKey;
+      const modifier = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
 
-      if (modifier && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
+      if (modifier) {
+        if (key === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) handleRedo();
+          else handleUndo();
+        } else if (key === 'y') {
+          e.preventDefault();
           handleRedo();
-        } else {
-          handleUndo();
+        } else if (key === 'c' && !window.getSelection()?.toString() && result) {
+          e.preventDefault();
+          navigator.clipboard.writeText(result.svg);
+          showToast('Código SVG copiado al portapapeles', 'success');
         }
         return;
       }
 
-      if (modifier && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        handleRedo();
-        return;
-      }
-
-      if (modifier && e.key.toLowerCase() === 'c' && !window.getSelection()?.toString() && result) {
-        e.preventDefault();
-        navigator.clipboard.writeText(result.svg);
-        showToast('Código SVG copiado al portapapeles', 'success');
-        return;
-      }
+      if (e.altKey) return;
 
       if (e.key === '?') {
         e.preventDefault();
         setIsShortcutsOpen((prev) => !prev);
-        return;
-      }
-
-      if (e.key === 'Escape') {
+      } else if (e.key === 'Escape') {
         setIsExportOpen(false);
         setIsShortcutsOpen(false);
         setSelectedPaletteColor(null);
-        return;
-      }
-
-      if (e.key.toLowerCase() === 'w') {
+      } else if (key === 'w') {
         setRenderMode((prev) => (prev === 'wireframe' ? 'full' : 'wireframe'));
         showToast('Modo Contornos alternado', 'info');
-        return;
-      }
-
-      if (e.key.toLowerCase() === 'e' || e.key.toLowerCase() === 'n') {
+      } else if (key === 'e' || key === 'n') {
         setRenderMode((prev) => (prev === 'nodes' ? 'full' : 'nodes'));
         showToast('Editor de Nodos alternado', 'info');
-        return;
-      }
-
-      if (e.key.toLowerCase() === 's') {
+      } else if (key === 's') {
         setViewMode((prev) => (prev === 'split' ? 'vector' : 'split'));
-        return;
-      }
-
-      if (e.key.toLowerCase() === 'd') {
+      } else if (key === 'd') {
         setViewMode((prev) => (prev === 'side-by-side' ? 'split' : 'side-by-side'));
-        return;
       }
     };
 
@@ -512,31 +359,14 @@ export function App() {
   // Global Paste Listener (Ctrl+V / Cmd+V) to load images at any time
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-              const res = ev.target?.result as string;
-              if (res) {
-                handleImageSelected(res, file.name || 'imagen-pegada.png');
-                showToast('Imagen cargada desde portapapeles', 'success');
-              }
-            };
-            reader.readAsDataURL(file);
-            break;
-          }
-        }
-      }
+      const item = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith('image/'));
+      const file = item?.getAsFile();
+      if (file) loadFile(file, 'Imagen cargada desde portapapeles');
     };
 
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [showToast]);
+  }, [loadFile]);
 
   // Global Drag and Drop Handler on Window
   const handleAppDragOver = (e: React.DragEvent) => {
@@ -545,30 +375,14 @@ export function App() {
 
   const handleAppDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const res = ev.target?.result as string;
-          if (res) {
-            handleImageSelected(res, file.name);
-            showToast(`Imagen ${file.name} cargada`, 'success');
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    }
+    const file = e.dataTransfer.files?.[0];
+    if (file) loadFile(file, `Imagen ${file.name} cargada`);
   };
 
   return (
-    <div
-      className="studio-app-root"
-      onDragOver={handleAppDragOver}
-      onDrop={handleAppDrop}
-    >
+    <div className="studio-app-root" onDragOver={handleAppDragOver} onDrop={handleAppDrop}>
       {!rasterUrl ? (
-        <DropZone onImageSelected={handleImageSelected} />
+        <DropZone onImageSelected={handleImageSelected} onFileSelected={(file) => loadFile(file)} />
       ) : (
         <div className="studio-layout">
           {/* Top Studio Header */}
@@ -581,7 +395,7 @@ export function App() {
             setRenderMode={setRenderMode}
             zoom={zoom}
             setZoom={setZoom}
-            onResetZoom={handleResetZoom}
+            onResetZoom={() => setFitRequest((n) => n + 1)}
             engine={options.engine}
             onOpenExport={() => setIsExportOpen(true)}
             onNewImage={handleNewImage}
@@ -620,10 +434,11 @@ export function App() {
               setZoom={setZoom}
               isProcessing={isProcessing}
               progress={progress}
-              onSvgModified={(newSvg, commitHistory, toastText) =>
-                applySvgUpdate(newSvg, commitHistory, toastText)
-              }
+              onSvgModified={applySvgUpdate}
               onResetEdits={handleResetEdits}
+              onSimplifyNodes={handleSimplifyNodes}
+              onShowToast={showToast}
+              fitRequest={fitRequest}
               isCenterline={options.traceMethod === 'centerline'}
             />
           </div>
@@ -631,32 +446,32 @@ export function App() {
           {/* Bottom Metrics Bar */}
           <MetricsBar result={result} />
 
-          {/* Export Dialog */}
-          <ExportModal
-            isOpen={isExportOpen}
-            onClose={() => setIsExportOpen(false)}
-            result={result}
-            baseFileName={fileName}
-            imageDimensions={imageDimensions}
-            onShowToast={showToast}
-          />
+          {isExportOpen && result && (
+            <ExportModal
+              onClose={() => setIsExportOpen(false)}
+              result={result}
+              baseFileName={fileName}
+              imageDimensions={imageDimensions}
+              onShowToast={showToast}
+            />
+          )}
 
-          {/* Color Management Dialog */}
-          <ColorModal
-            color={selectedPaletteColor}
-            onClose={() => setSelectedPaletteColor(null)}
-            onReplaceColor={handleReplaceColor}
-            onRemoveColor={handleRemoveColor}
-          />
+          {selectedPaletteColor && (
+            <ColorModal
+              key={selectedPaletteColor.hex}
+              color={selectedPaletteColor}
+              onClose={() => setSelectedPaletteColor(null)}
+              onReplaceColor={handleReplaceColor}
+              onRemoveColor={handleRemoveColor}
+            />
+          )}
 
-          {/* Shortcuts Modal */}
-          <ShortcutsModal
-            isOpen={isShortcutsOpen}
-            onClose={() => setIsShortcutsOpen(false)}
-          />
+          <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
 
-          {/* Floating Toasts */}
-          <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
+          <ToastContainer
+            toasts={toasts}
+            onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
+          />
         </div>
       )}
     </div>

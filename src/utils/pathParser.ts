@@ -13,9 +13,13 @@ export interface ParsedPath {
   originalD: string;
   attributes: Record<string, string>;
   segments: PathSegment[];
+  /** False when the path uses commands the editor can't round-trip (arcs, T). */
+  editable: boolean;
 }
 
 export interface ParsedSvgDoc {
+  /** The SVG markup this document was parsed from. */
+  source: string;
   svgAttributes: Record<string, string>;
   paths: ParsedPath[];
   width: number;
@@ -28,6 +32,7 @@ export interface InteractiveNode {
   pathIndex: number;
   segmentIndex: number;
   nodeType: 'anchor' | 'cp1' | 'cp2';
+  segmentType: PathSegment['type'];
   x: number;
   y: number;
   isCurve: boolean;
@@ -175,6 +180,12 @@ export function serializePathSegments(segments: PathSegment[], precision = 2): s
   return parts.join(' ');
 }
 
+const UNSUPPORTED_COMMANDS = /[AaTt]/;
+
+// Segment arrays exactly as parsed. Every edit creates a new array, so a path
+// whose segments are still in here is untouched and keeps its original `d`.
+const pristineSegments = new WeakMap<PathSegment[], true>();
+
 /**
  * Parse entire SVG document into editable structures
  */
@@ -212,16 +223,20 @@ export function parseSvgDocument(svgString: string): ParsedSvgDoc {
       }
     }
 
-    const segments = parsePathSegments(rawD);
+    const editable = !UNSUPPORTED_COMMANDS.test(rawD);
+    const segments = editable ? parsePathSegments(rawD) : [];
+    pristineSegments.set(segments, true);
     paths.push({
       id: pathEl.getAttribute('id') || `path_${idx}`,
       originalD: rawD,
       attributes,
       segments,
+      editable,
     });
   });
 
   return {
+    source: svgString,
     svgAttributes,
     paths,
     width,
@@ -231,24 +246,100 @@ export function parseSvgDocument(svgString: string): ParsedSvgDoc {
 }
 
 /**
- * Serialize editable structures back into clean SVG markup
+ * Serialize an edited document back to SVG. Only the `d` of edited paths is
+ * rewritten: everything else (defs, gradients, groups, primitives, attributes)
+ * is preserved exactly as in the source.
  */
 export function serializeParsedDoc(doc: ParsedSvgDoc): string {
-  const attrStrings = Object.entries(doc.svgAttributes)
-    .map(([k, v]) => `${k}="${v}"`)
-    .join(' ');
+  const dom = new DOMParser().parseFromString(doc.source, 'image/svg+xml');
+  const pathElements = dom.querySelectorAll('path');
 
-  const pathMarkup = doc.paths
-    .map((p) => {
-      const d = serializePathSegments(p.segments);
-      const attrs = Object.entries(p.attributes)
-        .map(([k, v]) => `${k}="${v}"`)
-        .join(' ');
-      return `  <path ${attrs} d="${d}" />`;
-    })
-    .join('\n');
+  doc.paths.forEach((p, i) => {
+    const el = pathElements[i];
+    if (!el || !p.editable || pristineSegments.has(p.segments)) return;
+    el.setAttribute('d', serializePathSegments(p.segments));
+  });
 
-  return `<svg ${attrStrings}>\n${pathMarkup}\n</svg>\n`;
+  return new XMLSerializer().serializeToString(dom.documentElement);
+}
+
+function updateSegments(
+  doc: ParsedSvgDoc,
+  pathIndex: number,
+  update: (segments: PathSegment[]) => PathSegment[]
+): ParsedSvgDoc {
+  const paths = [...doc.paths];
+  const target = paths[pathIndex];
+  paths[pathIndex] = { ...target, segments: update([...target.segments]) };
+  return { ...doc, paths };
+}
+
+/**
+ * Move an anchor or Bézier handle to (x, y). Moving an anchor carries both of
+ * its handles along: the incoming one (cp2 of its own segment) and the
+ * outgoing one (cp1 of the next segment).
+ */
+export function moveNode(
+  doc: ParsedSvgDoc,
+  node: Pick<InteractiveNode, 'pathIndex' | 'segmentIndex' | 'nodeType'>,
+  x: number,
+  y: number
+): ParsedSvgDoc {
+  return updateSegments(doc, node.pathIndex, (segments) => {
+    const seg = { ...segments[node.segmentIndex] };
+
+    if (node.nodeType === 'cp1') {
+      seg.cp1x = x;
+      seg.cp1y = y;
+    } else if (node.nodeType === 'cp2') {
+      seg.cp2x = x;
+      seg.cp2y = y;
+    } else {
+      const dx = x - seg.x;
+      const dy = y - seg.y;
+      seg.x = x;
+      seg.y = y;
+      if (seg.cp2x !== undefined && seg.cp2y !== undefined) {
+        seg.cp2x += dx;
+        seg.cp2y += dy;
+      }
+      const next = segments[node.segmentIndex + 1];
+      if (next?.type === 'C' && next.cp1x !== undefined && next.cp1y !== undefined) {
+        segments[node.segmentIndex + 1] = { ...next, cp1x: next.cp1x + dx, cp1y: next.cp1y + dy };
+      }
+    }
+
+    segments[node.segmentIndex] = seg;
+    return segments;
+  });
+}
+
+/**
+ * Delete an anchor. Deleting the start of a subpath promotes the next anchor
+ * to be the new start. Returns null when the path would be left with fewer
+ * than two anchors.
+ */
+export function deleteNode(doc: ParsedSvgDoc, pathIndex: number, segmentIndex: number): ParsedSvgDoc | null {
+  const segments = doc.paths[pathIndex].segments;
+  const seg = segments[segmentIndex];
+  if (!seg || seg.type === 'Z') return null;
+
+  const anchors = segments.filter((s) => s.type !== 'Z').length;
+  if (anchors <= 2) return null;
+
+  if (seg.type === 'M') {
+    const next = segments[segmentIndex + 1];
+    if (!next || (next.type !== 'L' && next.type !== 'C')) return null;
+    return updateSegments(doc, pathIndex, (segs) => {
+      segs.splice(segmentIndex, 2, { type: 'M', x: next.x, y: next.y });
+      return segs;
+    });
+  }
+
+  return updateSegments(doc, pathIndex, (segs) => {
+    segs.splice(segmentIndex, 1);
+    return segs;
+  });
 }
 
 /**
@@ -261,6 +352,7 @@ export function extractInteractiveNodes(
   const nodes: InteractiveNode[] = [];
 
   paths.forEach((path, pathIdx) => {
+    if (!path.editable) return;
     const isSelected = selectedPathIndex === null || selectedPathIndex === pathIdx;
     let prevAnchor = { x: 0, y: 0 };
 
@@ -271,6 +363,7 @@ export function extractInteractiveNodes(
           pathIndex: pathIdx,
           segmentIndex: segIdx,
           nodeType: 'anchor',
+          segmentType: seg.type,
           x: seg.x,
           y: seg.y,
           isCurve: false,
@@ -284,6 +377,7 @@ export function extractInteractiveNodes(
             pathIndex: pathIdx,
             segmentIndex: segIdx,
             nodeType: 'cp1',
+            segmentType: 'C',
             x: seg.cp1x,
             y: seg.cp1y,
             isCurve: true,
@@ -298,6 +392,7 @@ export function extractInteractiveNodes(
             pathIndex: pathIdx,
             segmentIndex: segIdx,
             nodeType: 'cp2',
+            segmentType: 'C',
             x: seg.cp2x,
             y: seg.cp2y,
             isCurve: true,
@@ -311,6 +406,7 @@ export function extractInteractiveNodes(
           pathIndex: pathIdx,
           segmentIndex: segIdx,
           nodeType: 'anchor',
+          segmentType: 'C',
           x: seg.x,
           y: seg.y,
           isCurve: true,
@@ -437,37 +533,6 @@ export function splitSegmentAtMidpoint(
 }
 
 /**
- * Insert a new anchor point into a segment at (x, y)
- */
-export function insertNodeOnSegment(
-  doc: ParsedSvgDoc,
-  pathIndex: number,
-  segmentIndex: number,
-  x: number,
-  y: number
-): ParsedSvgDoc {
-  const updatedPaths = [...doc.paths];
-  const targetPath = { ...updatedPaths[pathIndex] };
-  const segments = [...targetPath.segments];
-
-  // Insert a new point
-  const newSegment: PathSegment = {
-    type: 'L',
-    x,
-    y,
-  };
-
-  segments.splice(segmentIndex, 0, newSegment);
-  targetPath.segments = segments;
-  updatedPaths[pathIndex] = targetPath;
-
-  return {
-    ...doc,
-    paths: updatedPaths,
-  };
-}
-
-/**
  * Simplify SVG paths by merging micro-segments and removing collinear/redundant nodes.
  * Inspired by Adobe Illustrator's "Path > Simplify" and Ramer-Douglas-Peucker algorithm.
  */
@@ -480,7 +545,7 @@ export function simplifySvgPaths(
 
   const updatedPaths = doc.paths.map((p) => {
     originalNodes += p.segments.length;
-    if (p.segments.length <= 3) {
+    if (!p.editable || p.segments.length <= 3) {
       simplifiedNodes += p.segments.length;
       return p;
     }

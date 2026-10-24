@@ -1,0 +1,112 @@
+// @vitest-environment happy-dom
+import { describe, expect, it } from 'vitest';
+import {
+  deleteNode,
+  extractInteractiveNodes,
+  moveNode,
+  parsePathSegments,
+  parseSvgDocument,
+  serializeParsedDoc,
+  serializePathSegments,
+  simplifySvgPaths,
+  splitSegmentAtMidpoint,
+} from './pathParser';
+
+describe('parsePathSegments', () => {
+  it('resolves relative and compact commands to absolute segments', () => {
+    const segs = parsePathSegments('M10 10h5v5H10z');
+    expect(segs).toEqual([
+      { type: 'M', x: 10, y: 10 },
+      { type: 'L', x: 15, y: 10 },
+      { type: 'L', x: 15, y: 15 },
+      { type: 'L', x: 10, y: 15 },
+      { type: 'Z', x: 10, y: 10 },
+    ]);
+  });
+
+  it('parses compressed numbers like .5.5 and implicit lineTo after M', () => {
+    const segs = parsePathSegments('m1 1 .5.5 1-1');
+    expect(segs.map((s) => [s.type, s.x, s.y])).toEqual([
+      ['M', 1, 1],
+      ['L', 1.5, 1.5],
+      ['L', 2.5, 0.5],
+    ]);
+  });
+
+  it('converts quadratic curves to equivalent cubics', () => {
+    const [, c] = parsePathSegments('M0 0Q3 3 6 0');
+    expect(c).toMatchObject({ type: 'C', cp1x: 2, cp1y: 2, cp2x: 4, cp2y: 2, x: 6, y: 0 });
+  });
+
+  it('round-trips through serializePathSegments', () => {
+    const d = 'M0 0 L10 0 C10 5 5 10 0 10 Z';
+    expect(serializePathSegments(parsePathSegments(d))).toBe(d);
+  });
+});
+
+const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+<defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/></linearGradient></defs>
+<rect width="20" height="20" fill="url(#g)"/>
+<path d="M0 0h10v10H0z" fill="#123456"/>
+<path d="M2 2A3 3 0 0 1 8 8" fill="none" stroke="#000"/>
+</svg>`;
+
+describe('serializeParsedDoc', () => {
+  it('keeps defs, primitives and untouched paths exactly as they were', () => {
+    const doc = parseSvgDocument(SVG);
+    const moved = moveNode(doc, { pathIndex: 0, segmentIndex: 1, nodeType: 'anchor' }, 12, 0);
+    const out = serializeParsedDoc(moved);
+
+    expect(out).toContain('<linearGradient id="g">');
+    expect(out).toContain('<rect width="20" height="20" fill="url(#g)"');
+    expect(out).toContain('d="M2 2A3 3 0 0 1 8 8"');
+    expect(out).toContain('d="M0 0 L12 0 L10 10 L0 10 Z"');
+  });
+
+  it('marks paths with arcs as non-editable and exposes no nodes for them', () => {
+    const doc = parseSvgDocument(SVG);
+    expect(doc.paths.map((p) => p.editable)).toEqual([true, false]);
+    const nodes = extractInteractiveNodes(doc.paths, null);
+    expect(nodes.every((n) => n.pathIndex === 0)).toBe(true);
+  });
+});
+
+describe('node editing', () => {
+  const curveDoc = () =>
+    parseSvgDocument('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 C1 1 2 1 3 0 C4 -1 5 -1 6 0"/></svg>');
+
+  it('moves both handles attached to a dragged anchor', () => {
+    const moved = moveNode(curveDoc(), { pathIndex: 0, segmentIndex: 1, nodeType: 'anchor' }, 3, 2);
+    const [, first, second] = moved.paths[0].segments;
+    expect(first).toMatchObject({ x: 3, y: 2, cp2x: 2, cp2y: 3 });
+    expect(second).toMatchObject({ cp1x: 4, cp1y: 1 });
+  });
+
+  it('promotes the next anchor when deleting the start of a subpath', () => {
+    const doc = parseSvgDocument('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L5 0L5 5L0 5Z"/></svg>');
+    const result = deleteNode(doc, 0, 0);
+    expect(result?.paths[0].segments[0]).toEqual({ type: 'M', x: 5, y: 0 });
+    expect(result?.paths[0].segments).toHaveLength(4);
+  });
+
+  it('refuses to leave a path with fewer than two anchors', () => {
+    const doc = parseSvgDocument('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L5 0"/></svg>');
+    expect(deleteNode(doc, 0, 1)).toBeNull();
+  });
+
+  it('splits a cubic at its midpoint without changing its shape endpoints', () => {
+    const { newDoc } = splitSegmentAtMidpoint(curveDoc(), 0, 1);
+    const segs = newDoc.paths[0].segments;
+    expect(segs).toHaveLength(4);
+    expect(segs[1]).toMatchObject({ type: 'C', x: 1.5, y: 0.75 });
+    expect(segs[2]).toMatchObject({ type: 'C', x: 3, y: 0 });
+  });
+
+  it('removes collinear stair-step nodes when simplifying', () => {
+    const doc = parseSvgDocument(
+      '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L10 0L20 0L30 0L30 10Z"/></svg>'
+    );
+    const { removedCount } = simplifySvgPaths(doc, 1.2);
+    expect(removedCount).toBeGreaterThan(0);
+  });
+});
