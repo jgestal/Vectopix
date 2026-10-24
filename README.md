@@ -33,14 +33,17 @@
 ## Features
 
 - **A calm, legible workspace**: the canvas is a cutting mat, settings stay in one panel with the advanced ones folded away, and the interface follows your system's light or dark mode.
-- **Clean geometry, not traced pixels**: straight edges come out as single straight lines, corners are sharp and arcs are true circular arcs. A flat logo becomes the handful of nodes a designer would draw: the sample hexagon logo has 41 nodes instead of several hundred.
-- **Automatic colour detection**: the real colours of the image are found and used as-is, while the blended pixels of anti-aliased edges are ignored, so similar colours are never merged and no ghost outlines appear.
+- **Clean geometry, not traced pixels**: straight edges come out as single straight lines, corners are sharp and arcs are true circular arcs. A flat logo becomes the handful of nodes a designer would draw: the sample hexagon logo has about 50 nodes instead of several hundred.
+- **Automatic colour detection**: the real colours of the image are found and used as-is, while the blended pixels of anti-aliased edges are ignored, so similar colours are never merged and no ghost outlines appear. JPEG noise is handled too: the near-identical shades compression leaves behind count as one colour.
 - **Sub-pixel tracing** powered by [vecline](https://www.npmjs.com/package/vecline): Oklab colour quantization, anti-aliasing reconstruction, shared boundaries between neighbouring shapes and detection of circles, ellipses and rectangles. ImageTracerJS is available as an alternative engine.
 - **Two tracing methods**
   - *Outline*: filled colour regions, for logos, illustrations, pixel art or photos.
   - *Centerline*: single-stroke paths, for laser cutters, plotters, CNC and sketches.
 - **Presets** for logos, flat illustration, photos, sketches, pixel art and centerline, plus fine control over colours, tolerance, smoothing, corners, minimum area, contrast and noise reduction.
-- **Automatic re-tracing**: changing any setting re-vectorizes the image (debounced, so dragging a slider doesn't flood the engine).
+- **Transparent background**: removes the background around the subject and keeps the same colour inside it (the white of a logo stays white). The outline is fitted to the real edge, with no fringe.
+- **No cracks between shapes**: shapes that sit inside others are painted on top of a whole shape, so the background never shows through as a hairline at any zoom.
+- **Exact pixel art**: pixel art can be traced along its own grid, square corners and all.
+- **Automatic re-tracing**: changing any setting re-vectorizes the image (debounced, so dragging a slider doesn't flood the engine). Your node and colour edits are not lost: they stay one undo back, together with the settings they were made with.
 - **Measured fidelity, not estimated**: the resulting SVG is rendered and compared with the original image using SSIM.
 - **Any image, any way**: drop or paste PNG, JPG, WebP, GIF, AVIF, BMP, ICO, SVG, TGA or PPM/PGM; drag a built-in sample or an image from another web page onto the drop zone.
 - **Visual comparison**: before/after split, side-by-side, vector only or raster only, outline mode and a pixel grid when zoomed in.
@@ -115,18 +118,19 @@ Open the URL Vite prints (usually `http://localhost:5173`). Drop an image, paste
 | `npm run dev`          | Development server with HMR                               |
 | `npm run build`        | Type-check and production build into `dist/`              |
 | `npm run preview`      | Serve the production build                                |
-| `npm test`             | Run the tests (Vitest)                                    |
+| `npm test`             | Run the unit tests (Vitest)                               |
+| `npm run test:e2e`     | Build and run the browser tests (Playwright, Chromium)    |
 | `npm run lint`         | Lint with Oxlint                                          |
 | `npm run desktop`      | Build and open the desktop app (Electron)                 |
 | `npm run dist:desktop` | Build the desktop installers for your OS into `release/`  |
 
 ### Publishing a release
 
-1. Bump `version` in `package.json` and commit.
+1. Bump `version` in `package.json`, add the version's section to [`CHANGELOG.md`](CHANGELOG.md) and commit.
 2. Tag the commit and push the tag: `git tag v1.2.3 && git push origin v1.2.3`.
-3. The **Release** workflow builds the apps on macOS, Windows and Linux plus the web zip, and publishes them as a GitHub release.
+3. The **Release** workflow builds the apps on macOS, Windows and Linux plus the web zip, and publishes them as a GitHub release. Its notes are that version's CHANGELOG section plus the download table; a tag without a CHANGELOG section fails before anything is built.
 
-Every push to `main` also runs the tests and deploys the web version to GitHub Pages.
+Every push to `main` also runs the unit and browser tests and deploys the web version to GitHub Pages.
 
 ## Keyboard shortcuts
 
@@ -155,6 +159,9 @@ src/
 ├── services/
 │   ├── vectorEngine.ts         Pure engine (no DOM, no worker): colour detection, tracing, SSIM
 │   ├── svgRefine.ts            Geometry clean-up: straight lines, sharp corners, circular arcs
+│   ├── svgStack.ts             Seam-free stacking: shapes filling a hole are painted on a whole shape
+│   ├── svgBackground.ts        Transparent background, removed on the vectors
+│   ├── pixelTrace.ts           Exact pixel-grid tracing for pixel art
 │   └── vectorWorkerClient.ts   Worker client: requests, progress and cancellation
 ├── workers/vector.worker.ts    Thin wrapper around the engine inside the Web Worker
 ├── components/                 Top bar, canvas controls, Viewport (canvas and node editor), settings, dialogs…
@@ -166,22 +173,25 @@ src/
     ├── fidelity.ts             Renders the SVG to measure its fidelity against the source
     └── …                       Preprocessing, palette, export and image loading
 electron/main.cjs               Desktop shell: serves dist/ from a private app:// origin
+tests/e2e/                      Browser tests (Playwright)
 ```
 
 **How a vectorization flows**
 
 1. The image is decoded into a `<canvas>`. Anything above 4 MP is downscaled so tracing stays smooth.
 2. The pixels are transferred (zero-copy) to the Web Worker, which preprocesses them, detects the real colours and traces them with vecline or ImageTracerJS while reporting progress.
-3. The traced outlines are refitted: each one is resampled, its real corners found (sharp turns, or two straight runs meeting at an angle), and every stretch between corners redrawn as one straight line, a circular arc or as few Bézier curves as possible. Where two lines meet, the corner moves to their exact intersection.
-4. If a new request arrives while one is running, the worker is terminated and a fresh one started: a real cancellation, the old job stops using the CPU.
-5. Once the SVG is on screen, it is rendered in the background and the worker computes its SSIM against the original.
-6. DXF, EPS and PDF are built from the current SVG when you open their export tab, so they share its clean geometry and include every edit.
+3. The traced outlines are refitted: each one is resampled, its real corners found (sharp turns, or two straight runs meeting at an angle), and every stretch between corners redrawn as one straight line, a circular arc or as few Bézier curves as possible. Where two lines meet, the corner moves to their exact intersection. A refit that would stray from the traced shape is discarded and that outline kept as traced.
+4. Shapes whose hole is completely filled by other shapes are drawn whole, with those shapes on top (no hairline cracks). For a transparent background, the background-colour region touching the image border is then removed, keeping the same colour inside the subject.
+5. If a new request arrives while one is running, the worker is terminated and a fresh one started: a real cancellation, the old job stops using the CPU.
+6. Once the SVG is on screen, it is rendered in the background and the worker computes its SSIM against the original.
+7. DXF, EPS and PDF are built from the current SVG when you open their export tab, so they share its clean geometry and include every edit.
 
 **Translations**: `src/i18n/locales/es.ts` is the reference catalogue. TypeScript requires every other language to define exactly the same keys, and a test checks that every translation keeps the same `{placeholders}`. To add a language, copy `en.ts`, translate it and register it in `src/i18n/core.ts`.
 
 ## Known limitations
 
 - When DXF, EPS or PDF are exported from an edited SVG, gradients are flattened to the average colour of their stops and `transform` attributes are not applied (the SVGs the app produces don't use them).
+- Very small images (under about 100 px) are traced less faithfully: thin features are only a few pixels wide. Use the largest version of a logo you have.
 - SSIM is measured at up to 512 px on the longest side: a reliable fidelity indicator, not a full-resolution comparison.
 
 ## Tech stack

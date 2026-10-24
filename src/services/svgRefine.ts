@@ -437,7 +437,59 @@ const END_SKIP = 4;
 const CORNER_MERGE = 6;
 
 /** Refit one closed outline. Returns null when it is fringe that should vanish. */
+/**
+ * Largest distance from the traced outline to its refit, as a share of the
+ * outline's size (bounding-box diagonal) and within fixed bounds in px. Beyond
+ * it the refit lost a feature (common on small images, where a tooth or a
+ * notch is only a few px and reads as noise to the corner and line
+ * detectors). On a large shape the trace itself bows up to ~2 px along long
+ * straight edges (1.75 on the crest's top edge), which the refit is right to
+ * straighten; on a 40 px icon the same 2 px is a feature.
+ */
+const DEVIATION_SHARE = 0.02;
+const MIN_DEVIATION = 1.5;
+const MAX_DEVIATION = 2.5;
+/** …and from the refit to the traced outline: looser, as a corner snapped
+ * sharp reaches past the tracer's rounded one. */
+const MAX_OVERSHOOT = 3;
+
+function distToPolygon(p: Pt, poly: Pt[]): number {
+  let best = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[j];
+    const ab = sub(poly[i], a);
+    const l2 = dot(ab, ab);
+    const t = l2 ? Math.max(0, Math.min(1, dot(sub(p, a), ab) / l2)) : 0;
+    best = Math.min(best, len(sub(p, add(a, mul(ab, t)))));
+  }
+  return best;
+}
+
+function strays(from: Pt[], to: Pt[], limit: number): boolean {
+  // Every other sample is plenty at 1 px spacing
+  for (let i = 0; i < from.length; i += 2) if (distToPolygon(from[i], to) > limit) return true;
+  return false;
+}
+
+/**
+ * Refit one closed subpath; null if it is anti-aliasing fringe. A refit that
+ * strays from the traced outline is rejected and the subpath kept as traced:
+ * the clean-up may simplify, never change what is drawn.
+ */
 function refineSubpath(segs: PathSegment[], o: Required<RefineOptions>): PathSegment[] | null {
+  const fitted = fitSubpath(segs, o);
+  if (!fitted) return fitted;
+  const traced = sampleSubpath(segs).pts;
+  const refit = sampleSubpath(fitted).pts;
+  const xs = traced.map((p) => p.x);
+  const ys = traced.map((p) => p.y);
+  const size = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  const limit = Math.min(MAX_DEVIATION, Math.max(MIN_DEVIATION, DEVIATION_SHARE * size));
+  if (strays(traced, refit, limit) || strays(refit, traced, MAX_OVERSHOOT)) return segs;
+  return fitted;
+}
+
+function fitSubpath(segs: PathSegment[], o: Required<RefineOptions>): PathSegment[] | null {
   const { pts: raw, tracerCorners } = sampleSubpath(segs);
   if (raw.length < 3) return null;
   const pts = resampleClosed(raw);

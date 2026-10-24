@@ -33,6 +33,7 @@ jobs:
         run: |
           version=$(node -p "require('./package.json').version")
           [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match package.json version $version"; exit 1; }
+          scripts/release-notes.sh "$version" > /dev/null
       - run: npm ci
       - run: npm test
       - run: npm run build
@@ -79,10 +80,8 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      - name: Write release notes
-        run: |
-          version=${GITHUB_REF_NAME#v}
-          sed "s/{{VERSION}}/${version}/g" .github/release-notes.md > notes.md
+      - name: Write release notes (CHANGELOG section + downloads)
+        run: scripts/release-notes.sh "${GITHUB_REF_NAME#v}" > notes.md
       - uses: softprops/action-gh-release@v2
         with:
           name: Vectopix ${{ github.ref_name }}

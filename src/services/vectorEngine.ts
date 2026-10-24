@@ -1,8 +1,11 @@
-import { trace, centerlineTrace, extractPalette, compareImages, TRACE_DEFAULTS } from 'vecline/core';
+import { trace, centerlineTrace, extractPalette, compareImages, detectBackgroundColor, TRACE_DEFAULTS } from 'vecline/core';
 import ImageTracer from 'imagetracerjs';
 import { preprocessRaster, type Raster } from '../utils/imageProcessing';
 import { refineSvg } from './svgRefine';
-import { countAnchors } from '../utils/pathParser';
+import { stackSvg } from './svgStack';
+import { removeOuterBackground, snapToCanvasEdge } from './svgBackground';
+import { tracePixelGrid } from './pixelTrace';
+import { countAnchors, countShapes } from '../utils/pathParser';
 import type { PaletteColor, ProgressStage, VectorOptions, VectorResult } from '../types/vector';
 
 /**
@@ -23,6 +26,40 @@ export type ProgressCallback = (stage: ProgressStage, percent: number) => void;
  */
 const REAL_COLOUR_MIN_SHARE = 0.004;
 const MAX_AUTO_COLOURS = 32;
+/**
+ * Colours closer than this in Oklab (about two just-noticeable differences)
+ * are one colour. JPEG splits each flat colour into near-identical variants
+ * (≤ 0.032 apart on the samples); distinct design colours sit ≥ 0.057 apart.
+ */
+const SAME_COLOUR_OKLAB = 0.04;
+/**
+ * vecline settings per smoothing level (off / standard / maximum). `smooth`
+ * diffuses interiors in proportion to the image's own measured noise (in
+ * [0, 1], so it cannot go further than standard); maximum also merges
+ * regions closer than `segment` in Oklab before quantising: fewer, calmer
+ * regions on photos (Owl: 22.6k → 18.2k nodes).
+ */
+const SMOOTHING = [
+  { smooth: 0, segment: 0 },
+  { smooth: 1, segment: 0 },
+  { smooth: 1, segment: 0.06 },
+];
+
+function toOklab({ r, g, b }: { r: number; g: number; b: number }): [number, number, number] {
+  const lin = (c: number) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const [R, G, B] = [lin(r), lin(g), lin(b)];
+  const l = Math.cbrt(0.4122214708 * R + 0.5363325363 * G + 0.0514459929 * B);
+  const m = Math.cbrt(0.2119034982 * R + 0.6806995451 * G + 0.1073969566 * B);
+  const s = Math.cbrt(0.0883024619 * R + 0.2817188376 * G + 0.6299787005 * B);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
+}
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   let clean = hex.replace('#', '');
@@ -42,10 +79,23 @@ type VeclinePaletteEntry = ReturnType<typeof extractPalette>[number];
  * two similar real colours are never merged to make room for it).
  */
 function choosePalette(raster: Raster, options: VectorOptions): VeclinePaletteEntry[] {
-  if (!options.autoColors) return extractPalette(raster, Math.min(options.colors, 64)) || [];
-  const all = (extractPalette(raster, MAX_AUTO_COLOURS) || []).sort((a, b) => b.weight - a.weight);
-  const real: VeclinePaletteEntry[] = [];
+  if (!options.autoColors) return (extractPalette(raster, Math.min(options.colors, 64)) || []).filter((p) => p.rgb.a >= 128);
+  // Fully transparent pixels (a PNG's empty background) are not a colour to trace
+  const all = (extractPalette(raster, MAX_AUTO_COLOURS) || []).filter((p) => p.rgb.a >= 128).sort((a, b) => b.weight - a.weight);
+  // Fold indistinguishable variants into the dominant one first: their
+  // shares add up, and a JPEG's flat colour counts as one again
+  const merged: VeclinePaletteEntry[] = [];
   for (const candidate of all) {
+    const lab = toOklab(candidate.rgb);
+    const same = merged.find((m) => {
+      const o = toOklab(m.rgb);
+      return Math.hypot(o[0] - lab[0], o[1] - lab[1], o[2] - lab[2]) < SAME_COLOUR_OKLAB;
+    });
+    if (same) same.weight += candidate.weight;
+    else merged.push({ ...candidate });
+  }
+  const real: VeclinePaletteEntry[] = [];
+  for (const candidate of merged) {
     if (candidate.weight < REAL_COLOUR_MIN_SHARE) continue;
     if (!isBlendOf(candidate, real)) real.push(candidate);
   }
@@ -103,8 +153,11 @@ function veclineTraceOptions(options: VectorOptions, palette: VeclinePaletteEntr
     cornerAngle: options.cornerAngle,
     minArea: options.minArea,
     refineIterations: options.refineIterations,
-    smooth: options.smooth ?? 0,
-    background: options.background,
+    ...SMOOTHING[options.smooth ?? 0],
+    // vecline's `background` paints the dominant colour as one backing
+    // rectangle. For a transparent result the background is traced as a
+    // region like any other, to be removed afterwards.
+    background: !options.transparentBackground,
     primitives: options.primitives,
     gradients: options.gradients,
     // Fit every boundary between two regions once, for both: neighbouring
@@ -137,6 +190,8 @@ export function vectorizeRaster(
     partial: Omit<VectorResult, 'originalSvg' | 'executionTimeMs' | 'fileSizeBytes' | 'nodesCount' | 'rasterSizeBytes'>
   ): VectorResult => ({
     ...partial,
+    // Count what the final SVG draws: stacking and background removal change it
+    shapes: partial.isCenterline ? partial.shapes : countShapes(partial.svg),
     originalSvg: partial.svg,
     nodesCount: countAnchors(partial.svg),
     executionTimeMs: Math.round(performance.now() - startTime),
@@ -167,7 +222,10 @@ export function vectorizeRaster(
   let svg: string;
   let shapes: number;
   let regions: number;
-  if (options.engine === 'imagetracer') {
+  if (options.pixelGrid) {
+    onProgress('progress.boundaries', 50);
+    ({ svg, shapes, regions } = tracePixelGrid(raster, palette.map((p) => ({ rgb: p.rgb, hex: p.hex }))));
+  } else if (options.engine === 'imagetracer') {
     onProgress('progress.imagetracer', 55);
     svg = ImageTracer.imagedataToSVG(raster as unknown as ImageData, {
       numberofcolors: colorCount,
@@ -182,17 +240,28 @@ export function vectorizeRaster(
   } else {
     onProgress('progress.boundaries', 50);
     const traced = trace(raster, veclineTraceOptions(options, palette));
-    svg = traced.svg;
+    svg = snapToCanvasEdge(traced.svg, raster.width, raster.height);
     shapes = traced.shapes;
     regions = traced.regions;
   }
 
   // Straight edges straight, corners sharp, arcs round. Gradients are left
   // alone: their stops are fitted to the traced shapes as they are.
-  if (options.refine && !options.gradients) {
+  if (options.refine && !options.gradients && !options.pixelGrid) {
     onProgress('progress.fitting', 85);
     svg = refineSvg(svg);
   }
+
+  // The background is removed on the vectors, not the pixels: the subject's
+  // outline stays fitted to the real anti-aliased edge
+  if (options.transparentBackground) {
+    svg = removeOuterBackground(svg, detectBackgroundColor(raster), raster.width, raster.height);
+  }
+
+  // Paint containing shapes whole, with what they contain on top: no hole
+  // left for the background to show through as a hairline crack
+  // (pixel-grid output already overlaps its neighbours and must keep its order)
+  if (!options.gradients && !options.pixelGrid) svg = stackSvg(svg);
 
   return finish({ svg, shapes, colors: colorCount, regions, palette: paletteColors, isCenterline: false });
 }

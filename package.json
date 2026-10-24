@@ -1,7 +1,7 @@
 {
   "name": "vectopix",
   "private": true,
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Raster to vector (SVG, DXF, EPS, PDF) converter that runs entirely on your machine, with a Bézier node editor.",
   "author": {
     "name": "Juan Gestal",
@@ -21,6 +21,7 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "preview": "vite preview",
     "desktop": "npm run build && electron .",
     "dist:desktop": "npm run build && electron-builder --publish never"
@@ -35,6 +36,7 @@
     "vecline": "^2.1.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",

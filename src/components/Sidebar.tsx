@@ -321,10 +321,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onChange={(v) => updateOption('subpixel', v)}
               />
               <Toggle
+                title={t('sidebar.pixelGrid')}
+                desc={t('sidebar.pixelGridDesc')}
+                checked={options.pixelGrid}
+                onChange={(v) => updateOption('pixelGrid', v)}
+              />
+              <Toggle
                 title={t('sidebar.transparent')}
                 desc={t('sidebar.transparentDesc')}
-                checked={!options.background}
-                onChange={(v) => updateOption('background', !v)}
+                checked={options.transparentBackground}
+                onChange={(v) => updateOption('transparentBackground', v)}
               />
               <Toggle
                 title={t('sidebar.primitives')}

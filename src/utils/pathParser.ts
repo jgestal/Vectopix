@@ -804,3 +804,9 @@ export function countAnchors(svg: string): number {
   count += (svg.match(/<(circle|ellipse|rect)\b/g) || []).length;
   return count;
 }
+
+/** Shapes the SVG draws (paths and primitives): what "N shapes" refers to everywhere in the UI. */
+export function countShapes(svg: string): number {
+  const shapes = svg.match(/<(path|circle|ellipse|rect|polygon|polyline|line)\b[^>]*>/g) || [];
+  return shapes.filter((el) => !/^<path\b/.test(el) || /\sd="[^"]*[0-9]/.test(el)).length;
+}

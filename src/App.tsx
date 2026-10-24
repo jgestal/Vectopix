@@ -25,7 +25,7 @@ import { ColorModal } from './components/ColorModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { ToastContainer } from './components/Toast';
 import { replaceColorInSvg, removeColorFromSvg, normalizeHex } from './utils/paletteUtils';
-import { parseSvgDocument, serializeParsedDoc, simplifySvgPaths, countAnchors } from './utils/pathParser';
+import { parseSvgDocument, serializeParsedDoc, simplifySvgPaths, countAnchors, countShapes } from './utils/pathParser';
 import { rasterizeForComparison } from './utils/fidelity';
 import { readImageFile, readDrop, fetchImage, EXTRA_IMAGE_EXTENSIONS } from './utils/imageLoading';
 import { SAMPLE_IMAGES, generateSampleDataUrl } from './utils/sampleImages';
@@ -40,14 +40,35 @@ const MAX_PIXELS = 4_000_000;
 /** Delay before re-tracing after a setting changes, so sliders don't flood the worker. */
 const RETRACE_DEBOUNCE_MS = 400;
 
+/** Undo steps kept; older ones are dropped. */
+const HISTORY_LIMIT = 50;
+
+/**
+ * One undo step: a result and the settings that produced it. Traces and edits
+ * both add steps, so changing a setting never throws edits away: they stay
+ * one undo behind the new trace.
+ */
 interface HistoryEntry {
-  svg: string;
-  palette: PaletteColor[];
+  result: VectorResult;
+  options: VectorOptions;
 }
 
+interface History {
+  entries: HistoryEntry[];
+  /** The entry on screen. */
+  index: number;
+}
+
+const EMPTY_HISTORY: History = { entries: [], index: -1 };
+
+/** Input types that don't take typing: shortcuts keep working while they have focus. */
+const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'range', 'button', 'submit', 'reset', 'color', 'file']);
+
+/** Whether keys typed now are text for the focused field (so not shortcuts). */
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
+  if (target instanceof HTMLInputElement) return !NON_TEXT_INPUTS.has(target.type);
+  return ['TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
 }
 
 export function App() {
@@ -75,12 +96,17 @@ export function App() {
   const [selectedPaletteColor, setSelectedPaletteColor] = useState<PaletteColor | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // History stack for node & palette modifications
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  // Undo history of traces and edits
+  const [{ entries: history, index: historyIndex }, setHistory] = useState<History>(EMPTY_HISTORY);
   const toastIdCounter = useRef(0);
   const traceCounter = useRef(0);
   const lastTracedImage = useRef<ImageData | null>(null);
+  /** Settings restored by undo/redo: they come with their result, so no re-trace. */
+  const restoredOptions = useRef<VectorOptions | null>(null);
+  const resultRef = useRef(result);
+  useEffect(() => {
+    resultRef.current = result;
+  }, [result]);
 
   const showToast = useCallback((text: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const id = `toast_${++toastIdCounter.current}`;
@@ -96,10 +122,21 @@ export function App() {
       const { reference, candidate } = await rasterizeForComparison(source, svg);
       const ssim = await measureSsimWithWorker(reference, candidate);
       if (traceId !== traceCounter.current) return;
-      setResult((prev) => (prev && prev.originalSvg === svg ? { ...prev, ssim } : prev));
+      const withSsim = (r: VectorResult) => (r.originalSvg === svg ? { ...r, ssim } : r);
+      setResult((prev) => prev && withSsim(prev));
+      setHistory((h) => ({ ...h, entries: h.entries.map((entry) => ({ ...entry, result: withSsim(entry.result) })) }));
     } catch {
       // Fidelity is informative only; a failed measurement just isn't shown
     }
+  }, []);
+
+  /** Show a result and make it the newest undo step (dropping any redo steps). */
+  const pushHistory = useCallback((entry: HistoryEntry) => {
+    setResult(entry.result);
+    setHistory((h) => {
+      const entries = [...h.entries.slice(0, h.index + 1), entry].slice(-HISTORY_LIMIT);
+      return { entries, index: entries.length - 1 };
+    });
   }, []);
 
   // Core Vectorization Runner
@@ -111,9 +148,11 @@ export function App() {
 
       try {
         const res = await vectorizeWithWorker(data, sizeBytes, opts, setProgress);
-        setResult(res);
-        setHistory([{ svg: res.svg, palette: res.palette }]);
-        setHistoryIndex(0);
+        if (traceId !== traceCounter.current) return; // superseded, e.g. by an undo
+        // Replacing hand edits: say where they went
+        const shown = resultRef.current;
+        if (shown && shown.svg !== shown.originalSvg) showToast(t('toast.editsInHistory'), 'info');
+        pushHistory({ result: res, options: opts });
         measureFidelity(traceId, data, res.svg);
       } catch (err: unknown) {
         if (err instanceof VectorizationCanceledError) return;
@@ -128,13 +167,17 @@ export function App() {
         }
       }
     },
-    [showToast, measureFidelity, t]
+    [showToast, measureFidelity, pushHistory, t]
   );
 
   // Re-trace whenever the image or any setting changes. A new image traces at
   // once; setting changes are debounced so dragging a slider traces only once.
   useEffect(() => {
     if (!imageData) return;
+    if (restoredOptions.current === options) {
+      restoredOptions.current = null;
+      return;
+    }
     const isNewImage = lastTracedImage.current !== imageData;
     lastTracedImage.current = imageData;
     const timer = setTimeout(
@@ -186,8 +229,7 @@ export function App() {
         setImageData(ctx.getImageData(0, 0, width, height));
         setRasterSizeBytes(Math.round((dataUrl.length * 3) / 4));
         setResult(null);
-        setHistory([]);
-        setHistoryIndex(-1);
+        setHistory(EMPTY_HISTORY);
         setOptions((prev) => applyPreset(suggestedPreset || 'logo', prev));
       };
       img.onerror = () => showToast(t('error.imageDecode'), 'warning');
@@ -242,55 +284,45 @@ export function App() {
     setImageData(null);
     setImageDimensions(null);
     setResult(null);
-    setHistory([]);
-    setHistoryIndex(-1);
+    setHistory(EMPTY_HISTORY);
   };
 
   // Node & Palette Mutation Pipeline
   const applySvgUpdate = useCallback(
     (newSvg: string, commitHistory = true, toastText?: string, palette?: PaletteColor[]) => {
-      setResult((prev) =>
-        prev
-          ? {
-              ...prev,
-              svg: newSvg,
-              palette: palette ?? prev.palette,
-              fileSizeBytes: new Blob([newSvg]).size,
-              nodesCount: countAnchors(newSvg),
-            }
-          : null
-      );
-
-      if (commitHistory && result) {
-        const entry = { svg: newSvg, palette: palette ?? result.palette };
-        setHistory((prev) => [...prev.slice(0, historyIndex + 1), entry]);
-        setHistoryIndex(historyIndex + 1);
-      }
-
+      if (!result) return;
+      const edited: VectorResult = {
+        ...result,
+        svg: newSvg,
+        palette: palette ?? result.palette,
+        fileSizeBytes: new Blob([newSvg]).size,
+        nodesCount: countAnchors(newSvg),
+        shapes: result.isCenterline ? result.shapes : countShapes(newSvg),
+      };
+      if (commitHistory) pushHistory({ result: edited, options });
+      else setResult(edited);
       if (toastText) showToast(toastText, 'info');
     },
-    [historyIndex, result, showToast]
+    [result, options, pushHistory, showToast]
   );
 
   const restoreHistory = useCallback(
     (index: number, toastText: string) => {
       const entry = history[index];
       if (!entry) return;
-      setHistoryIndex(index);
-      setResult((prev) =>
-        prev
-          ? {
-              ...prev,
-              svg: entry.svg,
-              palette: entry.palette,
-              fileSizeBytes: new Blob([entry.svg]).size,
-              nodesCount: countAnchors(entry.svg),
-            }
-          : null
-      );
+      // Cancel a trace in flight: the restored step must not be replaced by it
+      traceCounter.current++;
+      setIsProcessing(false);
+      setProgress(null);
+      setHistory((h) => ({ ...h, index }));
+      setResult(entry.result);
+      if (entry.options !== options) {
+        restoredOptions.current = entry.options;
+        setOptions(entry.options);
+      }
       showToast(toastText, 'info');
     },
-    [history, showToast]
+    [history, options, showToast]
   );
 
   const handleUndo = useCallback(() => {
@@ -303,7 +335,8 @@ export function App() {
 
   const handleResetEdits = () => {
     if (!result) return;
-    applySvgUpdate(result.originalSvg, true, t('toast.nodesRestored'), history[0]?.palette);
+    const traced = history.findLast((entry) => entry.result.originalSvg === result.originalSvg && entry.result.svg === entry.result.originalSvg);
+    applySvgUpdate(result.originalSvg, true, t('toast.nodesRestored'), traced?.result.palette);
   };
 
   const handleSimplifyNodes = useCallback(() => {

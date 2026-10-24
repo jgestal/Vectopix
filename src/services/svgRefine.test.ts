@@ -47,6 +47,21 @@ describe('refinePathData', () => {
     expect(refinePathData('M10 10h120v0.8h-120z')).toBeNull();
     expect(refinePathData('M10 10h120v0.8h-120zM10 40h50v50h-50z')).not.toBeNull();
   });
+  it('keeps a subpath as traced when the refit would change its shape', () => {
+    // A 4 px blob from a 64 px logo: too small for the line and corner
+    // detectors, whose refit strays several px from it
+    const traced = 'M37 35l10 5l1 1l-2 1c-4.3 1.1-8.6 4.4-12.6 6.6c-1 0-.6.1-1.4-.6v-10z';
+    expect(refinePathData(traced)).toBe(traced);
+  });
+
+  it('still straightens a long edge the tracer bowed by a couple of px', () => {
+    // The crest's shield: its top edges bow 1.75 px; on a 200 px shape that is noise
+    const traced =
+      'M105.1 110.7c18.6-8.9 42.1-11.5 62.2-16.9c15-4 28.2-10 43.4-6c14 3.8 28.1 7.2 42 11c10.6 2.9 34.2 6.6 42.3 11.9c-.4 16.2-.5 31.7-2.1 47.6c-4.9 49.4-21.3 111.1-63.1 144.5c-6.6 5.2-22.8 19.4-31.1 18.9c-4.6-.3-23-14.4-27.5-17.9c-32.2-25.8-49.7-69.5-58.1-108.5c-5.9-27.9-7.4-55.7-8-84.6z';
+    const refit = refinePathData(traced)!;
+    expect(refit).not.toBe(traced);
+    expect(parsePathSegments(refit).length).toBeLessThan(parsePathSegments(traced).length);
+  });
 });
 
 describe('refineSvg', () => {

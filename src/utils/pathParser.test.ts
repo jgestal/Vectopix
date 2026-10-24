@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import {
+  countShapes,
   deleteNode,
   extractInteractiveNodes,
   moveNode,
@@ -143,5 +144,13 @@ describe('node editing', () => {
     );
     const { removedCount } = simplifySvgPaths(doc, 1.2);
     expect(removedCount).toBeGreaterThan(0);
+  });
+});
+
+describe('countShapes', () => {
+  it('counts paths and primitives, not empty paths', () => {
+    const svg =
+      '<svg><path d="M0 0h10v10z" fill="#000"/><circle cx="5" cy="5" r="2" fill="#f00"/><rect x="0" y="0" width="2" height="2"/><path d="" fill="#00f"/></svg>';
+    expect(countShapes(svg)).toBe(3);
   });
 });

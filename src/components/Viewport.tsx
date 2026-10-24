@@ -8,6 +8,7 @@ import {
   splitSegmentAtMidpoint,
   moveNode,
   deleteNode,
+  countShapes,
   type ParsedSvgDoc,
   type InteractiveNode,
 } from '../utils/pathParser';
@@ -152,6 +153,8 @@ export const Viewport: React.FC<ViewportProps> = ({
   }, []);
 
   // Parse SVG Document for interactive node editing
+  // Same count as the status bar: every shape drawn, primitives included
+  const shapeCount = useMemo(() => countShapes(svgContent), [svgContent]);
   const parsedDoc: ParsedSvgDoc = useMemo(() => {
     return parseSvgDocument(svgContent);
   }, [svgContent]);
@@ -491,7 +494,7 @@ export const Viewport: React.FC<ViewportProps> = ({
           {/* Right Board: Vector Output */}
           <div className="sbs-pane" style={{ width: `${scaledWidth}px`, height: `${scaledHeight + SBS_TITLE_HEIGHT}px` }}>
             <div className="sbs-pane-badge vector-badge">
-              <span>{t('viewport.vectorBadge', { count: parsedDoc.paths.length })}</span>
+              <span>{t('viewport.vectorBadge', { count: shapeCount })}</span>
             </div>
             <div className={`sbs-pane-content vector-layer mode-${renderMode}`}>
               <div

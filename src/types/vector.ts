@@ -25,13 +25,16 @@ export interface VectorOptions {
   /** Refit the traced paths: straight edges, sharp corners, round arcs. */
   refine: boolean;
   subpixel: boolean;
+  /** Trace along the pixel grid exactly (pixel art): square corners, no curves. */
+  pixelGrid: boolean;
   tolerance: number;
   fitError: number;
   cornerAngle: number;
   minArea: number;
   refineIterations: number;
   smooth: number;
-  background: boolean;
+  /** Remove the background (flood-filled from the edges) so the result is transparent. */
+  transparentBackground: boolean;
   primitives: boolean;
   gradients: boolean;
   blurRadius?: number;

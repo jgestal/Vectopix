@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { measureSsim, vectorizeRaster } from './vectorEngine';
 import { DEFAULT_OPTIONS } from '../config/presets';
 import type { VectorOptions } from '../types/vector';
+import { parsePathSegments } from '../utils/pathParser';
 
 /** 64×64 white image with a red disc in the middle. */
 function discRaster() {
@@ -74,6 +75,37 @@ function strokeRaster() {
   return { width, height, data };
 }
 
+/**
+ * 120×120 white image with an anti-aliased navy ring, white inside: the
+ * white centre is part of the subject, the white around it is background.
+ */
+function antialiasedRing() {
+  const size = 120;
+  const data = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let hits = 0;
+      for (let sy = 0; sy < 4; sy++)
+        for (let sx = 0; sx < 4; sx++) {
+          const r = Math.hypot(x + (sx + 0.5) / 4 - 60, y + (sy + 0.5) / 4 - 60);
+          if (r >= 25 && r <= 45) hits++;
+        }
+      const cov = hits / 16;
+      const mix = (fg: number) => Math.round(fg * cov + 255 * (1 - cov));
+      data.set([mix(30), mix(27), mix(75), 255], (y * size + x) * 4);
+    }
+  }
+  return { width: size, height: size, data };
+}
+
+/** Bounds of a path element's end points (absolute coordinates). */
+function pathBounds(element: string) {
+  const segs = parsePathSegments(element.match(/\sd="([^"]*)"/)?.[1] ?? '');
+  const xs = segs.map((s) => s.x);
+  const ys = segs.map((s) => s.y);
+  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+}
+
 const options = (overrides: Partial<VectorOptions> = {}): VectorOptions => ({ ...DEFAULT_OPTIONS, ...overrides });
 
 describe('vectorizeRaster', () => {
@@ -91,6 +123,16 @@ describe('vectorizeRaster', () => {
     const result = vectorizeRaster(antialiasedSquare(), options());
     expect(result.colors).toBe(2);
     expect(result.palette.map((p) => p.hex).sort()).toEqual(['#1e1b4b', '#fff']);
+  });
+
+  it('counts a colour split by compression noise as one colour', () => {
+    // JPEG-like noise: each flat colour becomes a cloud of near-identical variants
+    const noisy = antialiasedSquare();
+    let seed = 7;
+    const rand = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648) * 2 - 1;
+    for (let i = 0; i < noisy.data.length; i += 4) for (let c = 0; c < 3; c++) noisy.data[i + c] += Math.round(rand() * 5);
+    const result = vectorizeRaster(noisy, options());
+    expect(result.colors).toBe(2);
   });
 
   it('draws a square with anti-aliased edges as an exact square', () => {
@@ -113,6 +155,51 @@ describe('vectorizeRaster', () => {
     expect((clean.match(/[lLhHvV]/g) || []).length).toBe(2); // the third side is drawn by z
     // Without clean-up the raw trace is left as the tracer produced it
     expect(triangle(false)).not.toBe(triangle(true));
+  });
+
+  it('removes the background around the subject and keeps the same colour inside it', () => {
+    const opaque = vectorizeRaster(antialiasedRing(), options());
+    const result = vectorizeRaster(antialiasedRing(), options({ transparentBackground: true }));
+    const shapes = result.svg.match(/<(path|circle|ellipse|rect)\b[^>]*\/>/g) || [];
+    // Nothing reaches the image border any more…
+    for (const shape of shapes) {
+      expect(shape).not.toMatch(/^<rect/);
+      const circle = shape.match(/cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/);
+      const b = circle
+        ? { minX: +circle[1] - +circle[3], minY: +circle[2] - +circle[3], maxX: +circle[1] + +circle[3], maxY: +circle[2] + +circle[3] }
+        : pathBounds(shape);
+      expect(Math.min(b.minX, b.minY)).toBeGreaterThan(5);
+      expect(Math.max(b.maxX, b.maxY)).toBeLessThan(115);
+    }
+    expect(result.svg).not.toContain('h120v120');
+    // …the white centre is still drawn (on top of the ring, which no longer
+    // needs its hole), and the ring keeps the opaque trace's outer outline
+    expect(result.svg).toMatch(/fill="#fff"/);
+    const outline = (svg: string) => svg.match(/d="(M[^Mmz]*z)[^"]*" fill="#1e1b4b"/)?.[1];
+    expect(outline(result.svg)).toBeDefined();
+    expect(outline(result.svg)).toBe(outline(opaque.svg));
+    expect(result.svg.indexOf('#1e1b4b')).toBeLessThan(result.svg.indexOf('#fff'));
+  });
+
+  it('traces pixel art exactly on the pixel grid', () => {
+    const size = 8;
+    const data = new Uint8ClampedArray(size * size * 4).fill(255);
+    // A 4×4 red block made of 1px "pixels", with one pixel missing in a corner
+    for (let y = 2; y < 6; y++) for (let x = 2; x < 6; x++) if (!(x === 5 && y === 5)) data.set([220, 30, 30, 255], (y * size + x) * 4);
+    const result = vectorizeRaster({ width: size, height: size, data }, options({ pixelGrid: true, transparentBackground: true, minArea: 0 }));
+    const red = result.svg.match(/d="([^"]*)" fill="#dc1e1e"/)?.[1];
+    expect(red).toBe('M2 2H6V5H5V6H2Z');
+    expect(result.svg).not.toMatch(/fill="#fff"/);
+  });
+
+  it('makes the smoothing setting change the trace', () => {
+    const noisy = antialiasedRing();
+    let seed = 3;
+    const rand = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648) * 2 - 1;
+    for (let i = 0; i < noisy.data.length; i += 4) for (let c = 0; c < 3; c++) noisy.data[i + c] += Math.round(rand() * 20);
+    const off = vectorizeRaster(noisy, options({ autoColors: false, colors: 8, smooth: 0 }));
+    const max = vectorizeRaster(noisy, options({ autoColors: false, colors: 8, smooth: 2 }));
+    expect(max.svg).not.toBe(off.svg);
   });
 
   it('uses the requested number of colours when automatic detection is off', () => {
