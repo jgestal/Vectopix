@@ -61,7 +61,7 @@ export function centerlineToEps(
   return (
     '%!PS-Adobe-3.0 EPSF-3.0\n' +
     `%%BoundingBox: 0 0 ${Math.ceil(width)} ${Math.ceil(height)}\n` +
-    '%%Creator: VectorApp Studio\n%%EndComments\n' +
+    '%%Creator: Vectopix\n%%EndComments\n' +
     `${strokeWidth} setlinewidth\n1 setlinecap\n1 setlinejoin\n` +
     `${(r / 255).toFixed(3)} ${(g / 255).toFixed(3)} ${(b / 255).toFixed(3)} setrgbcolor\n` +
     strokeCommands(polylines, height, { begin: 'newpath ', move: 'moveto', line: 'lineto', stroke: 'stroke' }) +

@@ -1,6 +1,6 @@
 {
-  "name": "VectorApp Studio",
-  "short_name": "VectorApp",
+  "name": "Vectopix",
+  "short_name": "Vectopix",
   "description": "Vectoriza imágenes raster a SVG, DXF, EPS y PDF directamente en el navegador.",
   "start_url": ".",
   "display": "standalone",

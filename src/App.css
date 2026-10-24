@@ -1,5 +1,5 @@
 /* ==========================================================================
-   VectorApp Studio Layout & Component Styles
+   Vectopix Layout & Component Styles
    ========================================================================== */
 
 .studio-app-root {
@@ -1619,7 +1619,7 @@
 }
 
 .export-modal {
-  width: 780px;
+  width: 880px;
   max-width: 100%;
   max-height: 90vh;
   background-color: var(--bg-surface);
@@ -1681,7 +1681,7 @@
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  padding: 8px 12px;
+  padding: 8px 10px;
   font-size: 12px;
   font-weight: 500;
   border-radius: var(--radius-md);
@@ -2330,3 +2330,16 @@
   font-family: var(--font-mono);
 }
 
+/* Narrower desktops: the sidebar already names the engine, and below that the
+   image pill would only show a clipped fragment */
+@media (max-width: 1600px) {
+  .engine-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 1280px) {
+  .header-meta .image-info-pill {
+    display: none;
+  }
+}

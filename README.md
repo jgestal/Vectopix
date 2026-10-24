@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="public/favicon.svg" width="112" height="112" alt="VectorApp" />
+  <img src="public/favicon.svg" width="112" height="112" alt="Vectopix" />
 </p>
 
-<h1 align="center">VectorApp Studio</h1>
+<h1 align="center">Vectopix</h1>
 
 <p align="center">
   Convierte imágenes raster (PNG, JPG, WebP, BMP) en vectores limpios — <b>SVG, DXF, EPS y PDF</b> —
@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jgestal/VectorApp/actions/workflows/ci.yml"><img src="https://github.com/jgestal/VectorApp/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/jgestal/Vectopix/actions/workflows/ci.yml"><img src="https://github.com/jgestal/Vectopix/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white" alt="Vite" />
@@ -18,11 +18,11 @@
 </p>
 
 <p align="center">
-  <a href="https://jgestal.github.io/VectorApp/"><b>▶ Probar la app en el navegador</b></a>
+  <a href="https://jgestal.github.io/Vectopix/"><b>▶ Probar la app en el navegador</b></a>
 </p>
 
 <p align="center">
-  <img src="docs/studio.png" alt="Estudio de VectorApp comparando el raster original con el vector generado" width="900" />
+  <img src="docs/studio.png" alt="Vectopix comparando el raster original con el vector generado mediante la cortinilla" width="900" />
 </p>
 
 ## Características
@@ -40,13 +40,42 @@
 - **Exportación**: SVG optimizado, PNG a @1x–@8x, componentes React/Vue/Svelte, DXF (láser/CNC), EPS (imprenta) y PDF vectorial. Todos los formatos incluyen tus ediciones de nodos y colores.
 - **Todo en local**: el motor corre en un Web Worker, así que la interfaz no se bloquea, y no hay ninguna subida a servidor.
 
+## Capturas
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/landing.png" alt="Portada con zona de arrastre y muestras de ejemplo" /></td>
+    <td width="50%"><img src="docs/nodes.png" alt="Editor de nodos Bézier con un ancla seleccionada" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Portada</b>: arrastra, pega o prueba una muestra</td>
+    <td align="center"><b>Editor de nodos</b>: anclas y tiradores Bézier</td>
+  </tr>
+  <tr>
+    <td><img src="docs/side-by-side.png" alt="Vista doble: raster original y vector lado a lado" /></td>
+    <td><img src="docs/wireframe.png" alt="Modo contornos sobre la cortinilla raster/vector" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Vista doble</b>: original y vector lado a lado</td>
+    <td align="center"><b>Modo contornos</b>: la estructura de los trazados</td>
+  </tr>
+  <tr>
+    <td><img src="docs/centerline.png" alt="Trazado de línea central de una firma" /></td>
+    <td><img src="docs/export.png" alt="Diálogo de exportación con la pestaña DXF" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Línea central</b>: trazos de un solo hilo para láser y CNC</td>
+    <td align="center"><b>Exportación</b>: SVG, PNG, componentes, DXF, EPS y PDF</td>
+  </tr>
+</table>
+
 ## Empezar
 
 Requisitos: Node.js 20.19+ o 22.12+ (lo que pide Vite 8).
 
 ```bash
-git clone https://github.com/jgestal/VectorApp.git
-cd VectorApp
+git clone https://github.com/jgestal/Vectopix.git
+cd Vectopix
 npm install
 npm run dev
 ```

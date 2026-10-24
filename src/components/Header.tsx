@@ -66,7 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-brand">
         <img className="logo-icon-img" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={32} height={32} />
         <div className="brand-text">
-          <h1 className="brand-title">VectorApp</h1>
+          <h1 className="brand-title">Vectopix</h1>
           <span className="brand-badge">PRO</span>
         </div>
       </div>
