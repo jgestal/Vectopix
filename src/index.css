@@ -1,44 +1,73 @@
 /* ==========================================================================
-   Vectopix · retro design system
-   Windows 95/98 chrome: grey faces, 3D bevels, navy title bars, pixel type.
+   Vectopix · design tokens and primitives
+   Quiet, legible chrome. The one distinctive element is the canvas: a cutting
+   mat grid, with editing marks in print-registration magenta.
    ========================================================================== */
 
 :root {
-  --r-face: #c0c0c0;
-  --r-light: #dfdfdf;
-  --r-white: #ffffff;
-  --r-shadow: #808080;
-  --r-dark: #0a0a0a;
-  --r-text: #000000;
-  --r-text-disabled: #808080;
-  --r-desktop: #008080;
-  --r-workspace: #808080;
-  --r-select: #000080;
-  --r-select-text: #ffffff;
-  --r-tooltip: #ffffe1;
-  --r-link: #0000ee;
-  --r-title: linear-gradient(90deg, #000080 0%, #1084d0 100%);
-  --r-title-inactive: linear-gradient(90deg, #808080 0%, #b5b5b5 100%);
+  color-scheme: light;
 
-  --r-font: 'Pixelify Sans', 'MS Sans Serif', Tahoma, 'Hiragino Kaku Gothic ProN', 'PingFang SC',
-    'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
-  --r-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Consolas, monospace;
+  --paper: #fbfbfa;
+  --surface: #f0f0ed;
+  --line: #d9d9d4;
+  --line-strong: #c3c3bd;
+  --ink: #1d1d1f;
+  --graphite: #5e5e58;
+  --faint: #8b8b85;
+  --magenta: #c8006a;
+  --magenta-soft: #fbe5ef;
+  --danger: #b42318;
+  --success: #1f7a3a;
 
-  /* The four classic bevels, as inset shadows so they never change layout */
-  --bevel-raised: inset -1px -1px var(--r-dark), inset 1px 1px var(--r-white), inset -2px -2px var(--r-shadow),
-    inset 2px 2px var(--r-light);
-  --bevel-pressed: inset -1px -1px var(--r-white), inset 1px 1px var(--r-dark), inset -2px -2px var(--r-light),
-    inset 2px 2px var(--r-shadow);
-  --bevel-window: inset -1px -1px var(--r-dark), inset 1px 1px var(--r-light), inset -2px -2px var(--r-shadow),
-    inset 2px 2px var(--r-white);
-  --bevel-field: inset -1px -1px var(--r-white), inset 1px 1px var(--r-shadow), inset -2px -2px var(--r-light),
-    inset 2px 2px var(--r-dark);
-  --bevel-status: inset -1px -1px var(--r-white), inset 1px 1px var(--r-shadow);
-  --bevel-thin-raised: inset -1px -1px var(--r-shadow), inset 1px 1px var(--r-white);
+  --mat: #e4e7e1;
+  --mat-line: rgba(30, 40, 30, 0.07);
+  --mat-line-major: rgba(30, 40, 30, 0.13);
+  --checker-a: #ffffff;
+  --checker-b: #e9e9e6;
 
-  /* Checkerboard for transparent areas and the classic 50 % dither */
-  --r-checker: repeating-conic-gradient(#d4d4d4 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px;
-  --r-dither: repeating-conic-gradient(var(--r-face) 0% 25%, var(--r-white) 0% 50%) 0 0 / 2px 2px;
+  --font: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'PingFang SC', 'Hiragino Sans', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 22px;
+  --text-2xl: 30px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --focus: 0 0 0 2px var(--paper), 0 0 0 4px var(--magenta);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --paper: #232326;
+    --surface: #1b1b1d;
+    --line: #36363a;
+    --line-strong: #47474c;
+    --ink: #ececea;
+    --graphite: #a3a39e;
+    --faint: #7c7c78;
+    --magenta: #ff4fa0;
+    --magenta-soft: rgba(255, 79, 160, 0.14);
+    --danger: #ff6b5e;
+    --success: #4cc27a;
+
+    --mat: #161718;
+    --mat-line: rgba(255, 255, 255, 0.045);
+    --mat-line-major: rgba(255, 255, 255, 0.09);
+    --checker-a: #2a2a2d;
+    --checker-b: #232326;
+
+    --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
 }
 
 *,
@@ -54,13 +83,14 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--r-desktop);
-  color: var(--r-text);
-  font-family: var(--r-font);
-  font-size: 14px;
-  line-height: 1.35;
-  -webkit-font-smoothing: none;
-  font-smooth: never;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--text-md);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  accent-color: var(--magenta);
 }
 
 #root {
@@ -78,330 +108,208 @@ textarea {
   color: inherit;
 }
 
-button {
-  cursor: default;
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* The cutting mat: 8 px minor grid, 40 px major grid */
+.mat {
+  background-color: var(--mat);
+  background-image: linear-gradient(var(--mat-line-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mat-line-major) 1px, transparent 1px),
+    linear-gradient(var(--mat-line) 1px, transparent 1px), linear-gradient(90deg, var(--mat-line) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
 }
 
 /* ---------------------------------------------------------------------------
    Buttons
    ------------------------------------------------------------------------ */
-.r-btn {
-  min-height: 26px;
-  min-width: 76px;
-  padding: 3px 12px;
-  border: none;
-  background: var(--r-face);
-  box-shadow: var(--bevel-raised);
+.btn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  font-size: var(--text-md);
+  font-weight: 500;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.r-btn:active:not(:disabled),
-.r-btn.is-active {
-  box-shadow: var(--bevel-pressed);
-  padding: 4px 11px 2px 13px;
+.btn:hover:not(:disabled) {
+  background: var(--surface);
 }
 
-.r-btn.is-active {
-  background: var(--r-dither);
+.btn:disabled {
+  color: var(--faint);
+  cursor: default;
 }
 
-.r-btn:focus-visible {
-  outline: 1px dotted var(--r-dark);
-  outline-offset: -5px;
+.btn-primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
 }
 
-.r-btn:disabled {
-  color: var(--r-text-disabled);
-  text-shadow: 1px 1px var(--r-white);
+.btn-primary:hover:not(:disabled) {
+  background: var(--ink);
+  opacity: 0.88;
 }
 
-.r-btn.is-default {
-  box-shadow: inset 0 0 0 1px var(--r-dark), inset -2px -2px var(--r-dark), inset 2px 2px var(--r-white),
-    inset -3px -3px var(--r-shadow), inset 3px 3px var(--r-light);
+.btn-primary:disabled {
+  background: var(--line);
+  border-color: var(--line);
+  color: var(--faint);
 }
 
-.r-btn-small {
-  min-width: 0;
-  min-height: 22px;
-  padding: 2px 8px;
-}
-
-.r-btn svg,
-.r-icon {
-  flex-shrink: 0;
-  shape-rendering: crispEdges;
-}
-
-/* ---------------------------------------------------------------------------
-   Windows
-   ------------------------------------------------------------------------ */
-.r-window {
-  background: var(--r-face);
-  box-shadow: var(--bevel-window);
-  padding: 3px;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.r-titlebar {
-  background: var(--r-title);
-  color: var(--r-white);
-  height: 22px;
-  padding: 0 3px 0 4px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  flex-shrink: 0;
-  user-select: none;
-}
-
-.r-titlebar-icon {
-  width: 16px;
-  height: 16px;
-  display: block;
-  flex-shrink: 0;
-}
-
-.r-titlebar-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.r-titlebar-buttons {
-  display: flex;
-  gap: 2px;
-}
-
-.r-titlebar-btn {
-  width: 18px;
-  height: 16px;
-  border: none;
-  background: var(--r-face);
-  color: var(--r-text);
-  box-shadow: var(--bevel-raised);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 12px;
-  line-height: 1;
-}
-
-.r-titlebar-btn:active {
-  box-shadow: var(--bevel-pressed);
-}
-
-.r-window-body {
-  padding: 10px;
-  min-height: 0;
-}
-
-.r-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.18);
-}
-
-.r-modal-backdrop > .r-window {
-  max-height: calc(100vh - 32px);
-  box-shadow: var(--bevel-window), 4px 4px 0 rgba(0, 0, 0, 0.35);
-}
-
-.r-dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 10px;
-}
-
-/* ---------------------------------------------------------------------------
-   Fields, group boxes, separators
-   ------------------------------------------------------------------------ */
-.r-field {
-  background: var(--r-white);
-  box-shadow: var(--bevel-field);
-  padding: 3px 5px;
-  border: none;
-}
-
-input.r-field {
-  height: 24px;
-  min-width: 0;
-}
-
-.r-field:focus {
-  outline: none;
-}
-
-.r-group {
-  border: none;
-  box-shadow: inset -1px -1px var(--r-white), inset 1px 1px var(--r-shadow), inset -2px -2px var(--r-shadow),
-    inset 2px 2px var(--r-white);
-  padding: 14px 10px 10px;
-  margin-top: 8px;
-  position: relative;
-}
-
-.r-group > legend {
-  position: absolute;
-  top: -8px;
-  left: 8px;
-  padding: 0 4px;
-  background: var(--r-face);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.r-separator {
-  height: 0;
-  border-top: 1px solid var(--r-shadow);
-  border-bottom: 1px solid var(--r-white);
-  margin: 6px 0;
-}
-
-.r-status-field {
-  box-shadow: var(--bevel-status);
-  padding: 2px 6px;
-  min-height: 20px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
-
-/* ---------------------------------------------------------------------------
-   Checkbox, radio, range, select
-   ------------------------------------------------------------------------ */
-.r-check {
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  background: var(--r-white);
-  box-shadow: var(--bevel-field);
-  flex-shrink: 0;
-  display: grid;
-  place-content: center;
-}
-
-.r-check:checked::after {
-  content: '';
-  width: 8px;
-  height: 8px;
-  /* Pixel check mark */
-  background: var(--r-text);
-  clip-path: polygon(0 50%, 25% 50%, 25% 75%, 37.5% 75%, 37.5% 62.5%, 50% 62.5%, 50% 50%, 62.5% 50%, 62.5% 37.5%,
-      75% 37.5%, 75% 25%, 87.5% 25%, 87.5% 12.5%, 100% 12.5%, 100% 37.5%, 87.5% 37.5%, 87.5% 50%, 75% 50%, 75% 62.5%,
-      62.5% 62.5%, 62.5% 75%, 50% 75%, 50% 87.5%, 37.5% 87.5%, 37.5% 100%, 25% 100%, 25% 87.5%, 12.5% 87.5%, 12.5% 75%,
-      0 75%);
-}
-
-.r-check:focus-visible {
-  outline: 1px dotted var(--r-dark);
-  outline-offset: 2px;
-}
-
-.r-range {
-  appearance: none;
-  width: 100%;
-  height: 22px;
+.btn-quiet {
+  border-color: transparent;
   background: transparent;
 }
 
-.r-range::-webkit-slider-runnable-track {
-  height: 4px;
-  background: var(--r-face);
-  box-shadow: var(--bevel-field);
+.btn-small {
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--text-sm);
 }
 
-.r-range::-moz-range-track {
-  height: 4px;
-  background: var(--r-face);
-  box-shadow: var(--bevel-field);
+.btn-block {
+  width: 100%;
 }
 
-.r-range::-webkit-slider-thumb {
-  appearance: none;
-  width: 11px;
-  height: 21px;
-  margin-top: -9px;
-  background: var(--r-face);
-  box-shadow: var(--bevel-raised);
-  border: none;
-  border-radius: 0;
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  cursor: pointer;
 }
 
-.r-range::-moz-range-thumb {
-  width: 11px;
-  height: 21px;
-  background: var(--r-face);
-  box-shadow: var(--bevel-raised);
-  border: none;
-  border-radius: 0;
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--line);
 }
 
-.r-range:focus-visible {
-  outline: 1px dotted var(--r-dark);
+.icon-btn:disabled {
+  color: var(--faint);
+  cursor: default;
 }
 
 /* ---------------------------------------------------------------------------
-   Scrollbars, Win98 style
+   Segmented control
    ------------------------------------------------------------------------ */
-::-webkit-scrollbar {
-  width: 16px;
-  height: 16px;
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
 }
 
-::-webkit-scrollbar-track {
-  background: var(--r-dither);
+.segmented button {
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--graphite);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--r-face);
-  box-shadow: var(--bevel-raised);
+.segmented button:hover {
+  color: var(--ink);
 }
 
-::-webkit-scrollbar-button:single-button {
-  display: block;
-  width: 16px;
-  height: 16px;
-  background-color: var(--r-face);
-  box-shadow: var(--bevel-raised);
+.segmented button[aria-pressed='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+
+.segmented.is-full {
+  display: flex;
+}
+
+.segmented.is-full button {
+  flex: 1;
+  justify-content: center;
+}
+
+/* ---------------------------------------------------------------------------
+   Fields
+   ------------------------------------------------------------------------ */
+.field,
+.select {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  min-width: 0;
+}
+
+.select {
+  padding-right: 28px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%235e5e58' stroke-width='1.6'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: center;
+  background-position: right 10px center;
+  cursor: pointer;
 }
 
-::-webkit-scrollbar-button:single-button:vertical:decrement {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M3 0h2v1h1v1h1v1h1v1H0V3h1V2h1V1h1z'/%3E%3C/svg%3E");
+input[type='range'] {
+  width: 100%;
+  cursor: pointer;
 }
 
-::-webkit-scrollbar-button:single-button:vertical:increment {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 0h8v1H7v1H6v1H5v1H3V3H2V2H1V1H0z'/%3E%3C/svg%3E");
+input[type='checkbox'],
+input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
-::-webkit-scrollbar-button:single-button:horizontal:decrement {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='8'%3E%3Cpath d='M0 3h1V2h1V1h1V0h1v8H3V7H2V6H1V5H0z'/%3E%3C/svg%3E");
+kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  white-space: nowrap;
 }
 
-::-webkit-scrollbar-button:single-button:horizontal:increment {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='8'%3E%3Cpath d='M0 0h1v1h1v1h1v1h1v2H3v1H2v1H1v1H0z'/%3E%3C/svg%3E");
+/* ---------------------------------------------------------------------------
+   Scrollbars: thin and neutral
+   ------------------------------------------------------------------------ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
-::-webkit-scrollbar-corner {
-  background: var(--r-face);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

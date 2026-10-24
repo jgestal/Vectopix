@@ -10,8 +10,7 @@
 
 <p align="center">
   Convierte imágenes raster (PNG, JPG, WebP, BMP) en vectores limpios — <b>SVG, DXF, EPS y PDF</b>.
-  Funciona por completo en tu equipo, en el navegador o como app de escritorio, y parece un programa de dibujo de los 90:
-  tus imágenes nunca salen de tu ordenador.
+  Funciona por completo en tu equipo, en el navegador o como app de escritorio: tus imágenes nunca salen de tu ordenador.
 </p>
 
 <p align="center">
@@ -33,7 +32,7 @@
 
 ## Características
 
-- **Interfaz retro** inspirada en el Paint de Windows 98: barra de menús, caja de herramientas, caja de colores, barra de estado, diálogos con relieve, fuente pixelada e iconos pixel-art.
+- **Un espacio de trabajo tranquilo y legible**: el lienzo es una alfombrilla de corte, los ajustes están en un solo panel con los avanzados plegados, y la interfaz sigue el modo claro u oscuro de tu sistema.
 - **Vectorización sub-píxel** con [vecline](https://www.npmjs.com/package/vecline): cuantización de color en espacio Oklab, reconstrucción del anti-aliasing y ajuste de curvas Bézier. ImageTracerJS está disponible como motor alternativo.
 - **Dos métodos de trazado**
   - *Contornos*: regiones de color rellenas, para logos, ilustraciones, pixel art o fotos.
@@ -62,11 +61,11 @@
   </tr>
   <tr>
     <td><img src="docs/es/side-by-side.png" alt="Vista doble: raster original y vector lado a lado" /></td>
-    <td><img src="docs/es/menu.png" alt="El menú Archivo abierto sobre el estudio" /></td>
+    <td><img src="docs/es/dark.png" alt="El estudio en modo oscuro" /></td>
   </tr>
   <tr>
     <td align="center"><b>Vista doble</b>: original y vector lado a lado</td>
-    <td align="center"><b>Menús</b>: todas las acciones, al estilo de Windows 98</td>
+    <td align="center"><b>Modo oscuro</b>: sigue la configuración de tu sistema</td>
   </tr>
   <tr>
     <td><img src="docs/es/centerline.png" alt="Trazado de línea central de una firma" /></td>
@@ -155,8 +154,8 @@ src/
 │   ├── vectorEngine.ts         Motor puro (sin DOM ni worker): trazado, exportación y SSIM
 │   └── vectorWorkerClient.ts   Cliente del worker: peticiones, progreso y cancelación
 ├── workers/vector.worker.ts    Envoltorio fino del motor dentro del Web Worker
-├── components/                 Barra de menús, caja de herramientas, Viewport (lienzo y editor de nodos), propiedades, diálogos…
-│   └── retro/                  Piezas de Windows 98: ventana, diálogo, barra de menús
+├── components/                 Barra superior, controles del lienzo, Viewport (lienzo y editor de nodos), ajustes, diálogos…
+│   └── ui/                     Piezas compartidas (diálogo)
 └── utils/
     ├── pathParser.ts           Parser y editor de trazados SVG (anclas, tiradores, simplificación)
     ├── svgExport.ts            SVG (editado) → geometría para DXF / EPS / PDF
@@ -183,7 +182,7 @@ electron/main.cjs               App de escritorio: sirve dist/ desde un origen p
 
 ## Tecnologías
 
-[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [Electron](https://www.electronjs.org) · [pixelarticons](https://pixelarticons.com) · [Pixelify Sans](https://fontsource.org/fonts/pixelify-sans) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
+[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [Electron](https://www.electronjs.org) · [Lucide](https://lucide.dev) · [IBM Plex](https://www.ibm.com/plex/) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
 
 ## Licencia
 

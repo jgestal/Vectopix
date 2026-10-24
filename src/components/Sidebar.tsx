@@ -1,20 +1,21 @@
 import React from 'react';
-import { MagicEdit, Sparkles } from 'pixelarticons/react';
-import type { VectorOptions, VectorPreset, TraceMethod } from '../types/vector';
+import { ChevronRight, RotateCcw, Sparkles } from 'lucide-react';
+import type { PaletteColor, TraceMethod, VectorOptions, VectorPreset } from '../types/vector';
 import { useI18n, type MessageKey } from '../i18n';
 
 interface SidebarProps {
   options: VectorOptions;
   setOptions: React.Dispatch<React.SetStateAction<VectorOptions>>;
   onApplyPreset: (preset: VectorPreset) => void;
+  palette: PaletteColor[];
+  onSelectColor: (color: PaletteColor) => void;
   isProcessing: boolean;
   onRetrace: () => void;
-  isCenterline?: boolean;
-  onSimplifyNodes?: () => void;
+  onSimplifyNodes: () => void;
   nodesCount?: number;
 }
 
-/** Presets shown for each trace method; `key` covers sketch's centerline variant. */
+/** Presets per trace method; `key` covers sketch's centerline variant. */
 const OUTLINE_PRESETS: VectorPreset[] = ['logo', 'flat-art', 'photo', 'sketch', 'pixel-art'];
 const CENTERLINE_PRESETS: { preset: VectorPreset; key: string }[] = [
   { preset: 'centerline-sketch', key: 'centerline-sketch' },
@@ -30,32 +31,17 @@ interface SliderProps {
   max: number;
   step: number;
   onChange: (value: number) => void;
-  ticks?: string[];
+  hint?: string;
 }
 
-const Slider: React.FC<SliderProps> = ({ id, label, value, display, min, max, step, onChange, ticks }) => (
-  <div className="control-group">
-    <div className="control-header">
+const Slider: React.FC<SliderProps> = ({ id, label, value, display, min, max, step, onChange, hint }) => (
+  <div className="control">
+    <div className="control-row">
       <label htmlFor={id}>{label}</label>
-      <span className="control-val r-field">{display}</span>
+      <output htmlFor={id}>{display}</output>
     </div>
-    <input
-      id={id}
-      type="range"
-      className="r-range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-    />
-    {ticks && (
-      <div className="slider-ticks">
-        {ticks.map((tick) => (
-          <span key={tick}>{tick}</span>
-        ))}
-      </div>
-    )}
+    <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    {hint && <p className="control-hint">{hint}</p>}
   </div>
 );
 
@@ -65,27 +51,32 @@ const Toggle: React.FC<{ title: string; desc: string; checked: boolean; onChange
   checked,
   onChange,
 }) => (
-  <label className="toggle-item">
-    <input type="checkbox" className="r-check" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-    <span className="toggle-info">
-      <span className="toggle-title">{title}</span>
-      <span className="toggle-sub">{desc}</span>
+  <label className="check-row">
+    <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <span>
+      <span className="check-title">{title}</span>
+      <span className="check-desc">{desc}</span>
     </span>
   </label>
 );
 
-/** Properties panel: tracing method, presets and every engine setting. */
+/**
+ * Settings panel. The choices most people need (method, preset, colours,
+ * palette) are always visible; engine tuning is folded under "Advanced".
+ */
 export const Sidebar: React.FC<SidebarProps> = ({
   options,
   setOptions,
   onApplyPreset,
+  palette,
+  onSelectColor,
   isProcessing,
   onRetrace,
-  isCenterline,
   onSimplifyNodes,
   nodesCount,
 }) => {
   const { t } = useI18n();
+  const isCenterline = options.traceMethod === 'centerline';
 
   const updateOption = <K extends keyof VectorOptions>(key: K, val: VectorOptions[K]) => {
     setOptions((prev) => ({ ...prev, [key]: val, preset: 'custom' }));
@@ -99,53 +90,52 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }));
   };
 
-  const presets =
-    options.traceMethod === 'centerline'
-      ? CENTERLINE_PRESETS
-      : OUTLINE_PRESETS.map((preset) => ({ preset, key: preset }));
+  const presets = isCenterline
+    ? CENTERLINE_PRESETS
+    : OUTLINE_PRESETS.map((preset) => ({ preset, key: preset }));
 
   return (
-    <aside className="properties">
-      <div className="properties-scroll">
-        <fieldset className="r-group">
-          <legend>{t('sidebar.method')}</legend>
-          {(['outline', 'centerline'] as const).map((method) => (
-            <label key={method} className="radio-item">
-              <input
-                type="radio"
-                name="trace-method"
-                className="r-radio"
-                checked={options.traceMethod === method}
-                onChange={() => handleTraceMethodChange(method)}
-              />
-              <span className="toggle-info">
-                <span className="toggle-title">{t(`sidebar.${method}` as MessageKey)}</span>
-                <span className="toggle-sub">{t(`sidebar.${method}Desc` as MessageKey)}</span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
+    <aside className="settings">
+      <div className="settings-scroll">
+        <section className="settings-section">
+          <h3>{t('sidebar.method')}</h3>
+          <div className="segmented is-full" role="group" aria-label={t('sidebar.method')}>
+            {(['outline', 'centerline'] as const).map((method) => (
+              <button
+                key={method}
+                aria-pressed={options.traceMethod === method}
+                onClick={() => handleTraceMethodChange(method)}
+              >
+                {t(`sidebar.${method}` as MessageKey)}
+              </button>
+            ))}
+          </div>
+          <p className="section-note">{t(isCenterline ? 'sidebar.centerlineDesc' : 'sidebar.outlineDesc')}</p>
+        </section>
 
-        <fieldset className="r-group">
-          <legend>{t('sidebar.presets')}</legend>
-          <ul className="r-listbox" role="listbox" aria-label={t('sidebar.presets')}>
+        <section className="settings-section">
+          <h3>{t('sidebar.presets')}</h3>
+          <div className="preset-list" role="radiogroup" aria-label={t('sidebar.presets')}>
             {presets.map(({ preset, key }) => (
-              <li key={key} role="option" aria-selected={options.preset === preset}>
-                <button
-                  className={`listbox-item ${options.preset === preset ? 'is-selected' : ''}`}
-                  onClick={() => onApplyPreset(preset)}
-                >
+              <label key={key} className={`preset ${options.preset === preset ? 'is-selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="preset"
+                  checked={options.preset === preset}
+                  onChange={() => onApplyPreset(preset)}
+                />
+                <span>
                   <span className="preset-name">{t(`preset.${key}.name` as MessageKey)}</span>
                   <span className="preset-desc">{t(`preset.${key}.desc` as MessageKey)}</span>
-                </button>
-              </li>
+                </span>
+              </label>
             ))}
-          </ul>
-        </fieldset>
+          </div>
+        </section>
 
-        {options.traceMethod === 'centerline' ? (
-          <fieldset className="r-group">
-            <legend>{t('sidebar.centerlineParams')}</legend>
+        {isCenterline ? (
+          <section className="settings-section">
+            <h3>{t('sidebar.centerlineParams')}</h3>
             <Slider
               id="cl-width-slider"
               label={t('sidebar.strokeWidth')}
@@ -156,15 +146,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               step={0.5}
               onChange={(v) => updateOption('centerlineStrokeWidth', v)}
             />
-            <div className="control-group">
-              <div className="control-header">
-                <label htmlFor="cl-color-input">{t('sidebar.strokeColor')}</label>
-                <span className="control-val r-field">{options.centerlineStrokeColor}</span>
-              </div>
+            <div className="control control-row">
+              <label htmlFor="cl-color-input">{t('sidebar.strokeColor')}</label>
               <input
                 id="cl-color-input"
                 type="color"
-                className="r-color-input"
+                className="color-input"
                 value={options.centerlineStrokeColor}
                 onChange={(e) => updateOption('centerlineStrokeColor', e.target.value)}
               />
@@ -181,35 +168,105 @@ export const Sidebar: React.FC<SidebarProps> = ({
               checked={options.centerlineBlackOnWhite}
               onChange={(v) => updateOption('centerlineBlackOnWhite', v)}
             />
-          </fieldset>
+          </section>
         ) : (
           <>
-            <fieldset className="r-group">
-              <legend>{t('sidebar.engine')}</legend>
-              {(['vecline', 'imagetracer'] as const).map((engine) => (
-                <label key={engine} className="radio-item">
-                  <input
-                    type="radio"
-                    name="engine"
-                    className="r-radio"
-                    checked={options.engine === engine}
-                    onChange={() => updateOption('engine', engine)}
-                  />
-                  <span className="toggle-info">
-                    <span className="toggle-title">
-                      {engine === 'vecline' ? t('sidebar.engineVecline') : 'ImageTracerJS'}
-                      {engine === 'vecline' && <span className="rec-tag">{t('sidebar.recommended')}</span>}
-                    </span>
-                    <span className="toggle-sub">
-                      {t(engine === 'vecline' ? 'sidebar.engineVeclineDesc' : 'sidebar.engineImageTracerDesc')}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
+            <section className="settings-section">
+              <Slider
+                id="color-slider"
+                label={t('sidebar.colors')}
+                value={options.colors}
+                display={String(options.colors)}
+                min={2}
+                max={64}
+                step={1}
+                onChange={(v) => updateOption('colors', v)}
+              />
+              {palette.length > 0 && (
+                <div className="palette" aria-label={t('sidebar.palette', { count: palette.length })}>
+                  {palette.map((color) => (
+                    <button
+                      key={color.hex}
+                      className="swatch"
+                      style={{ background: color.hex }}
+                      onClick={() => onSelectColor(color)}
+                      title={t('sidebar.swatchTitle', { hex: color.hex, pct: color.percentage })}
+                      aria-label={color.hex}
+                    />
+                  ))}
+                </div>
+              )}
+              {palette.length > 0 && <p className="section-note">{t('sidebar.paletteHint')}</p>}
+            </section>
 
-            <fieldset className="r-group">
-              <legend>{t('sidebar.preprocessing')}</legend>
+            <details className="settings-section advanced">
+              <summary>
+                <ChevronRight size={16} className="advanced-chevron" />
+                {t('sidebar.advanced')}
+              </summary>
+
+              <div className="control">
+                <span className="control-label">{t('sidebar.engine')}</span>
+                <div className="segmented is-full" role="group" aria-label={t('sidebar.engine')}>
+                  <button aria-pressed={options.engine === 'vecline'} onClick={() => updateOption('engine', 'vecline')}>
+                    Vecline
+                  </button>
+                  <button aria-pressed={options.engine === 'imagetracer'} onClick={() => updateOption('engine', 'imagetracer')}>
+                    ImageTracerJS
+                  </button>
+                </div>
+                <p className="control-hint">
+                  {t(options.engine === 'vecline' ? 'sidebar.engineVeclineDesc' : 'sidebar.engineImageTracerDesc')}
+                </p>
+              </div>
+
+              <Slider
+                id="tolerance-slider"
+                label={t('sidebar.tolerance')}
+                value={options.fitError}
+                display={options.fitError.toFixed(2)}
+                min={0.1}
+                max={1.5}
+                step={0.05}
+                onChange={(v) => setOptions((prev) => ({ ...prev, fitError: v, tolerance: v, preset: 'custom' }))}
+                hint={`${t('sidebar.toleranceMin')} – ${t('sidebar.toleranceMax')}`}
+              />
+              <Slider
+                id="smooth-slider"
+                label={t('sidebar.smooth')}
+                value={options.smooth ?? 1}
+                display={t(
+                  options.smooth === 0
+                    ? 'sidebar.smoothOff'
+                    : options.smooth === 2
+                      ? 'sidebar.smoothUltra'
+                      : 'sidebar.smoothStandard'
+                )}
+                min={0}
+                max={2}
+                step={1}
+                onChange={(v) => updateOption('smooth', v)}
+              />
+              <Slider
+                id="minarea-slider"
+                label={t('sidebar.minArea')}
+                value={options.minArea}
+                display={`${options.minArea} px`}
+                min={0}
+                max={40}
+                step={1}
+                onChange={(v) => updateOption('minArea', v)}
+              />
+              <Slider
+                id="corner-slider"
+                label={t('sidebar.cornerAngle')}
+                value={options.cornerAngle}
+                display={`${options.cornerAngle}°`}
+                min={30}
+                max={120}
+                step={5}
+                onChange={(v) => updateOption('cornerAngle', v)}
+              />
               <Slider
                 id="contrast-slider"
                 label={t('sidebar.contrast')}
@@ -230,74 +287,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 step={1}
                 onChange={(v) => updateOption('denoise', v)}
               />
-            </fieldset>
 
-            <fieldset className="r-group">
-              <legend>{t('sidebar.precision')}</legend>
-              <Slider
-                id="color-slider"
-                label={t('sidebar.colors')}
-                value={options.colors}
-                display={String(options.colors)}
-                min={2}
-                max={64}
-                step={1}
-                onChange={(v) => updateOption('colors', v)}
-                ticks={[t('sidebar.colorsMin'), t('sidebar.colorsMid'), t('sidebar.colorsMax')]}
-              />
-              <Slider
-                id="tolerance-slider"
-                label={t('sidebar.tolerance')}
-                value={options.fitError}
-                display={options.fitError.toFixed(2)}
-                min={0.1}
-                max={1.5}
-                step={0.05}
-                onChange={(v) => setOptions((prev) => ({ ...prev, fitError: v, tolerance: v, preset: 'custom' }))}
-                ticks={[t('sidebar.toleranceMin'), t('sidebar.toleranceMid'), t('sidebar.toleranceMax')]}
-              />
-              <Slider
-                id="smooth-slider"
-                label={t('sidebar.smooth')}
-                value={options.smooth ?? 1}
-                display={t(
-                  options.smooth === 0
-                    ? 'sidebar.smoothOff'
-                    : options.smooth === 2
-                      ? 'sidebar.smoothUltra'
-                      : 'sidebar.smoothStandard'
-                )}
-                min={0}
-                max={2}
-                step={1}
-                onChange={(v) => updateOption('smooth', v)}
-                ticks={[t('sidebar.smoothMin'), t('sidebar.smoothMid'), t('sidebar.smoothMax')]}
-              />
-              <Slider
-                id="minarea-slider"
-                label={t('sidebar.minArea')}
-                value={options.minArea}
-                display={`${options.minArea} px`}
-                min={0}
-                max={40}
-                step={1}
-                onChange={(v) => updateOption('minArea', v)}
-                ticks={[t('sidebar.minAreaMin'), '10 px', t('sidebar.minAreaMax')]}
-              />
-              <Slider
-                id="corner-slider"
-                label={t('sidebar.cornerAngle')}
-                value={options.cornerAngle}
-                display={`${options.cornerAngle}°`}
-                min={30}
-                max={120}
-                step={5}
-                onChange={(v) => updateOption('cornerAngle', v)}
-              />
-            </fieldset>
-
-            <fieldset className="r-group">
-              <legend>{t('sidebar.filters')}</legend>
               <Toggle
                 title={t('sidebar.subpixel')}
                 desc={t('sidebar.subpixelDesc')}
@@ -322,33 +312,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 checked={options.gradients}
                 onChange={(v) => updateOption('gradients', v)}
               />
-            </fieldset>
 
-            {onSimplifyNodes && (
-              <fieldset className="r-group">
-                <legend>{t('sidebar.simplifyTitle')}</legend>
-                <p className="group-desc">
+              <div className="control simplify">
+                <p className="control-hint">
                   {t('sidebar.simplifyDesc')}
-                  {nodesCount !== undefined && (
-                    <>
-                      {' '}
-                      {t('sidebar.currentNodes')} <strong>{nodesCount}</strong>
-                    </>
-                  )}
+                  {nodesCount !== undefined && ` ${t('sidebar.currentNodes')} ${nodesCount}.`}
                 </p>
-                <button className="r-btn full-width" onClick={onSimplifyNodes} disabled={isProcessing}>
-                  <Sparkles width={12} height={12} className="r-icon" />
+                <button className="btn btn-small" onClick={onSimplifyNodes} disabled={isProcessing}>
+                  <Sparkles size={14} />
                   {t('sidebar.simplifyButton')}
                 </button>
-              </fieldset>
-            )}
+              </div>
+            </details>
           </>
         )}
       </div>
 
-      <div className="properties-footer">
-        <button className="r-btn is-default full-width" onClick={onRetrace} disabled={isProcessing}>
-          <MagicEdit width={12} height={12} className="r-icon" />
+      <div className="settings-footer">
+        <button className="btn btn-block" onClick={onRetrace} disabled={isProcessing}>
+          <RotateCcw size={15} />
           {isProcessing ? t('sidebar.processing') : t(isCenterline ? 'sidebar.traceCenterline' : 'sidebar.retrace')}
         </button>
       </div>

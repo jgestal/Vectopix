@@ -1,13 +1,15 @@
 import React from 'react';
-import { Keyboard } from 'pixelarticons/react';
 import { useI18n, type MessageKey } from '../i18n';
-import { RetroDialog } from './retro/RetroWindow';
+import { Dialog } from './ui/Dialog';
+
+export const REPOSITORY_URL = 'https://github.com/jgestal/Vectopix';
 
 interface ShortcutsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+/** Help: every keyboard shortcut, plus the version and where the code lives. */
 export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
   const { t } = useI18n();
   if (!isOpen) return null;
@@ -18,39 +20,49 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
     { key: 'S', desc: 'shortcuts.split' },
     { key: 'D', desc: 'shortcuts.sideBySide' },
     { key: 'W', desc: 'shortcuts.wireframe' },
-    { key: 'E / N', desc: 'shortcuts.nodes' },
+    { key: 'N', desc: 'shortcuts.nodes' },
     { key: t('shortcuts.keyClickNode'), desc: 'shortcuts.selectNode' },
     { key: t('shortcuts.keyDelete'), desc: 'shortcuts.deleteNode' },
-    { key: 'Cmd/Ctrl + Z', desc: 'shortcuts.undo' },
-    { key: 'Cmd/Ctrl + Shift + Z', desc: 'shortcuts.redo' },
-    { key: 'Cmd/Ctrl + C', desc: 'shortcuts.copy' },
-    { key: 'Cmd/Ctrl + V', desc: 'shortcuts.paste' },
+    { key: '⌘/Ctrl Z', desc: 'shortcuts.undo' },
+    { key: '⌘/Ctrl ⇧ Z', desc: 'shortcuts.redo' },
+    { key: '⌘/Ctrl C', desc: 'shortcuts.copy' },
+    { key: '⌘/Ctrl V', desc: 'shortcuts.paste' },
     { key: 'Esc', desc: 'shortcuts.escape' },
-    { key: 'F1 / ?', desc: 'shortcuts.help' },
+    { key: '?', desc: 'shortcuts.help' },
   ];
 
   return (
-    <RetroDialog
+    <Dialog
       title={t('shortcuts.title')}
-      icon={<Keyboard width={16} height={16} />}
       onClose={onClose}
-      closeLabel={t('export.close')}
-      className="shortcuts-window"
+      className="shortcuts-dialog"
+      footer={
+        <>
+          <span className="dialog-footnote">
+            {t('about.version', { version: __APP_VERSION__ })}
+            {' — '}
+            <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
+              {t('menu.sourceCode')}
+            </a>
+          </span>
+          <button className="btn btn-primary" onClick={onClose} autoFocus>
+            {t('shortcuts.gotIt')}
+          </button>
+        </>
+      }
     >
-      <p className="dialog-intro">{t('shortcuts.subtitle')}</p>
-      <div className="r-field shortcuts-table">
-        {shortcuts.map((sc) => (
-          <div key={sc.desc} className="shortcut-row">
-            <span className="shortcut-desc">{t(sc.desc)}</span>
-            <kbd className="shortcut-key">{sc.key}</kbd>
-          </div>
-        ))}
-      </div>
-      <div className="r-dialog-footer">
-        <button className="r-btn is-default" onClick={onClose} autoFocus>
-          {t('shortcuts.gotIt')}
-        </button>
-      </div>
-    </RetroDialog>
+      <table className="shortcuts-table">
+        <tbody>
+          {shortcuts.map((sc) => (
+            <tr key={sc.desc}>
+              <td>{t(sc.desc)}</td>
+              <td>
+                <kbd>{sc.key}</kbd>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Dialog>
   );
 };

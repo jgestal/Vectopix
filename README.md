@@ -10,8 +10,7 @@
 
 <p align="center">
   Turn raster images (PNG, JPG, WebP, BMP) into clean vectors — <b>SVG, DXF, EPS and PDF</b>.
-  It runs entirely on your machine, in the browser or as a desktop app, and it looks like a 90s paint program:
-  your images never leave your computer.
+  It runs entirely on your machine, in the browser or as a desktop app: your images never leave your computer.
 </p>
 
 <p align="center">
@@ -33,7 +32,7 @@
 
 ## Features
 
-- **Retro interface** inspired by Windows 98 Paint: menu bar, tool box, colour box, status bar, bevelled dialogs, pixel font and pixel-art icons.
+- **A calm, legible workspace**: the canvas is a cutting mat, settings stay in one panel with the advanced ones folded away, and the interface follows your system's light or dark mode.
 - **Sub-pixel vectorization** powered by [vecline](https://www.npmjs.com/package/vecline): colour quantization in Oklab space, anti-aliasing reconstruction and Bézier curve fitting. ImageTracerJS is available as an alternative engine.
 - **Two tracing methods**
   - *Outline*: filled colour regions, for logos, illustrations, pixel art or photos.
@@ -62,11 +61,11 @@
   </tr>
   <tr>
     <td><img src="docs/en/side-by-side.png" alt="Dual view: original raster and vector side by side" /></td>
-    <td><img src="docs/en/menu.png" alt="The File menu open over the studio" /></td>
+    <td><img src="docs/en/dark.png" alt="The studio in dark mode" /></td>
   </tr>
   <tr>
     <td align="center"><b>Dual view</b>: original and vector side by side</td>
-    <td align="center"><b>Menus</b>: every action, Windows 98 style</td>
+    <td align="center"><b>Dark mode</b>: follows your system setting</td>
   </tr>
   <tr>
     <td><img src="docs/en/centerline.png" alt="Centerline trace of a signature" /></td>
@@ -155,8 +154,8 @@ src/
 │   ├── vectorEngine.ts         Pure engine (no DOM, no worker): tracing, export, SSIM
 │   └── vectorWorkerClient.ts   Worker client: requests, progress and cancellation
 ├── workers/vector.worker.ts    Thin wrapper around the engine inside the Web Worker
-├── components/                 Menu bar, Toolbox, Viewport (canvas and node editor), properties, dialogs…
-│   └── retro/                  Windows 98 building blocks: window, dialog, menu bar
+├── components/                 Top bar, canvas controls, Viewport (canvas and node editor), settings, dialogs…
+│   └── ui/                     Shared building blocks (dialog)
 └── utils/
     ├── pathParser.ts           SVG path parser and editor (anchors, handles, simplification)
     ├── svgExport.ts            (Edited) SVG → geometry for DXF / EPS / PDF
@@ -183,7 +182,7 @@ electron/main.cjs               Desktop shell: serves dist/ from a private app:/
 
 ## Tech stack
 
-[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [Electron](https://www.electronjs.org) · [pixelarticons](https://pixelarticons.com) · [Pixelify Sans](https://fontsource.org/fonts/pixelify-sans) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
+[React 19](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [vecline](https://www.npmjs.com/package/vecline) · [ImageTracerJS](https://github.com/jankovicsandras/imagetracerjs) · [Electron](https://www.electronjs.org) · [Lucide](https://lucide.dev) · [IBM Plex](https://www.ibm.com/plex/) · [Vitest](https://vitest.dev) · [Oxlint](https://oxc.rs)
 
 ## License
 

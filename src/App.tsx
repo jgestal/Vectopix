@@ -14,11 +14,8 @@ import {
   measureSsimWithWorker,
   VectorizationCanceledError,
 } from './services/vectorWorkerClient';
-import { Toolbox } from './components/Toolbox';
-import { ColorBox } from './components/ColorBox';
-import { StudioMenuBar } from './components/StudioMenuBar';
-import { AboutModal } from './components/AboutModal';
-import { AppIcon } from './components/retro/RetroWindow';
+import { TopBar } from './components/TopBar';
+import { CanvasControls } from './components/CanvasControls';
 import { Sidebar } from './components/Sidebar';
 import { Viewport } from './components/Viewport';
 import { MetricsBar } from './components/MetricsBar';
@@ -78,7 +75,6 @@ export function App() {
   // Modals & Floating UI State
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
-  const [isAboutOpen, setIsAboutOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedPaletteColor, setSelectedPaletteColor] = useState<PaletteColor | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -386,7 +382,6 @@ export function App() {
       } else if (e.key === 'Escape') {
         setIsExportOpen(false);
         setIsShortcutsOpen(false);
-        setIsAboutOpen(false);
         setSelectedPaletteColor(null);
       } else if (key === 'w') {
         setRenderMode((prev) => (prev === 'wireframe' ? 'full' : 'wireframe'));
@@ -447,98 +442,64 @@ export function App() {
       {!rasterUrl ? (
         <DropZone onSampleSelected={loadSample} onFileSelected={(file) => loadFile(file)} onDrop={handleDrop} />
       ) : (
-        <div className="r-window studio-window">
-          <header className="r-titlebar">
-            <AppIcon />
-            <span className="r-titlebar-text">
-              {fileName}
-              {imageDimensions && ` (${imageDimensions.width}×${imageDimensions.height})`} - Vectopix
-            </span>
-            <div className="r-titlebar-buttons">
-              <button
-                className="r-titlebar-btn"
-                onClick={() => setIsShortcutsOpen(true)}
-                title={t('header.shortcuts')}
-                aria-label={t('header.shortcuts')}
-              >
-                ?
-              </button>
-            </div>
-          </header>
-
-          <StudioMenuBar
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            renderMode={renderMode}
-            setRenderMode={setRenderMode}
+        <div className="studio">
+          <TopBar
+            fileName={fileName}
+            imageDimensions={imageDimensions}
             canUndo={canUndo}
             canRedo={canRedo}
-            hasEdits={!!result && result.svg !== result.originalSvg}
-            hasResult={!!result}
-            onOpen={() => fileInputRef.current?.click()}
-            onNewImage={handleNewImage}
-            onExport={() => setIsExportOpen(true)}
+            canExport={!!result && !isProcessing}
             onUndo={handleUndo}
             onRedo={handleRedo}
-            onCopySvg={handleCopySvg}
-            onSimplify={handleSimplifyNodes}
-            onResetEdits={handleResetEdits}
-            onZoom={handleZoom}
-            onFit={handleFit}
-            onShortcuts={() => setIsShortcutsOpen(true)}
-            onAbout={() => setIsAboutOpen(true)}
+            onHome={handleNewImage}
+            onOpen={() => fileInputRef.current?.click()}
+            onExport={() => setIsExportOpen(true)}
+            onHelp={() => setIsShortcutsOpen(true)}
           />
 
-          <div className="workarea">
-            <Toolbox
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              renderMode={renderMode}
-              setRenderMode={setRenderMode}
-              zoom={zoom}
-              setZoom={setZoom}
-              onFit={handleFit}
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              onNewImage={handleNewImage}
-              onExport={() => result && setIsExportOpen(true)}
-              isProcessing={isProcessing || !result}
-            />
-
-            <Viewport
-              rasterUrl={rasterUrl}
-              svgContent={result?.svg || ''}
-              originalSvg={result?.originalSvg || ''}
-              imageDimensions={imageDimensions}
-              viewMode={viewMode}
-              renderMode={renderMode}
-              zoom={zoom}
-              setZoom={setZoom}
-              isProcessing={isProcessing}
-              progress={progress}
-              onSvgModified={applySvgUpdate}
-              onResetEdits={handleResetEdits}
-              onSimplifyNodes={handleSimplifyNodes}
-              onShowToast={showToast}
-              fitRequest={fitRequest}
-              isCenterline={options.traceMethod === 'centerline'}
-            />
+          <div className="workspace">
+            <div className="canvas-area">
+              <Viewport
+                rasterUrl={rasterUrl}
+                svgContent={result?.svg || ''}
+                originalSvg={result?.originalSvg || ''}
+                imageDimensions={imageDimensions}
+                viewMode={viewMode}
+                renderMode={renderMode}
+                zoom={zoom}
+                setZoom={setZoom}
+                isProcessing={isProcessing}
+                progress={progress}
+                onSvgModified={applySvgUpdate}
+                onResetEdits={handleResetEdits}
+                onSimplifyNodes={handleSimplifyNodes}
+                onShowToast={showToast}
+                fitRequest={fitRequest}
+              />
+              <CanvasControls
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                renderMode={renderMode}
+                setRenderMode={setRenderMode}
+                zoom={zoom}
+                onZoom={handleZoom}
+                onFit={handleFit}
+              />
+            </div>
 
             <Sidebar
               options={options}
               setOptions={setOptions}
               onApplyPreset={handleApplyPreset}
+              palette={result?.palette ?? []}
+              onSelectColor={setSelectedPaletteColor}
               isProcessing={isProcessing}
               onRetrace={handleRetrace}
-              isCenterline={options.traceMethod === 'centerline'}
               onSimplifyNodes={handleSimplifyNodes}
               nodesCount={result?.nodesCount}
             />
           </div>
 
-          <ColorBox palette={result?.palette ?? []} onSelect={setSelectedPaletteColor} />
           <MetricsBar result={result} progress={progress} />
         </div>
       )}
@@ -565,7 +526,6 @@ export function App() {
       )}
 
       <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
-      {isAboutOpen && <AboutModal onClose={() => setIsAboutOpen(false)} />}
 
       {/* Outside the layout switch so errors on the landing page are shown too */}
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />

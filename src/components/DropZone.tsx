@@ -1,11 +1,11 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Check, Upload } from 'pixelarticons/react';
+import { Upload } from 'lucide-react';
 import { SAMPLE_IMAGES, generateSampleDataUrl } from '../utils/sampleImages';
 import type { SampleImageItem } from '../types/vector';
 import { EXTRA_IMAGE_EXTENSIONS, SAMPLE_DRAG_TYPE } from '../utils/imageLoading';
 import { useI18n, type MessageKey } from '../i18n';
 import { LanguageSelect } from './LanguageSelect';
-import { AppIcon, RetroWindow } from './retro/RetroWindow';
+import { REPOSITORY_URL } from './ShortcutsModal';
 
 interface DropZoneProps {
   onSampleSelected: (id: string) => void;
@@ -13,9 +13,7 @@ interface DropZoneProps {
   onDrop: (dataTransfer: DataTransfer) => void;
 }
 
-const FEATURES: MessageKey[] = ['landing.featureWorker', 'landing.featureSubpixel', 'landing.featurePrivate'];
-
-/** Landing page: a welcome window on a teal Windows desktop. */
+/** Start screen: a sheet on the cutting mat with the drop area and the samples. */
 export const DropZone: React.FC<DropZoneProps> = ({ onSampleSelected, onFileSelected, onDrop }) => {
   const { t } = useI18n();
   const [isDragging, setIsDragging] = useState(false);
@@ -53,37 +51,26 @@ export const DropZone: React.FC<DropZoneProps> = ({ onSampleSelected, onFileSele
   };
 
   return (
-    <div className="desktop">
-      <RetroWindow
-        className="welcome-window"
-        bodyClassName="welcome-body"
-        title={t('landing.windowTitle')}
-        icon={<AppIcon />}
-      >
-        <div className="welcome-top">
-          <div className="welcome-brand">
-            <AppIcon size={56} />
-            <div>
-              <h1 className="welcome-title">Vectopix</h1>
-              <p className="welcome-tagline">
-                {t('landing.titleBefore')} <span className="welcome-highlight">{t('landing.titleHighlight')}</span>
-              </p>
-            </div>
+    <div className="start mat">
+      <main className="start-sheet">
+        <header className="start-header">
+          <div className="start-brand">
+            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={36} height={36} />
+            <span>Vectopix</span>
           </div>
           <LanguageSelect />
-        </div>
+        </header>
 
-        <p className="welcome-desc">{t('landing.description')}</p>
+        <h1 className="start-title">
+          {t('landing.titleBefore')} {t('landing.titleHighlight')}
+        </h1>
+        <p className="start-lead">{t('landing.description')}</p>
 
         <div
-          className={`dropzone-card ${isDragging ? 'is-dragging' : ''}`}
+          className={`dropzone mat ${isDragging ? 'is-dragging' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputRef.current?.click()}
         >
           <input
             ref={fileInputRef}
@@ -96,51 +83,43 @@ export const DropZone: React.FC<DropZoneProps> = ({ onSampleSelected, onFileSele
               e.target.value = '';
             }}
           />
-          <Upload width={48} height={48} className="r-icon dropzone-icon" />
-          <div className="dropzone-main-text">
-            {t('landing.dropMain')} <span className="r-link">{t('landing.dropBrowse')}</span>
-          </div>
-          <div className="dropzone-sub-text">
-            {t('landing.dropSub')} <kbd>Ctrl+V</kbd> / <kbd>⌘V</kbd>
-          </div>
+          <p className="dropzone-title">{t('landing.dropMain')}</p>
+          <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={16} />
+            {t('landing.dropBrowse')}
+          </button>
+          <p className="dropzone-hint">
+            {t('landing.dropSub')} <kbd>⌘V</kbd> / <kbd>Ctrl V</kbd>
+          </p>
         </div>
 
-        <ul className="feature-list">
-          {FEATURES.map((key) => (
-            <li key={key}>
-              <Check width={12} height={12} className="r-icon" />
-              {t(key)}
-            </li>
+        <h2 className="start-subtitle">{t('landing.samplesHeader')}</h2>
+        <div className="samples">
+          {SAMPLE_IMAGES.map((sample) => (
+            <button
+              key={sample.id}
+              className="sample"
+              onClick={() => onSampleSelected(sample.id)}
+              draggable
+              onDragStart={(e) => handleSampleDragStart(e, sample)}
+              title={`${sampleText(sample.id, 'description')} ${t('landing.sampleHint')}`}
+            >
+              <span className="sample-thumb">
+                <img src={sampleThumbs[sample.id]} alt="" draggable={false} />
+              </span>
+              <span className="sample-title">{sampleText(sample.id, 'title')}</span>
+              <span className="sample-category">{sampleText(sample.id, 'category')}</span>
+            </button>
           ))}
-        </ul>
+        </div>
 
-        <fieldset className="r-group samples-group">
-          <legend>{t('landing.samplesHeader')}</legend>
-          <div className="samples-grid">
-            {SAMPLE_IMAGES.map((sample) => (
-              <button
-                key={sample.id}
-                className="sample-card"
-                onClick={() => onSampleSelected(sample.id)}
-                draggable
-                onDragStart={(e) => handleSampleDragStart(e, sample)}
-                title={`${sampleText(sample.id, 'description')} — ${t('landing.sampleHint')}`}
-              >
-                <span className="sample-preview">
-                  <img
-                    src={sampleThumbs[sample.id]}
-                    alt={sampleText(sample.id, 'title')}
-                    className="sample-thumb"
-                    draggable={false}
-                  />
-                </span>
-                <span className="sample-title">{sampleText(sample.id, 'title')}</span>
-                <span className="sample-category">{sampleText(sample.id, 'category')}</span>
-              </button>
-            ))}
-          </div>
-        </fieldset>
-      </RetroWindow>
+        <footer className="start-footer">
+          <span>{t('landing.privacyNote')}</span>
+          <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
+            {t('menu.sourceCode')}
+          </a>
+        </footer>
+      </main>
     </div>
   );
 };

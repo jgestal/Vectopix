@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { ColorsSwatch, Copy, Trash } from 'pixelarticons/react';
+import { Check, Copy, Trash2 } from 'lucide-react';
 import type { PaletteColor } from '../types/vector';
 import { normalizeHex } from '../utils/paletteUtils';
 import { useI18n } from '../i18n';
-import { RetroDialog } from './retro/RetroWindow';
+import { Dialog } from './ui/Dialog';
 
 const HEX_PATTERN = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -39,64 +39,66 @@ export const ColorModal: React.FC<ColorModalProps> = ({ color, onClose, onReplac
   };
 
   return (
-    <RetroDialog
+    <Dialog
       title={t('color.title')}
-      icon={<ColorsSwatch width={16} height={16} />}
       onClose={onClose}
-      closeLabel={t('export.close')}
-      className="color-window"
+      className="color-dialog"
+      footer={
+        <>
+          <button className="btn" onClick={handleRemove} title={t('color.makeTransparentTitle')}>
+            <Trash2 size={15} />
+            {t('color.makeTransparent')}
+          </button>
+          <span className="footer-spacer" />
+          <button className="btn" onClick={onClose}>
+            {t('export.cancel')}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleApply}
+            disabled={!isValidHex || selectedHex.toLowerCase() === color.hex.toLowerCase()}
+          >
+            {t('color.apply')}
+          </button>
+        </>
+      }
     >
       <div className="color-detail">
-        <span className="color-preview r-field" style={{ background: color.hex }} />
+        <span className="color-preview" style={{ background: color.hex }} />
         <div className="color-info">
-          <div className="color-hex">{color.hex}</div>
-          <div>
-            RGB({color.r}, {color.g}, {color.b})
+          <div className="color-hex">
+            {color.hex}
+            <button className="icon-btn" onClick={handleCopyHex} title={t('color.copyHex')} aria-label={t('color.copyHex')}>
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+            </button>
           </div>
-          <div>{t('color.coverage', { pct: color.percentage, count: color.count.toLocaleString(lang) })}</div>
+          <div className="color-meta">
+            RGB {color.r}, {color.g}, {color.b}
+          </div>
+          <div className="color-meta">{t('color.coverage', { pct: color.percentage, count: color.count.toLocaleString(lang) })}</div>
         </div>
       </div>
 
-      <fieldset className="r-group">
-        <legend>{t('color.replaceLabel')}</legend>
-        <div className="color-replace-row">
-          <input
-            type="color"
-            className="r-color-input"
-            value={isValidHex ? normalizeHex(selectedHex) : '#000000'}
-            onChange={(e) => setSelectedHex(e.target.value)}
-          />
-          <input
-            type="text"
-            className="r-field color-hex-input"
-            value={selectedHex}
-            onChange={(e) => setSelectedHex(e.target.value)}
-            spellCheck={false}
-          />
-        </div>
-      </fieldset>
-
-      <div className="r-dialog-footer color-footer">
-        <button className="r-btn" onClick={handleCopyHex}>
-          <Copy width={12} height={12} className="r-icon" />
-          {copied ? t('color.copied') : t('color.copyHex')}
-        </button>
-        <button className="r-btn" onClick={handleRemove} title={t('color.makeTransparentTitle')}>
-          <Trash width={12} height={12} className="r-icon" />
-          {t('color.makeTransparent')}
-        </button>
-        <span className="footer-spacer" />
-        <button
-          className="r-btn is-default"
-          onClick={handleApply}
-          disabled={!isValidHex || selectedHex.toLowerCase() === color.hex.toLowerCase()}
-        >
-          {t('color.apply')}
-        </button>
-        <button className="r-btn" onClick={onClose}>
-          {t('export.cancel')}
-        </button>
+      <label className="color-replace" htmlFor="color-replace-input">
+        {t('color.replaceLabel')}
+      </label>
+      <div className="color-replace-row">
+        <input
+          type="color"
+          className="color-input"
+          value={isValidHex ? normalizeHex(selectedHex) : '#000000'}
+          onChange={(e) => setSelectedHex(e.target.value)}
+          aria-label={t('color.replaceLabel')}
+        />
+        <input
+          id="color-replace-input"
+          type="text"
+          className="field color-hex-input"
+          value={selectedHex}
+          onChange={(e) => setSelectedHex(e.target.value)}
+          spellCheck={false}
+        />
       </div>
-    </RetroDialog>
+    </Dialog>
   );
 };

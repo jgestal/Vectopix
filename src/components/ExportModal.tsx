@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Code, Copy, Cut, Download, FileText, Image as ImageIcon, Printer, Save } from 'pixelarticons/react';
+import { Check, Copy, Download, FileText } from 'lucide-react';
 import type { ExportFormat, VectorResult } from '../types/vector';
 import { requestExport } from '../services/vectorWorkerClient';
 import { useI18n, type MessageKey } from '../i18n';
-import { RetroDialog } from './retro/RetroWindow';
+import { Dialog } from './ui/Dialog';
 import {
   downloadFile,
   downloadBlob,
@@ -167,17 +167,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const tabs: { id: ExportTab; label: MessageKey; icon: React.FC<React.SVGProps<SVGSVGElement>> }[] = [
-    { id: 'svg', label: 'export.tabSvg', icon: Save },
-    { id: 'png', label: 'export.tabPng', icon: ImageIcon },
-    { id: 'components', label: 'export.tabComponents', icon: Code },
-    { id: 'dxf', label: 'export.tabDxf', icon: Cut },
-    { id: 'eps', label: 'export.tabEps', icon: Printer },
-    { id: 'pdf', label: 'export.tabPdf', icon: FileText },
+  const tabs: { id: ExportTab; label: MessageKey }[] = [
+    { id: 'svg', label: 'export.tabSvg' },
+    { id: 'png', label: 'export.tabPng' },
+    { id: 'components', label: 'export.tabComponents' },
+    { id: 'dxf', label: 'export.tabDxf' },
+    { id: 'eps', label: 'export.tabEps' },
+    { id: 'pdf', label: 'export.tabPdf' },
   ];
 
   const badge: Record<ExportTab, string> = {
-    svg: `image/svg+xml · ${formatBytes(new Blob([optimizedSvg]).size)}`,
+    svg: `image/svg+xml, ${formatBytes(new Blob([optimizedSvg]).size)}`,
     png: t('export.badgePng', { scale: pngScale }),
     components: t('export.badgeComponent', { framework: componentFramework.toUpperCase() }),
     dxf: t('export.badgeDxf'),
@@ -186,145 +186,128 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   return (
-    <RetroDialog
+    <Dialog
       title={t('export.title')}
-      icon={<Download width={16} height={16} />}
       onClose={onClose}
-      closeLabel={t('export.close')}
-      className="export-window"
-      bodyClassName="export-body"
+      className="export-dialog"
+      footer={
+        <>
+          <span className="dialog-footnote">{badge[activeTab]}</span>
+          <button className="btn" onClick={onClose}>
+            {t('export.cancel')}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleDownload}
+            disabled={isExportingPng || (isCadFormat(activeTab) && !cadData(activeTab))}
+          >
+            <Download size={16} />
+            {isExportingPng
+              ? t('export.generatingPng')
+              : t('export.download', {
+                  format: activeTab === 'components' ? componentFramework.toUpperCase() : activeTab.toUpperCase(),
+                })}
+          </button>
+        </>
+      }
     >
       <p className="dialog-intro">{t('export.subtitle')}</p>
 
-      <div className="r-tabs" role="tablist">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={activeTab === id}
-            className={`r-tab ${activeTab === id ? 'is-active' : ''}`}
-            onClick={() => setActiveTab(id)}
-          >
-            <Icon width={12} height={12} className="r-icon" />
+      <div className="tabs" role="tablist">
+        {tabs.map(({ id, label }) => (
+          <button key={id} role="tab" aria-selected={activeTab === id} className="tab" onClick={() => setActiveTab(id)}>
             {t(label)}
           </button>
         ))}
       </div>
 
-      <div className="r-tab-panel" role="tabpanel">
+      <div className="export-options">
         {activeTab === 'svg' && (
-          <label className="toggle-item export-option">
-            <input
-              type="checkbox"
-              className="r-check"
-              checked={minifySvgEnabled}
-              onChange={(e) => setMinifySvgEnabled(e.target.checked)}
-            />
-            <span>{t('export.minify')}</span>
+          <label className="check-row">
+            <input type="checkbox" checked={minifySvgEnabled} onChange={(e) => setMinifySvgEnabled(e.target.checked)} />
+            <span className="check-title">{t('export.minify')}</span>
           </label>
         )}
 
         {activeTab === 'png' && (
-          <div className="export-options-grid">
-            <fieldset className="r-group">
-              <legend>{t('export.scale')}</legend>
-              {[1, 2, 4, 8].map((s) => (
-                <label key={s} className="radio-item compact">
-                  <input type="radio" className="r-radio" name="png-scale" checked={pngScale === s} onChange={() => setPngScale(s)} />
-                  <span>
-                    @{s}x ({width * s} × {height * s} px)
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-            <fieldset className="r-group">
-              <legend>{t('export.background')}</legend>
-              {(
-                [
-                  ['transparent', 'export.bgTransparent'],
-                  ['#ffffff', 'export.bgWhite'],
-                  ['#0f172a', 'export.bgDark'],
-                ] as const
-              ).map(([value, label]) => (
-                <label key={value} className="radio-item compact">
-                  <input type="radio" className="r-radio" name="png-bg" checked={pngBgColor === value} onChange={() => setPngBgColor(value)} />
-                  <span>{t(label)}</span>
-                </label>
-              ))}
-            </fieldset>
-          </div>
+          <>
+            <div className="option-row">
+              <span className="option-label">{t('export.scale')}</span>
+              <div className="segmented" role="group" aria-label={t('export.scale')}>
+                {[1, 2, 4, 8].map((s) => (
+                  <button key={s} aria-pressed={pngScale === s} onClick={() => setPngScale(s)} title={`${width * s} × ${height * s} px`}>
+                    {s}×
+                  </button>
+                ))}
+              </div>
+              <span className="option-hint">
+                {width * pngScale} × {height * pngScale} px
+              </span>
+            </div>
+            <div className="option-row">
+              <span className="option-label">{t('export.background')}</span>
+              <div className="segmented" role="group" aria-label={t('export.background')}>
+                {(
+                  [
+                    ['transparent', 'export.bgTransparent'],
+                    ['#ffffff', 'export.bgWhite'],
+                    ['#0f172a', 'export.bgDark'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button key={value} aria-pressed={pngBgColor === value} onClick={() => setPngBgColor(value)}>
+                    {t(label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         {activeTab === 'components' && (
-          <fieldset className="r-group">
-            <legend>{t('export.framework')}</legend>
-            <div className="radio-row">
+          <div className="option-row">
+            <span className="option-label">{t('export.framework')}</span>
+            <div className="segmented" role="group" aria-label={t('export.framework')}>
               {(['react', 'vue', 'svelte'] as const).map((fw) => (
-                <label key={fw} className="radio-item compact">
-                  <input type="radio" className="r-radio" name="framework" checked={componentFramework === fw} onChange={() => setComponentFramework(fw)} />
-                  <span>{fw.toUpperCase()}</span>
-                </label>
+                <button key={fw} aria-pressed={componentFramework === fw} onClick={() => setComponentFramework(fw)}>
+                  {fw === 'react' ? 'React' : fw === 'vue' ? 'Vue' : 'Svelte'}
+                </button>
               ))}
             </div>
-          </fieldset>
+          </div>
         )}
+      </div>
 
-        <div className="preview-toolbar">
-          <span className="file-info-badge">{badge[activeTab]}</span>
-          {activeTab !== 'png' && activeTab !== 'pdf' && (
-            <button className="r-btn r-btn-small" onClick={handleCopy}>
-              <Copy width={12} height={12} className="r-icon" />
-              {copied ? t('export.copied') : t('export.copyCode')}
-            </button>
-          )}
+      {activeTab === 'png' ? (
+        <div className="export-preview checker" style={{ background: pngBgColor === 'transparent' ? undefined : pngBgColor }}>
+          <div className="export-preview-svg" dangerouslySetInnerHTML={{ __html: result.svg }} />
         </div>
-
-        {activeTab === 'png' ? (
-          <div className="png-preview r-field" style={{ background: pngBgColor === 'transparent' ? undefined : pngBgColor }}>
-            <div className="png-preview-svg" dangerouslySetInnerHTML={{ __html: result.svg }} />
-          </div>
-        ) : activeTab === 'pdf' && pdfState?.status !== 'error' ? (
-          <div className="pdf-preview r-field">
-            <FileText width={48} height={48} className="r-icon" />
-            <h3 className="pdf-preview-title">
-              {t(pdfState?.status === 'ready' ? 'export.pdfReadyTitle' : 'export.pdfGenerating')}
-            </h3>
-            <p>{t('export.pdfDesc')}</p>
-            <dl className="pdf-specs">
-              <dt>{t('export.pdfDimensions')}</dt>
-              <dd>
-                {width} × {height} pt
-              </dd>
-              <dt>{t('export.pdfColorSpace')}</dt>
-              <dd>sRGB</dd>
-              <dt>{t('export.pdfPathType')}</dt>
-              <dd>{t(result.isCenterline ? 'export.pdfPolylines' : 'export.pdfSplines')}</dd>
-            </dl>
-          </div>
-        ) : (
-          <pre className="code-viewer r-field">
+      ) : activeTab === 'pdf' && pdfState?.status !== 'error' ? (
+        <div className="export-preview export-pdf">
+          <FileText size={40} strokeWidth={1.25} />
+          <h3>{t(pdfState?.status === 'ready' ? 'export.pdfReadyTitle' : 'export.pdfGenerating')}</h3>
+          <p>{t('export.pdfDesc')}</p>
+          <dl>
+            <dt>{t('export.pdfDimensions')}</dt>
+            <dd>
+              {width} × {height} pt
+            </dd>
+            <dt>{t('export.pdfColorSpace')}</dt>
+            <dd>sRGB</dd>
+            <dt>{t('export.pdfPathType')}</dt>
+            <dd>{t(result.isCenterline ? 'export.pdfPolylines' : 'export.pdfSplines')}</dd>
+          </dl>
+        </div>
+      ) : (
+        <div className="code-block">
+          <button className="btn btn-small code-copy" onClick={handleCopy}>
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+            {copied ? t('export.copied') : t('export.copyCode')}
+          </button>
+          <pre className="code-viewer">
             <code>{getActiveContent()}</code>
           </pre>
-        )}
-      </div>
-
-      <div className="r-dialog-footer">
-        <button
-          className="r-btn is-default"
-          onClick={handleDownload}
-          disabled={isExportingPng || (isCadFormat(activeTab) && !cadData(activeTab))}
-        >
-          <Download width={12} height={12} className="r-icon" />
-          {isExportingPng
-            ? t('export.generatingPng')
-            : t('export.download', {
-                format: activeTab === 'components' ? componentFramework.toUpperCase() : activeTab.toUpperCase(),
-              })}
-        </button>
-        <button className="r-btn" onClick={onClose}>
-          {t('export.cancel')}
-        </button>
-      </div>
-    </RetroDialog>
+        </div>
+      )}
+    </Dialog>
   );
 };
