@@ -17,6 +17,10 @@
 </p>
 
 <p align="center">
+  <a href="https://jgestal.github.io/VectorApp/"><b>▶ Probar la app en el navegador</b></a>
+</p>
+
+<p align="center">
   <img src="docs/studio.png" alt="Estudio de VectorApp comparando el raster original con el vector generado" width="900" />
 </p>
 
@@ -30,9 +34,9 @@
 - **Re-trazado automático**: al cambiar cualquier ajuste se vuelve a vectorizar (con *debounce*, así que mover un slider no satura el motor).
 - **Fidelidad medida, no estimada**: el SVG resultante se renderiza y se compara con la imagen original mediante SSIM.
 - **Comparación visual**: cortinilla raster/vector, vista doble lado a lado, solo vector o solo raster, modo contornos y rejilla de píxeles al hacer zoom.
-- **Editor de nodos Bézier**: mueve anclas y tiradores, alterna curva/esquina, divide tramos, elimina nodos y simplifica trazados, con deshacer y rehacer.
+- **Editor de nodos Bézier**: mueve anclas y tiradores, alterna curva/esquina, divide tramos, elimina nodos y simplifica trazados, con deshacer y rehacer. Admite todos los comandos de trazado SVG, arcos incluidos, y guarda las ediciones en formato compacto para que el archivo no engorde.
 - **Gestión de paleta**: sustituye un color en todo el gráfico (incluidos los degradados) o hazlo transparente.
-- **Exportación**: SVG optimizado, PNG a @1x–@8x, componentes React/Vue/Svelte, DXF (láser/CNC), EPS (imprenta) y PDF vectorial.
+- **Exportación**: SVG optimizado, PNG a @1x–@8x, componentes React/Vue/Svelte, DXF (láser/CNC), EPS (imprenta) y PDF vectorial. Todos los formatos incluyen tus ediciones de nodos y colores.
 - **Todo en local**: el motor corre en un Web Worker, así que la interfaz no se bloquea, y no hay ninguna subida a servidor.
 
 ## Empezar
@@ -90,6 +94,7 @@ src/
 └── utils/
     ├── pathParser.ts           Parser y editor de trazados SVG (anclas, tiradores, simplificación)
     ├── centerlineExport.ts     Escritores DXF / EPS / PDF para trazados de línea central
+    ├── svgExport.ts            SVG (editado) → geometría para DXF / EPS / PDF
     ├── fidelity.ts             Renderiza el SVG para medir su fidelidad frente al original
     └── …                       Preprocesado, paleta, exportación y carga de imágenes
 ```
@@ -100,14 +105,17 @@ src/
 2. Los píxeles se envían (transferidos, sin copias) al Web Worker, que aplica el preprocesado y traza con vecline o ImageTracerJS mientras informa del progreso.
 3. Si llega una petición nueva mientras otra está en curso, el worker se termina y se crea uno nuevo. Es una cancelación real: el trabajo antiguo no sigue consumiendo CPU.
 4. Con el SVG ya en pantalla, se renderiza en segundo plano y el worker calcula su SSIM frente al original.
-5. DXF, EPS y PDF solo se generan cuando abres su pestaña de exportación, reutilizando la imagen preprocesada que el worker conserva.
+5. DXF, EPS y PDF solo se generan cuando abres su pestaña de exportación. Si no has editado nada, el worker los construye con la geometría exacta del trazado. Si has editado algo (o usas ImageTracer), se construyen a partir del SVG actual, para que incluyan todos los cambios.
 
-El editor de nodos solo reescribe el atributo `d` de los trazados que modificas. Todo lo demás (degradados, `<defs>`, figuras básicas, grupos y atributos) se conserva tal cual. Los trazados con arcos (`A`) no son editables y se mantienen intactos.
+El editor de nodos solo reescribe el atributo `d` de los trazados que modificas. Todo lo demás (degradados, `<defs>`, figuras básicas, grupos y atributos) se conserva tal cual. Un trazado que no se pueda leer entero nunca se reescribe.
+
+## Despliegue
+
+Cada push a `main` ejecuta los tests y publica el build en GitHub Pages (`.github/workflows/deploy.yml`). Las rutas del build son relativas (`base: './'`), así que el mismo `dist/` funciona en la raíz de un dominio o en cualquier subruta.
 
 ## Limitaciones conocidas
 
-- DXF, EPS y PDF se generan desde el trazado original: las ediciones de nodos y de colores solo afectan a SVG, PNG y componentes. La propia app lo avisa al exportar.
-- DXF, EPS y PDF solo están disponibles con el motor vecline (y con la línea central), no con ImageTracerJS.
+- En las exportaciones DXF, EPS y PDF a partir de un SVG editado, los degradados se aplanan al color medio de sus paradas y no se aplican atributos `transform`. Los SVG que genera la app no usan transformaciones.
 - El SSIM se mide a un máximo de 512 px en el lado mayor: es un indicador fiable de fidelidad, no una comparación a resolución completa.
 
 ## Tecnologías

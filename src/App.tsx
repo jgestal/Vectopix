@@ -448,6 +448,7 @@ export function App() {
 
           {isExportOpen && result && (
             <ExportModal
+              key={historyIndex}
               onClose={() => setIsExportOpen(false)}
               result={result}
               baseFileName={fileName}

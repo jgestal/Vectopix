@@ -38,9 +38,43 @@ describe('parsePathSegments', () => {
     expect(c).toMatchObject({ type: 'C', cp1x: 2, cp1y: 2, cp2x: 4, cp2y: 2, x: 6, y: 0 });
   });
 
-  it('round-trips through serializePathSegments', () => {
-    const d = 'M0 0 L10 0 C10 5 5 10 0 10 Z';
-    expect(serializePathSegments(parsePathSegments(d))).toBe(d);
+  it('converts arcs to cubics that pass through the arc', () => {
+    // Half circle of radius 5 from (0,0) to (10,0), bulging upwards (y < 0)
+    const segs = parsePathSegments('M0 0A5 5 0 0 1 10 0');
+    expect(segs).toHaveLength(3);
+    expect(segs[1]).toMatchObject({ type: 'C' });
+    expect(segs[1].x).toBeCloseTo(5);
+    expect(segs[1].y).toBeCloseTo(-5);
+    expect(segs[2]).toMatchObject({ x: 10, y: 0 });
+  });
+
+  it('reads arc flags packed without separators', () => {
+    const packed = parsePathSegments('M0 0a5 5 0 0110 0');
+    const spaced = parsePathSegments('M0 0a5 5 0 0 1 10 0');
+    expect(packed).toEqual(spaced);
+  });
+
+  it('reflects the previous quadratic control point for T', () => {
+    const [, q, t] = parsePathSegments('M0 0Q5 5 10 0T20 0');
+    expect(q).toMatchObject({ x: 10, y: 0 });
+    // Reflected control point (15,-5) → cubic handles at 2/3 towards it
+    expect(t.cp1x).toBeCloseTo(13.333);
+    expect(t.cp1y).toBeCloseTo(-3.333);
+  });
+});
+
+describe('serializePathSegments', () => {
+  it('writes compact relative commands', () => {
+    expect(serializePathSegments(parsePathSegments('M10 10L20 10L20 25L10.5 30Z'))).toBe('M10 10h10v15l-9.5 5z');
+  });
+
+  it('round-trips without accumulating rounding error', () => {
+    const d = 'M0.333 0.333 L10.333 0.333 C10.666 5.111 5.111 10.666 0.333 10.333 Z';
+    const again = parsePathSegments(serializePathSegments(parsePathSegments(d)));
+    parsePathSegments(d).forEach((seg, i) => {
+      expect(again[i].x).toBeCloseTo(seg.x, 2);
+      expect(again[i].y).toBeCloseTo(seg.y, 2);
+    });
   });
 });
 
@@ -49,6 +83,7 @@ const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" view
 <rect width="20" height="20" fill="url(#g)"/>
 <path d="M0 0h10v10H0z" fill="#123456"/>
 <path d="M2 2A3 3 0 0 1 8 8" fill="none" stroke="#000"/>
+<path d="M0 0L5 5 oops" fill="#000"/>
 </svg>`;
 
 describe('serializeParsedDoc', () => {
@@ -60,14 +95,14 @@ describe('serializeParsedDoc', () => {
     expect(out).toContain('<linearGradient id="g">');
     expect(out).toContain('<rect width="20" height="20" fill="url(#g)"');
     expect(out).toContain('d="M2 2A3 3 0 0 1 8 8"');
-    expect(out).toContain('d="M0 0 L12 0 L10 10 L0 10 Z"');
+    expect(out).toContain('d="M0 0h12l-2 10h-10z"');
   });
 
-  it('marks paths with arcs as non-editable and exposes no nodes for them', () => {
+  it('makes arcs editable but never touches paths it could not fully parse', () => {
     const doc = parseSvgDocument(SVG);
-    expect(doc.paths.map((p) => p.editable)).toEqual([true, false]);
+    expect(doc.paths.map((p) => p.editable)).toEqual([true, true, false]);
     const nodes = extractInteractiveNodes(doc.paths, null);
-    expect(nodes.every((n) => n.pathIndex === 0)).toBe(true);
+    expect(nodes.some((n) => n.pathIndex === 2)).toBe(false);
   });
 });
 

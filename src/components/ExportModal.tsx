@@ -54,15 +54,20 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // DXF / EPS / PDF are built by the worker only when their tab is opened
-  // (a format with no entry yet is still loading)
+  // DXF / EPS / PDF are built only when their tab is opened (a format with
+  // no entry yet is still loading). An unedited trace uses the worker's exact
+  // geometry; after edits, or for engines the worker can't export, they are
+  // built from the current SVG so every change is included.
+  const hasEdits = result.svg !== result.originalSvg;
   const [cadExports, setCadExports] = useState<Partial<Record<ExportFormat, ExportState>>>({});
   const requestedFormats = useRef(new Set<ExportFormat>());
   useEffect(() => {
     if (!isCadFormat(activeTab) || requestedFormats.current.has(activeTab)) return;
     const format = activeTab;
     requestedFormats.current.add(format);
-    requestExport(format)
+    const fromSvg = () =>
+      import('../utils/svgExport').then(({ exportSvg }) => exportSvg(result.svg, format, result.isCenterline));
+    (hasEdits ? fromSvg() : requestExport(format).catch(fromSvg))
       .then((data) => setCadExports((prev) => ({ ...prev, [format]: { status: 'ready', data } })))
       .catch((err: unknown) =>
         setCadExports((prev) => ({
@@ -70,12 +75,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           [format]: { status: 'error', message: err instanceof Error ? err.message : String(err) },
         }))
       );
-  }, [activeTab]);
+  }, [activeTab, hasEdits, result.svg, result.isCenterline]);
 
   const width = imageDimensions?.width || 400;
   const height = imageDimensions?.height || 400;
   const nameWithoutExt = baseFileName.replace(/\.[^/.]+$/, '');
-  const hasEdits = result.svg !== result.originalSvg;
 
   const optimizedSvg = useMemo(
     () => (minifySvgEnabled ? minifySvg(result.svg) : result.svg),
@@ -237,13 +241,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <span>PDF Vectorial</span>
           </button>
         </div>
-
-        {isCadFormat(activeTab) && hasEdits && (
-          <div className="export-subbar export-notice">
-            Los formatos DXF, EPS y PDF se generan a partir del trazado original: las ediciones de
-            nodos y colores solo se incluyen en SVG, PNG y componentes.
-          </div>
-        )}
 
         {/* Tab-Specific Sub-Bars */}
         {activeTab === 'svg' && (

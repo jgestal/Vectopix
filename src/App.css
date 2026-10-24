@@ -1704,13 +1704,6 @@
   border: 1px solid rgba(34, 211, 238, 0.3);
 }
 
-.export-subbar.export-notice {
-  justify-content: flex-start;
-  color: var(--amber-400, #fbbf24);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 .export-subbar {
   display: flex;
   align-items: center;
