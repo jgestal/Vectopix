@@ -56,6 +56,8 @@ jobs:
       # 24.04 restricts the user namespaces Chromium's sandbox uses
       - name: Allow Electron's sandbox
         run: |
+          # The binary may not have been fetched by the install script yet
+          test -f node_modules/electron/dist/chrome-sandbox || node node_modules/electron/install.js
           sudo chown root node_modules/electron/dist/chrome-sandbox
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
