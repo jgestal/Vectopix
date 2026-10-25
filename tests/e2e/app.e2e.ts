@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 const FIXTURE = new URL('./fixtures/badge.png', import.meta.url);
+const fixture = (name: string) => new URL(`./fixtures/${name}`, import.meta.url).pathname;
 const vectorSvg = (page: Page) => page.locator('.vector-layer .svg-render-container svg').first();
 const undoKey = process.platform === 'darwin' ? 'Meta+z' : 'Control+z';
 
@@ -79,6 +80,22 @@ test.describe('loading images', () => {
     await page.locator('.dropzone').dispatchEvent('drop', { dataTransfer });
     await waitForTrace(page);
     await expect(page.locator('.topbar-file-name')).toHaveText('dropped.png');
+  });
+
+  test('a small image traces with a warning that a larger one would be better', async ({ page }) => {
+    await page.locator('.dropzone input[type="file"]').setInputFiles(fixture('small.png'));
+    await expect(page.getByText(/Small image \(64×64 px\)/)).toBeVisible();
+    await waitForTrace(page);
+  });
+
+  test('a transparent PNG comes out transparent, with the setting on', async ({ page }) => {
+    await page.locator('.dropzone input[type="file"]').setInputFiles(fixture('cutout.png'));
+    await waitForTrace(page);
+    await page.locator('summary', { hasText: 'Advanced' }).click();
+    await expect(page.getByRole('checkbox', { name: /Transparent background/ })).toBeChecked();
+    const [corner, centre] = await renderedAlpha(page, [[0, 0], [0.5, 0.5]]);
+    expect(corner).toBe(0);
+    expect(centre).toBe(255);
   });
 
   test('an unsupported format (HEIC) is reported, not traced', async ({ page }) => {
@@ -180,3 +197,32 @@ test.describe('export and language', () => {
     await expect(page.getByRole('button', { name: 'Exportar', exact: true })).toBeVisible();
   });
 });
+
+test.describe('remembered settings', () => {
+  test('the user\'s settings and export choices survive a reload; samples bring their own preset', async ({ page }) => {
+    // Change a setting by hand on the user's own image
+    await page.locator('.dropzone input[type="file"]').setInputFiles(FIXTURE.pathname);
+    await waitForTrace(page);
+    await page.locator('summary', { hasText: 'Advanced' }).click();
+    await page.getByText('Transparent background').click();
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    await page.getByRole('tab', { name: 'DXF (laser / CNC)' }).click();
+    await page.keyboard.press('Escape');
+
+    await page.reload();
+    // A sample applies its own preset and leaves the remembered settings alone
+    await page.getByRole('button', { name: /8-bit pixel art heart/ }).click();
+    await waitForTrace(page);
+    await expect(page.getByRole('radio', { name: /Exact pixel art/ })).toBeChecked();
+
+    // The user's next image starts with what they chose
+    await page.locator('.brand').click();
+    await page.locator('.dropzone input[type="file"]').setInputFiles(FIXTURE.pathname);
+    await waitForTrace(page);
+    await page.locator('summary', { hasText: 'Advanced' }).click();
+    await expect(page.getByRole('checkbox', { name: /Transparent background/ })).toBeChecked();
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    await expect(page.getByRole('tab', { name: 'DXF (laser / CNC)' })).toHaveAttribute('aria-selected', 'true');
+  });
+});
+

@@ -3,6 +3,8 @@ import { useI18n, type MessageKey } from '../i18n';
 import { Dialog } from './ui/Dialog';
 
 export const REPOSITORY_URL = 'https://github.com/jgestal/Vectopix';
+/** What changed in the running version. */
+export const RELEASE_NOTES_URL = `${REPOSITORY_URL}/releases/tag/v${__APP_VERSION__}`;
 
 interface ShortcutsModalProps {
   isOpen: boolean;
@@ -39,7 +41,9 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
       footer={
         <>
           <span className="dialog-footnote">
-            {t('about.version', { version: __APP_VERSION__ })}
+            <a href={RELEASE_NOTES_URL} target="_blank" rel="noopener noreferrer">
+              {t('about.version', { version: __APP_VERSION__ })}
+            </a>
             {' — '}
             <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
               {t('menu.sourceCode')}

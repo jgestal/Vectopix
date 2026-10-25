@@ -1,6 +1,7 @@
 import { trace, centerlineTrace, extractPalette, compareImages, detectBackgroundColor, TRACE_DEFAULTS } from 'vecline/core';
 import ImageTracer from 'imagetracerjs';
 import { preprocessRaster, type Raster } from '../utils/imageProcessing';
+import { hasTransparentBorder } from '../utils/transparency';
 import { refineSvg } from './svgRefine';
 import { stackSvg } from './svgStack';
 import { removeOuterBackground, snapToCanvasEdge } from './svgBackground';
@@ -253,8 +254,10 @@ export function vectorizeRaster(
   }
 
   // The background is removed on the vectors, not the pixels: the subject's
-  // outline stays fitted to the real anti-aliased edge
-  if (options.transparentBackground) {
+  // outline stays fitted to the real anti-aliased edge. An image that is
+  // already a cut-out has none to remove (its empty pixels read as black,
+  // which would otherwise take a dark subject touching the border with them).
+  if (options.transparentBackground && !hasTransparentBorder(raster)) {
     svg = removeOuterBackground(svg, detectBackgroundColor(raster), raster.width, raster.height);
   }
 

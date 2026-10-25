@@ -181,6 +181,16 @@ describe('vectorizeRaster', () => {
     expect(result.svg.indexOf('#1e1b4b')).toBeLessThan(result.svg.indexOf('#fff'));
   });
 
+  it('keeps a cut-out as it is when asked for a transparent background', () => {
+    // A transparent PNG whose black subject touches the border: its empty
+    // pixels read as black, so a background search would take the subject
+    const size = 80;
+    const data = new Uint8ClampedArray(size * size * 4);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (x < 30 && y > 20 && y < 60) data.set([5, 5, 8, 255], (y * size + x) * 4);
+    const result = vectorizeRaster({ width: size, height: size, data }, options({ transparentBackground: true }));
+    expect(result.svg).toMatch(/fill="#050508"/);
+  });
+
   it('traces pixel art exactly on the pixel grid', () => {
     const size = 8;
     const data = new Uint8ClampedArray(size * size * 4).fill(255);

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, type SetStateAction } from 'react';
 import type {
   VectorOptions,
   VectorPreset,
@@ -24,18 +24,23 @@ import { DropZone } from './components/DropZone';
 import { ColorModal } from './components/ColorModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { ToastContainer } from './components/Toast';
+import { UpdateNotice } from './components/UpdateNotice';
 import { replaceColorInSvg, removeColorFromSvg, normalizeHex } from './utils/paletteUtils';
 import { parseSvgDocument, serializeParsedDoc, simplifySvgPaths, countAnchors, countShapes } from './utils/pathParser';
 import { rasterizeForComparison } from './utils/fidelity';
 import { readImageFile, readDrop, fetchImage, EXTRA_IMAGE_EXTENSIONS } from './utils/imageLoading';
+import { hasTransparentBorder } from './utils/transparency';
 import { SAMPLE_IMAGES, generateSampleDataUrl } from './utils/sampleImages';
-import { DEFAULT_OPTIONS, applyPreset } from './config/presets';
+import { applyPreset, loadUserOptions, saveUserOptions } from './config/presets';
+import { loadSetting, saveSetting } from './utils/storage';
 import { useI18n, type MessageKey } from './i18n';
 import { LocalizedError } from './i18n/errors';
 import './App.css';
 
 /** Larger images are downscaled before tracing to keep the worker responsive. */
 const MAX_PIXELS = 4_000_000;
+/** Below this longest side (px), thin features are a few pixels and trace poorly: say so. */
+const SMALL_IMAGE_SIDE = 100;
 
 /** Delay before re-tracing after a setting changes, so sliders don't flood the worker. */
 const RETRACE_DEBOUNCE_MS = 400;
@@ -79,12 +84,15 @@ export function App() {
   const [imageData, setImageData] = useState<ImageData | null>(null);
   const [rasterSizeBytes, setRasterSizeBytes] = useState<number>(0);
 
-  const [options, setOptions] = useState<VectorOptions>(DEFAULT_OPTIONS);
+  const [options, setOptions] = useState<VectorOptions>(loadUserOptions);
   const [result, setResult] = useState<VectorResult | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<WorkerProgress | null>(null);
 
-  const [viewMode, setViewMode] = useState<ViewMode>('split');
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => loadSetting('view', { viewMode: 'split' as ViewMode }, { viewMode: ['split', 'vector', 'raster', 'side-by-side'] }).viewMode
+  );
+  useEffect(() => saveSetting('view', { viewMode }), [viewMode]);
   const [renderMode, setRenderMode] = useState<RenderMode>('full');
   const [zoom, setZoom] = useState<number>(1);
   const [fitRequest, setFitRequest] = useState<number>(0);
@@ -170,6 +178,19 @@ export function App() {
     [showToast, measureFidelity, pushHistory, t]
   );
 
+  // Settings changed by the user (not by a sample's preset or by undo) are
+  // remembered: the next image of theirs starts with them
+  const userChangedOptions = useRef(false);
+  const setUserOptions = useCallback((update: SetStateAction<VectorOptions>) => {
+    userChangedOptions.current = true;
+    setOptions(update);
+  }, []);
+  useEffect(() => {
+    if (!userChangedOptions.current) return;
+    userChangedOptions.current = false;
+    saveUserOptions(options);
+  }, [options]);
+
   // Re-trace whenever the image or any setting changes. A new image traces at
   // once; setting changes are debounced so dragging a slider traces only once.
   useEffect(() => {
@@ -192,7 +213,7 @@ export function App() {
   }, [imageData, rasterSizeBytes, options, runVectorization]);
 
   const handleApplyPreset = (preset: VectorPreset) => {
-    setOptions((prev) => applyPreset(preset, prev));
+    setUserOptions((prev) => applyPreset(preset, prev));
     const nameKey =
       preset === 'sketch' && options.traceMethod === 'centerline' ? 'preset.sketch-centerline.name' : `preset.${preset}.name`;
     showToast(t('toast.presetApplied', { preset: t(nameKey as MessageKey) }), 'info');
@@ -223,14 +244,26 @@ export function App() {
           );
         }
 
+        if (Math.max(width, height) < SMALL_IMAGE_SIDE) {
+          showToast(t('toast.smallImage', { size: `${width}×${height}` }), 'warning');
+        }
+
+        const pixels = ctx.getImageData(0, 0, width, height);
         setRasterUrl(dataUrl);
         setFileName(name);
         setImageDimensions({ width, height });
-        setImageData(ctx.getImageData(0, 0, width, height));
+        setImageData(pixels);
         setRasterSizeBytes(Math.round((dataUrl.length * 3) / 4));
         setResult(null);
         setHistory(EMPTY_HISTORY);
-        setOptions((prev) => applyPreset(suggestedPreset || 'logo', prev));
+        // A cut-out stays a cut-out: the setting reflects what the result will be
+        const cutOut = hasTransparentBorder(pixels);
+        // A sample brings its own preset; the user's images start with the
+        // settings they last chose
+        setOptions((prev) => ({
+          ...(suggestedPreset ? applyPreset(suggestedPreset, prev) : loadUserOptions()),
+          ...(cutOut ? { transparentBackground: true } : {}),
+        }));
       };
       img.onerror = () => showToast(t('error.imageDecode'), 'warning');
       img.src = dataUrl;
@@ -518,7 +551,7 @@ export function App() {
 
             <Sidebar
               options={options}
-              setOptions={setOptions}
+              setOptions={setUserOptions}
               onApplyPreset={handleApplyPreset}
               palette={result?.palette ?? []}
               onSelectColor={setSelectedPaletteColor}
@@ -555,6 +588,8 @@ export function App() {
       )}
 
       <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
+
+      <UpdateNotice />
 
       {/* Outside the layout switch so errors on the landing page are shown too */}
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />

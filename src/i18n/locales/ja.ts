@@ -241,6 +241,7 @@ export const ja: Messages = {
   'toast.unknownError': '不明なエラー',
   'toast.presetApplied': 'プリセット「{preset}」を適用しました',
   'toast.imageDownscaled': 'スムーズに処理するため、画像を {from} から {to} px に縮小しました',
+  'toast.smallImage': '小さな画像です（{size} px）。細部が数ピクセルしかありません。大きな画像を使うと結果が大きく向上します',
   'toast.imagePasted': 'クリップボードから画像を読み込みました',
   'toast.imageLoaded': '画像 {name} を読み込みました',
   'toast.undo': '元に戻しました',
@@ -264,6 +265,9 @@ export const ja: Messages = {
 
   'menu.sourceCode': 'GitHub のソースコード',
   'about.version': 'バージョン {version}',
+  'update.available': 'Vectopix {version} が利用可能です',
+  'update.download': 'ダウンロード',
+  'update.dismiss': '閉じる',
   'status.idle': '準備完了',
 
   'canvas.view': '表示',

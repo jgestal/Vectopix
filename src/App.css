@@ -159,6 +159,11 @@ a {
   color: var(--graphite);
 }
 
+.start-footer-links {
+  display: flex;
+  gap: 16px;
+}
+
 .start-footer {
   margin-top: 32px;
   padding-top: 16px;
@@ -876,6 +881,29 @@ a {
 
 .toast-success svg {
   color: #86e0a5;
+}
+
+/* New-version notice (desktop app) */
+.update-notice {
+  position: fixed;
+  right: 16px;
+  bottom: 48px;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-pop);
+}
+
+.update-notice .btn {
+  text-decoration: none;
 }
 
 /* ==========================================================================

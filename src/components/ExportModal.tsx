@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Download, FileText } from 'lucide-react';
 import type { ExportFormat, VectorResult } from '../types/vector';
+import { loadSetting, saveSetting } from '../utils/storage';
 import { useI18n, type MessageKey } from '../i18n';
 import { Dialog } from './ui/Dialog';
 import {
@@ -29,6 +30,24 @@ type ExportState =
 
 const isCadFormat = (tab: ExportTab): tab is ExportFormat => tab === 'dxf' || tab === 'eps' || tab === 'pdf';
 
+const PNG_SCALES = [1, 2, 4, 8] as const;
+
+/** Export choices remembered between sessions: people export the same way again. */
+const EXPORT_DEFAULTS = {
+  tab: 'svg' as ExportTab,
+  framework: 'react' as 'react' | 'vue' | 'svelte',
+  pngScale: 2,
+  pngBackground: 'transparent' as 'transparent' | '#ffffff' | '#0f172a',
+  minify: true,
+};
+const loadExportSettings = () =>
+  loadSetting('export', EXPORT_DEFAULTS, {
+    tab: ['svg', 'png', 'components', 'dxf', 'eps', 'pdf'],
+    framework: ['react', 'vue', 'svelte'],
+    pngScale: [...PNG_SCALES],
+    pngBackground: ['transparent', '#ffffff', '#0f172a'],
+  });
+
 export const ExportModal: React.FC<ExportModalProps> = ({
   onClose,
   result,
@@ -36,11 +55,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   imageDimensions,
   onShowToast,
 }) => {
-  const [activeTab, setActiveTab] = useState<ExportTab>('svg');
-  const [componentFramework, setComponentFramework] = useState<'react' | 'vue' | 'svelte'>('react');
-  const [pngScale, setPngScale] = useState<number>(2);
-  const [pngBgColor, setPngBgColor] = useState<'transparent' | '#ffffff' | '#0f172a'>('transparent');
-  const [minifySvgEnabled, setMinifySvgEnabled] = useState<boolean>(true);
+  const [saved] = useState(loadExportSettings);
+  const [activeTab, setActiveTab] = useState<ExportTab>(saved.tab);
+  const [componentFramework, setComponentFramework] = useState(saved.framework);
+  const [pngScale, setPngScale] = useState<number>(saved.pngScale);
+  const [pngBgColor, setPngBgColor] = useState(saved.pngBackground);
+  const [minifySvgEnabled, setMinifySvgEnabled] = useState<boolean>(saved.minify);
+  useEffect(() => {
+    saveSetting('export', {
+      tab: activeTab,
+      framework: componentFramework,
+      pngScale,
+      pngBackground: pngBgColor,
+      minify: minifySvgEnabled,
+    });
+  }, [activeTab, componentFramework, pngScale, pngBgColor, minifySvgEnabled]);
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [copied, setCopied] = useState(false);
   const { t } = useI18n();
@@ -230,7 +259,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <div className="option-row">
               <span className="option-label">{t('export.scale')}</span>
               <div className="segmented" role="group" aria-label={t('export.scale')}>
-                {[1, 2, 4, 8].map((s) => (
+                {PNG_SCALES.map((s) => (
                   <button key={s} aria-pressed={pngScale === s} onClick={() => setPngScale(s)} title={`${width * s} × ${height * s} px`}>
                     {s}×
                   </button>

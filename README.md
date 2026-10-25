@@ -40,7 +40,7 @@
   - *Outline*: filled colour regions, for logos, illustrations, pixel art or photos.
   - *Centerline*: single-stroke paths, for laser cutters, plotters, CNC and sketches.
 - **Presets** for logos, flat illustration, photos, sketches, pixel art and centerline, plus fine control over colours, tolerance, smoothing, corners, minimum area, contrast and noise reduction.
-- **Transparent background**: removes the background around the subject and keeps the same colour inside it (the white of a logo stays white). The outline is fitted to the real edge, with no fringe.
+- **Transparent background**: removes the background around the subject and keeps the same colour inside it (the white of a logo stays white). The outline is fitted to the real edge, with no fringe. A PNG that is already transparent stays transparent, with the option switched on for you.
 - **No cracks between shapes**: shapes that sit inside others are painted on top of a whole shape, so the background never shows through as a hairline at any zoom.
 - **Exact pixel art**: pixel art can be traced along its own grid, square corners and all.
 - **Automatic re-tracing**: changing any setting re-vectorizes the image (debounced, so dragging a slider doesn't flood the engine). Your node and colour edits are not lost: they stay one undo back, together with the settings they were made with.
@@ -50,8 +50,9 @@
 - **Bézier node editor**: move anchors and handles, toggle curve/corner, split segments, delete nodes and simplify paths, with undo and redo. It handles every SVG path command, arcs included, and stores edits compactly so the file doesn't grow.
 - **Palette management**: the colour box shows the traced palette; click a colour to replace it across the whole drawing (gradients included) or make it transparent.
 - **Export**: optimized SVG, PNG at @1x–@8x, React/Vue/Svelte components, DXF (laser/CNC), EPS (print) and vector PDF. Every format includes your node and colour edits.
+- **Remembers your choices**: the settings you pick and how you export are kept for next time. The built-in samples bring their own preset without overwriting yours.
 - **8 languages**: English, Spanish, German, French, Italian, Portuguese, Chinese and Japanese. The app picks your system language and remembers your choice.
-- **Fully local**: the engine runs in a Web Worker, so the interface never freezes, and nothing is uploaded anywhere. Fonts are bundled too, so the desktop app works offline.
+- **Fully local**: the engine runs in a Web Worker, so the interface never freezes, and nothing is uploaded anywhere. Fonts are bundled too, so the desktop app works offline. The only request the desktop app makes is to ask GitHub, at most once a day, for the latest version number, so it can tell you when a new release is out (no image or usage data is sent).
 
 ## Screenshots
 
@@ -191,7 +192,7 @@ tests/e2e/                      Browser tests (Playwright)
 ## Known limitations
 
 - When DXF, EPS or PDF are exported from an edited SVG, gradients are flattened to the average colour of their stops and `transform` attributes are not applied (the SVGs the app produces don't use them).
-- Very small images (under about 100 px) are traced less faithfully: thin features are only a few pixels wide. Use the largest version of a logo you have.
+- Very small images (under about 100 px) are traced less faithfully: thin features are only a few pixels wide. Use the largest version of a logo you have; the app says so when it loads one.
 - SSIM is measured at up to 512 px on the longest side: a reliable fidelity indicator, not a full-resolution comparison.
 
 ## Tech stack

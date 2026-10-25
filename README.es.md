@@ -40,7 +40,7 @@
   - *Contornos*: regiones de color rellenas, para logos, ilustraciones, pixel art o fotos.
   - *Línea central*: trazos de un solo hilo, para corte láser, plotters, CNC y bocetos.
 - **Presets** para logotipos, ilustración plana, fotografía, bocetos, pixel art y línea central, más control fino de colores, tolerancia, suavizado, esquinas, área mínima, contraste y reducción de ruido.
-- **Fondo transparente**: elimina el fondo que rodea al motivo y conserva ese mismo color dentro de él (el blanco de un logo sigue siendo blanco). El contorno se ajusta al borde real, sin halo.
+- **Fondo transparente**: elimina el fondo que rodea al motivo y conserva ese mismo color dentro de él (el blanco de un logo sigue siendo blanco). El contorno se ajusta al borde real, sin halo. Un PNG que ya es transparente sigue siéndolo, y la opción se activa sola.
 - **Sin grietas entre formas**: las formas que están dentro de otras se pintan sobre una forma entera, así que el fondo nunca asoma como una línea fina a ningún zoom.
 - **Pixel art exacto**: el pixel art puede trazarse siguiendo su propia rejilla, con esquinas en ángulo recto.
 - **Re-trazado automático**: al cambiar cualquier ajuste se vuelve a vectorizar (con *debounce*, así que mover un slider no satura el motor). Tus ediciones de nodos y colores no se pierden: quedan a un deshacer de distancia, junto con los ajustes con los que las hiciste.
@@ -50,8 +50,9 @@
 - **Editor de nodos Bézier**: mueve anclas y tiradores, alterna curva/esquina, divide tramos, elimina nodos y simplifica trazados, con deshacer y rehacer. Admite todos los comandos de trazado SVG, arcos incluidos, y guarda las ediciones en formato compacto para que el archivo no engorde.
 - **Gestión de paleta**: la caja de colores muestra la paleta del trazado; haz clic en un color para sustituirlo en todo el gráfico (degradados incluidos) o hacerlo transparente.
 - **Exportación**: SVG optimizado, PNG a @1x–@8x, componentes React/Vue/Svelte, DXF (láser/CNC), EPS (imprenta) y PDF vectorial. Todos los formatos incluyen tus ediciones de nodos y colores.
+- **Recuerda tus preferencias**: los ajustes que eliges y cómo exportas se mantienen para la próxima vez. Las muestras incluidas traen su propio preset sin pisar el tuyo.
 - **8 idiomas**: español, inglés, alemán, francés, italiano, portugués, chino y japonés. La app usa el idioma de tu sistema y recuerda tu elección.
-- **Todo en local**: el motor corre en un Web Worker, así que la interfaz no se bloquea, y no se sube nada a ningún servidor. Las fuentes también van incluidas, así que la app de escritorio funciona sin conexión.
+- **Todo en local**: el motor corre en un Web Worker, así que la interfaz no se bloquea, y no se sube nada a ningún servidor. Las fuentes también van incluidas, así que la app de escritorio funciona sin conexión. La única petición que hace la app de escritorio es preguntar a GitHub, como mucho una vez al día, cuál es la última versión, para avisarte cuando haya una nueva (no se envía ninguna imagen ni dato de uso).
 
 ## Capturas
 
@@ -191,7 +192,7 @@ tests/e2e/                      Tests de navegador (Playwright)
 ## Limitaciones conocidas
 
 - Al exportar a DXF, EPS o PDF desde un SVG editado, los degradados se aplanan al color medio de sus paradas y no se aplican atributos `transform` (los SVG que genera la app no los usan).
-- Las imágenes muy pequeñas (por debajo de unos 100 px) se trazan con menos fidelidad: los detalles finos ocupan solo unos píxeles. Usa la versión más grande del logo que tengas.
+- Las imágenes muy pequeñas (por debajo de unos 100 px) se trazan con menos fidelidad: los detalles finos ocupan solo unos píxeles. Usa la versión más grande del logo que tengas; la app te lo indica al cargarla.
 - El SSIM se mide a un máximo de 512 px en el lado mayor: es un indicador fiable de fidelidad, no una comparación a resolución completa.
 
 ## Tecnologías

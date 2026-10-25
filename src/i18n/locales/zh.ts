@@ -240,6 +240,7 @@ export const zh: Messages = {
   'toast.unknownError': '未知错误',
   'toast.presetApplied': '已应用预设“{preset}”',
   'toast.imageDownscaled': '图片已从 {from} 缩小到 {to} px，以便流畅矢量化',
+  'toast.smallImage': '图片较小（{size} px）：细节只有几个像素宽。使用更大的版本效果会好得多',
   'toast.imagePasted': '已从剪贴板加载图片',
   'toast.imageLoaded': '已加载图片 {name}',
   'toast.undo': '已撤销',
@@ -263,6 +264,9 @@ export const zh: Messages = {
 
   'menu.sourceCode': 'GitHub 上的源代码',
   'about.version': '版本 {version}',
+  'update.available': 'Vectopix {version} 现已推出',
+  'update.download': '下载',
+  'update.dismiss': '忽略',
   'status.idle': '就绪',
 
   'canvas.view': '视图',

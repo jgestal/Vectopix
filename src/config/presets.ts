@@ -1,3 +1,4 @@
+import { loadSetting, saveSetting } from '../utils/storage';
 import type { VectorOptions, VectorPreset } from '../types/vector';
 
 export const DEFAULT_OPTIONS: VectorOptions = {
@@ -133,4 +134,20 @@ export function getPresetOptions(preset: VectorPreset, current: VectorOptions): 
 
 export function applyPreset(preset: VectorPreset, current: VectorOptions): VectorOptions {
   return { ...current, ...getPresetOptions(preset, current), preset };
+}
+
+const USER_OPTIONS_KEY = 'options';
+
+/** The settings the user last chose (or the defaults): what a new image of theirs starts with. */
+export function loadUserOptions(): VectorOptions {
+  return loadSetting(USER_OPTIONS_KEY, DEFAULT_OPTIONS, {
+    engine: ['vecline', 'imagetracer'],
+    traceMethod: ['outline', 'centerline'],
+    preset: ['logo', 'flat-art', 'photo', 'sketch', 'pixel-art', 'centerline-sketch', 'custom'],
+    smooth: [0, 1, 2],
+  });
+}
+
+export function saveUserOptions(options: VectorOptions): void {
+  saveSetting(USER_OPTIONS_KEY, options);
 }

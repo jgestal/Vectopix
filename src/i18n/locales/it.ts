@@ -241,6 +241,7 @@ export const it: Messages = {
   'toast.unknownError': 'errore sconosciuto',
   'toast.presetApplied': 'Preimpostazione «{preset}» applicata',
   'toast.imageDownscaled': 'Immagine ridotta da {from} a {to} px per una vettorizzazione fluida',
+  'toast.smallImage': 'Immagine piccola ({size} px): i dettagli sottili occupano pochi pixel. Una versione più grande darà un risultato molto migliore',
   'toast.imagePasted': 'Immagine caricata dagli appunti',
   'toast.imageLoaded': 'Immagine {name} caricata',
   'toast.undo': 'Annullato',
@@ -264,6 +265,9 @@ export const it: Messages = {
 
   'menu.sourceCode': 'Codice sorgente su GitHub',
   'about.version': 'Versione {version}',
+  'update.available': 'Vectopix {version} è disponibile',
+  'update.download': 'Scarica',
+  'update.dismiss': 'Ignora',
   'status.idle': 'Pronto',
 
   'canvas.view': 'Vista',

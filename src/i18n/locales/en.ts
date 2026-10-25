@@ -241,6 +241,7 @@ export const en: Messages = {
   'toast.unknownError': 'unknown error',
   'toast.presetApplied': '“{preset}” preset applied',
   'toast.imageDownscaled': 'Image reduced from {from} to {to} px so it traces smoothly',
+  'toast.smallImage': 'Small image ({size} px): thin details are only a few pixels wide. A larger version will trace much better',
   'toast.imagePasted': 'Image loaded from the clipboard',
   'toast.imageLoaded': 'Image {name} loaded',
   'toast.undo': 'Undone',
@@ -264,6 +265,9 @@ export const en: Messages = {
 
   'menu.sourceCode': 'Source code on GitHub',
   'about.version': 'Version {version}',
+  'update.available': 'Vectopix {version} is available',
+  'update.download': 'Download',
+  'update.dismiss': 'Dismiss',
   'status.idle': 'Ready',
 
   'canvas.view': 'View',

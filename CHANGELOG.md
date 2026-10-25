@@ -2,6 +2,20 @@
 
 All notable changes to Vectopix. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- The desktop app tells you when a new version is out, with a link to download it. It asks GitHub for the latest version number at most once a day; no image or usage data is sent. A dismissed version is not mentioned again.
+- Your settings and export choices (format, PNG scale and background, framework, minify) are remembered between sessions. The built-in samples bring their own preset without overwriting yours.
+- A warning when an image is very small (under 100 px), where a larger version traces much better.
+- The version is shown on the start screen, linking to its release notes.
+
+### Changed
+- A PNG that is already transparent turns *Transparent background* on by itself, so the setting matches the result.
+
+### Fixed
+- With *Transparent background* on, an already transparent PNG whose black subject touched the border lost the subject (its empty pixels read as a black background).
+
 ## [1.4.0] - 2026-10-25
 
 ### Added
@@ -60,6 +74,7 @@ All notable changes to Vectopix. The format follows [Keep a Changelog](https://k
 - Eight languages: English, Spanish, German, French, Italian, Portuguese, Chinese and Japanese.
 - Desktop apps for macOS, Windows and Linux, published on GitHub releases, and the web version on GitHub Pages.
 
+[Unreleased]: https://github.com/jgestal/Vectopix/compare/v1.4.0...HEAD
 [1.4.0]: https://github.com/jgestal/Vectopix/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jgestal/Vectopix/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/jgestal/Vectopix/compare/v1.1.0...v1.2.0

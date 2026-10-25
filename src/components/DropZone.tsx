@@ -5,7 +5,7 @@ import type { SampleImageItem } from '../types/vector';
 import { EXTRA_IMAGE_EXTENSIONS, SAMPLE_DRAG_TYPE } from '../utils/imageLoading';
 import { useI18n, type MessageKey } from '../i18n';
 import { LanguageSelect } from './LanguageSelect';
-import { REPOSITORY_URL } from './ShortcutsModal';
+import { RELEASE_NOTES_URL, REPOSITORY_URL } from './ShortcutsModal';
 
 interface DropZoneProps {
   onSampleSelected: (id: string) => void;
@@ -115,9 +115,14 @@ export const DropZone: React.FC<DropZoneProps> = ({ onSampleSelected, onFileSele
 
         <footer className="start-footer">
           <span>{t('landing.privacyNote')}</span>
-          <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
-            {t('menu.sourceCode')}
-          </a>
+          <span className="start-footer-links">
+            <a href={RELEASE_NOTES_URL} target="_blank" rel="noopener noreferrer">
+              {t('about.version', { version: __APP_VERSION__ })}
+            </a>
+            <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
+              {t('menu.sourceCode')}
+            </a>
+          </span>
         </footer>
       </main>
     </div>
