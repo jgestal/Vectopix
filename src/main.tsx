@@ -4,16 +4,20 @@ import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/ibm-plex-sans'
 import '@fontsource/ibm-plex-mono/400.css'
 import './index.css'
-import App from './App.tsx'
+import App from './ui/App.tsx'
 import { I18nProvider, initI18n } from './i18n'
+import { ServicesProvider } from './ui/services/ServicesProvider'
+import { createAppServices } from './ui/compositionRoot'
 
 // Resolve the language first so the UI never flashes in the wrong one
 initI18n().then(({ lang, messages }) => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <I18nProvider initialLanguage={lang} initialMessages={messages}>
-        <App />
-      </I18nProvider>
+      <ServicesProvider services={createAppServices()}>
+        <I18nProvider initialLanguage={lang} initialMessages={messages}>
+          <App />
+        </I18nProvider>
+      </ServicesProvider>
     </StrictMode>,
   )
 })
