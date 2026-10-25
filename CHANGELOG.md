@@ -2,7 +2,7 @@
 
 All notable changes to Vectopix. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.8.0] - 2026-10-25
 
 ### Added
 - **Appearance**: light, dark or follow the system, from a button next to the language or in Settings. It is applied before the first paint (no flash) and, in the desktop app, to the native menus and dialogs too.
