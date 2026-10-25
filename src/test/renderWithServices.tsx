@@ -64,6 +64,7 @@ export function fakeServices(overrides: Partial<AppServices> = {}) {
     svgDom: createSvgDom(),
     preferences: createPreferences(store),
     updates: null,
+    desktop: null,
     ...overrides,
   } satisfies AppServices;
   return { services, store };

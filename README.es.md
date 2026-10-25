@@ -122,6 +122,7 @@ Abre la URL que muestra Vite (normalmente `http://localhost:5173`). Arrastra una
 | `npm test`             | Ejecuta los tests unitarios (Vitest)                        |
 | `npm run test:e2e`     | Compila y ejecuta los tests de navegador (Playwright, Chromium) |
 | `npm run test:coverage` | Tests unitarios y de integración con cobertura (umbrales por capa) |
+| `npm run test:e2e:desktop` | Compila y ejecuta los tests de la app de escritorio (Electron, menús nativos) |
 | `npm run lint`         | Lint con Oxlint                                             |
 | `npm run desktop`      | Compila y abre la app de escritorio (Electron)              |
 | `npm run dist:desktop` | Genera los instaladores de escritorio de tu sistema en `release/` |
@@ -133,6 +134,22 @@ Abre la URL que muestra Vite (normalmente `http://localhost:5173`). Arrastra una
 3. El workflow **Release** compila las apps en macOS, Windows y Linux, más el zip web, y las publica como release de GitHub. Sus notas son la sección del CHANGELOG de esa versión más la tabla de descargas; una etiqueta sin sección en el CHANGELOG falla antes de compilar nada.
 
 Además, cada push a `main` pasa los tests unitarios y de navegador y despliega la versión web en GitHub Pages.
+
+## Menús de la app de escritorio
+
+La app de escritorio tiene una barra de menús nativa completa, en tu idioma, siguiendo las convenciones de cada sistema (menú de aplicación en macOS; Acerca de y Salir en Ayuda y Archivo en Windows y Linux):
+
+| Menú | Qué contiene |
+| ---- | ------------ |
+| **Archivo** | Nuevo, Abrir imagen… <kbd>⌘O</kbd>, Abrir recientes (macOS), Imágenes de ejemplo, Guardar como SVG… <kbd>⌘S</kbd>, Exportar… <kbd>⌘E</kbd>, Copiar código SVG <kbd>⇧⌘C</kbd> |
+| **Edición** | Deshacer / Rehacer, portapapeles, Simplificar nodos, Restaurar trazado original, Ajustes… (Windows, Linux) |
+| **Visualización** | Comparar / Doble / Solo vector / Solo original <kbd>⌘1</kbd>–<kbd>⌘4</kbd>, Relleno / Contornos / Editor de nodos, zoom <kbd>⌘+</kbd> <kbd>⌘−</kbd> <kbd>⌘0</kbd> <kbd>⌘9</kbd>, pantalla completa |
+| **Imagen** | Preset, método de vectorización, colores automáticos, fondo transparente, Re-vectorizar ahora <kbd>⌘R</kbd> |
+| **Ayuda** | Atajos de teclado, novedades de la versión, la versión web, el código fuente, Informar de un problema… |
+
+Las opciones se activan y se marcan según lo que hay en pantalla. **Ajustes…** (<kbd>⌘,</kbd>) contiene las preferencias de la propia app: idioma, búsqueda automática de actualizaciones y restaurar los ajustes recordados. Los archivos abiertos desde el Dock, el Finder o «Abrir con» se cargan directamente, y cerrar la ventana con ediciones sin guardar pide confirmación. En Windows y Linux, <kbd>⌘</kbd> es <kbd>Ctrl</kbd>.
+
+**Acerca de Vectopix** — Vectopix está hecho por **Juan Gestal** · [gestal.es](https://gestal.es) · [juan@gestal.es](mailto:juan@gestal.es)
 
 ## Atajos de teclado
 

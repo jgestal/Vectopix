@@ -4,16 +4,23 @@ import { useI18n } from '../../i18n';
 import type { AvailableUpdate } from '../../application/checkForUpdate';
 import { useServices } from '../services/context';
 
-/** Says when a newer release is out and links to it (desktop app only: elsewhere there is no checker). */
-export const UpdateNotice: React.FC = () => {
+/**
+ * Says when a newer release is out and links to it (desktop app only:
+ * elsewhere there is no checker). `announced` shows one found by a check
+ * the person asked for.
+ */
+export const UpdateNotice: React.FC<{ announced?: AvailableUpdate | null }> = ({ announced = null }) => {
   const { t } = useI18n();
   const { updates } = useServices();
-  const [update, setUpdate] = useState<AvailableUpdate | null>(null);
+  const [found, setFound] = useState<AvailableUpdate | null>(null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const candidate = announced ?? found;
+  const update = candidate && candidate.version !== dismissed ? candidate : null;
 
   useEffect(() => {
     if (!updates) return;
     let active = true;
-    updates.find().then((found) => active && setUpdate(found));
+    updates.find().then((result) => active && setFound(result));
     return () => {
       active = false;
     };
@@ -23,7 +30,7 @@ export const UpdateNotice: React.FC = () => {
 
   const dismiss = () => {
     updates?.dismiss(update.version);
-    setUpdate(null);
+    setDismissed(update.version);
   };
 
   return (

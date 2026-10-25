@@ -8,7 +8,7 @@ import { browserImageSource, canvasImageDecoder } from '../infrastructure/browse
 import { canvasSampleRenderer } from '../infrastructure/browser/sampleImages';
 import { browserFileSaver } from '../infrastructure/browser/fileSaver';
 import { createSvgDom } from '../infrastructure/browser/svgDom';
-import { isDesktopApp } from '../infrastructure/browser/environment';
+import { desktopShellFromWindow } from '../infrastructure/desktop/electronShell';
 import { drawingExporter } from '../infrastructure/drawingExporter';
 
 /**
@@ -17,6 +17,7 @@ import { drawingExporter } from '../infrastructure/drawingExporter';
  */
 export function createAppServices(): AppServices {
   const store = new LocalSettingsStore();
+  const desktop = desktopShellFromWindow();
   return {
     vectorization: workerVectorization,
     images: browserImageSource,
@@ -26,8 +27,9 @@ export function createAppServices(): AppServices {
     files: browserFileSaver,
     svgDom: createSvgDom(),
     preferences: createPreferences(store),
-    updates: isDesktopApp()
+    updates: desktop
       ? createUpdateChecker({ currentVersion: __APP_VERSION__, releases: new GitHubReleaseSource(), store, clock: Date.now })
       : null,
+    desktop,
   };
 }

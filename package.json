@@ -22,6 +22,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:desktop": "npm run build && playwright test -c playwright.desktop.config.ts",
     "test:coverage": "vitest run --coverage",
     "preview": "vite preview",
     "desktop": "npm run build && electron .",

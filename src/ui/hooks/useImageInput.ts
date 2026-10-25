@@ -26,7 +26,7 @@ interface Callbacks {
  */
 export function useImageInput({ onLoaded, showToast, reportError }: Callbacks) {
   const { t } = useI18n();
-  const { images, decoder, samples } = useServices();
+  const { images, decoder, samples, desktop } = useServices();
 
   const open = useCallback(
     async (dataUrl: string, fileName: string, samplePreset?: VectorPreset) => {
@@ -46,12 +46,14 @@ export function useImageInput({ onLoaded, showToast, reportError }: Callbacks) {
       try {
         const dataUrl = await images.readFile(file);
         await open(dataUrl, file.name || t('file.pastedName'));
+        // A file from disk joins the system's recent files (pasted images have no path)
+        desktop?.rememberFile(file);
         if (successText) showToast(successText, 'success');
       } catch (err) {
         reportError(err, 'error.fileRead');
       }
     },
-    [images, open, reportError, showToast, t]
+    [images, open, reportError, showToast, t, desktop]
   );
 
   const loadSample = useCallback(
@@ -88,6 +90,9 @@ export function useImageInput({ onLoaded, showToast, reportError }: Callbacks) {
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
   }, [loadFile, t]);
+
+  // Files the system hands over: Open Recent, the Dock, "Open with"
+  useEffect(() => desktop?.onOpenFile((file) => loadFile(file)), [desktop, loadFile]);
 
   return { loadFile, loadSample, loadDrop, acceptedTypes: ['image/*', ...images.extraExtensions].join(',') };
 }

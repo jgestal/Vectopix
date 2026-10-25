@@ -4,7 +4,7 @@ import { SAMPLE_DRAG_TYPE, SAMPLE_IMAGES, type SampleImageItem } from '../../dom
 import { useServices } from '../services/context';
 import { useI18n, type MessageKey } from '../../i18n';
 import { LanguageSelect } from './LanguageSelect';
-import { RELEASE_NOTES_URL, REPOSITORY_URL } from './ShortcutsModal';
+import { RELEASE_NOTES_URL, REPOSITORY_URL } from '../appInfo';
 
 interface DropZoneProps {
   onSampleSelected: (id: string) => void;

@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type {
+  DesktopShell,
   DrawingExporter,
   FileSaver,
   ImageDecoder,
@@ -26,6 +27,8 @@ export interface AppServices {
   preferences: Preferences;
   /** Null where there is nothing to update (the web version is always the latest). */
   updates: UpdateChecker | null;
+  /** The desktop app's shell (menu bar, system files); null on the web. */
+  desktop: DesktopShell | null;
 }
 
 export const ServicesContext = createContext<AppServices | null>(null);

@@ -1,10 +1,8 @@
 import React from 'react';
 import { useI18n, type MessageKey } from '../../i18n';
 import { Dialog } from './ui/Dialog';
+import { RELEASE_NOTES_URL, REPOSITORY_URL } from '../appInfo';
 
-export const REPOSITORY_URL = 'https://github.com/jgestal/Vectopix';
-/** What changed in the running version. */
-export const RELEASE_NOTES_URL = `${REPOSITORY_URL}/releases/tag/v${__APP_VERSION__}`;
 
 interface ShortcutsModalProps {
   isOpen: boolean;
@@ -25,6 +23,9 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
     { key: 'N', desc: 'shortcuts.nodes' },
     { key: t('shortcuts.keyClickNode'), desc: 'shortcuts.selectNode' },
     { key: t('shortcuts.keyDelete'), desc: 'shortcuts.deleteNode' },
+    { key: '⌘/Ctrl O', desc: 'menu.open' },
+    { key: '⌘/Ctrl S', desc: 'menu.saveSvg' },
+    { key: '⌘/Ctrl E', desc: 'menu.export' },
     { key: '⌘/Ctrl Z', desc: 'shortcuts.undo' },
     { key: '⌘/Ctrl ⇧ Z', desc: 'shortcuts.redo' },
     { key: '⌘/Ctrl C', desc: 'shortcuts.copy' },

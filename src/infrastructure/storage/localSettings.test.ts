@@ -28,3 +28,14 @@ describe('LocalSettingsStore', () => {
     expect(() => store.write('x', 1)).not.toThrow();
   });
 });
+
+describe('LocalSettingsStore.remove', () => {
+  it('forgets a value, and never throws', () => {
+    const storage = memoryStorage();
+    const store = new LocalSettingsStore(() => storage);
+    store.write('x', 1);
+    store.remove('x');
+    expect(store.read('x')).toBeUndefined();
+    expect(() => new LocalSettingsStore(() => { throw new Error('blocked'); }).remove('x')).not.toThrow();
+  });
+});

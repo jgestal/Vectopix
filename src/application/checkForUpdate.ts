@@ -1,5 +1,6 @@
 import { compareVersions } from '../domain/versions';
 import { mergeKnown } from '../domain/settings';
+import { readAppPreferences } from './preferences';
 import type { Clock, ReleaseSource, SettingsStore } from './ports';
 
 /**
@@ -13,9 +14,16 @@ export interface AvailableUpdate {
   url: string;
 }
 
+export type UpdateCheck = { status: 'available'; update: AvailableUpdate } | { status: 'upToDate'; version: string } | { status: 'failed' };
+
 export interface UpdateChecker {
-  /** The release to tell the user about: newer than the running one and not dismissed. */
+  /**
+   * The release to tell the user about: newer than the running one and not
+   * dismissed. Asks at most once a day, and never when switched off.
+   */
   find(): Promise<AvailableUpdate | null>;
+  /** Asked for by the person: ask now, and say what was found either way. */
+  checkNow(): Promise<UpdateCheck>;
   /** Don't mention this version again (a newer one will be). */
   dismiss(version: string): void;
 }
@@ -50,11 +58,22 @@ export function createUpdateChecker(deps: {
     }
   }
 
+  const isNewer = (version: string, url: string) => version !== '' && compareVersions(version, currentVersion) > 0 && isReleasePage(url);
+
   return {
     async find() {
+      if (!readAppPreferences(store).checkForUpdates) return null;
       const { latest, url, dismissed } = await refresh(readState());
-      const isNews = latest !== '' && latest !== dismissed && compareVersions(latest, currentVersion) > 0;
-      return isNews && isReleasePage(url) ? { version: latest, url } : null;
+      return latest !== dismissed && isNewer(latest, url) ? { version: latest, url } : null;
+    },
+    async checkNow() {
+      try {
+        const release = await releases.latest();
+        store.write(STATE_KEY, { ...readState(), checkedAt: clock(), ...(release ? { latest: release.version, url: release.url } : {}) });
+        return release && isNewer(release.version, release.url) ? { status: 'available', update: release } : { status: 'upToDate', version: currentVersion };
+      } catch {
+        return { status: 'failed' };
+      }
     },
     dismiss(version) {
       store.write(STATE_KEY, { ...readState(), dismissed: version });

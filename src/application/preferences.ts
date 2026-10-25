@@ -4,6 +4,16 @@ import type { VectorOptions } from '../domain/types';
 import type { SettingsStore } from './ports';
 
 const USER_OPTIONS_KEY = 'options';
+const APP_PREFERENCES_KEY = 'preferences';
+
+/** Preferences about the app itself (the engine settings are separate). */
+export interface AppPreferences {
+  /** Desktop app: look for a new version once a day. */
+  checkForUpdates: boolean;
+}
+const APP_DEFAULTS: AppPreferences = { checkForUpdates: true };
+
+export const readAppPreferences = (store: SettingsStore): AppPreferences => mergeKnown(APP_DEFAULTS, store.read(APP_PREFERENCES_KEY));
 
 const OPTION_VALUES: AllowedValues<VectorOptions> = {
   engine: ['vecline', 'imagetracer'],
@@ -19,6 +29,10 @@ export interface Preferences {
   /** The settings the user last chose (or the defaults): what a new image of theirs starts with. */
   loadUserOptions(): VectorOptions;
   saveUserOptions(options: VectorOptions): void;
+  loadAppPreferences(): AppPreferences;
+  saveAppPreferences(preferences: AppPreferences): void;
+  /** Forget remembered settings and choices (the app preferences stay). */
+  resetRemembered(keys: readonly string[]): void;
 }
 
 export function createPreferences(store: SettingsStore): Preferences {
@@ -29,5 +43,8 @@ export function createPreferences(store: SettingsStore): Preferences {
     save,
     loadUserOptions: () => load(USER_OPTIONS_KEY, DEFAULT_OPTIONS, OPTION_VALUES),
     saveUserOptions: (options) => save(USER_OPTIONS_KEY, options),
+    loadAppPreferences: () => readAppPreferences(store),
+    saveAppPreferences: (preferences) => save(APP_PREFERENCES_KEY, preferences),
+    resetRemembered: (keys) => [USER_OPTIONS_KEY, ...keys].forEach((key) => store.remove(key)),
   };
 }

@@ -134,3 +134,13 @@ export function getPresetOptions(preset: VectorPreset, current: VectorOptions): 
 export function applyPreset(preset: VectorPreset, current: VectorOptions): VectorOptions {
   return { ...current, ...getPresetOptions(preset, current), preset };
 }
+
+/** One setting changed by hand: the settings no longer match a preset. */
+export function withOption<K extends keyof VectorOptions>(options: VectorOptions, key: K, value: VectorOptions[K]): VectorOptions {
+  return { ...options, [key]: value, preset: 'custom' };
+}
+
+/** Switch between outline and centerline tracing, starting from that method's default preset. */
+export function withTraceMethod(options: VectorOptions, method: VectorOptions['traceMethod']): VectorOptions {
+  return { ...options, traceMethod: method, preset: method === 'centerline' ? 'centerline-sketch' : 'logo' };
+}

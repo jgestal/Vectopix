@@ -16,6 +16,8 @@ interface ExportModalProps {
   baseFileName: string;
   imageDimensions: { width: number; height: number } | null;
   onShowToast: (text: string, type?: 'info' | 'success' | 'warning') => void;
+  /** A file of the drawing was saved: the work is no longer at risk. */
+  onSaved?: () => void;
 }
 
 type ExportState =
@@ -40,7 +42,7 @@ const EXPORT_VALUES = {
   pngBackground: ['transparent', '#ffffff', '#0f172a'] as ExportChoices['pngBackground'][],
 };
 
-export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseFileName, imageDimensions, onShowToast }) => {
+export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseFileName, imageDimensions, onShowToast, onSaved }) => {
   const { t } = useI18n();
   const { exporter, files } = useServices();
   const [choices, setChoices] = usePreference('export', EXPORT_DEFAULTS, EXPORT_VALUES);
@@ -122,6 +124,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseF
       const content = await produce[activeTab]();
       if (content === null) return onShowToast(t('export.notAvailable', { format: activeTab.toUpperCase() }), 'warning');
       files.save(content, fileName, EXPORT_MIME[activeTab]);
+      onSaved?.();
       onShowToast(t('export.downloaded', { file: fileName }), 'success');
     } catch (err) {
       onShowToast(errorMessage(err, t) ?? t('toast.unknownError'), 'warning');

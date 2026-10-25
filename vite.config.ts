@@ -32,7 +32,6 @@ export default defineConfig({
         'src/infrastructure/browser/fidelity.ts',
         'src/infrastructure/browser/fileSaver.ts',
         'src/infrastructure/browser/sampleImages.ts',
-        'src/infrastructure/browser/environment.ts',
         'src/infrastructure/worker/**',
       ],
       // Per layer: the rules and use cases are held to a higher bar than the views

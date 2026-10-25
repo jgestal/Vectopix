@@ -31,3 +31,24 @@ describe('preferences', () => {
     expect(prefs.load('view', { viewMode: 'split' }, { viewMode: ['split', 'raster'] })).toEqual({ viewMode: 'split' });
   });
 });
+
+describe('app preferences', () => {
+  it('checks for updates unless switched off', () => {
+    const prefs = createPreferences(new MemoryStore());
+    expect(prefs.loadAppPreferences()).toEqual({ checkForUpdates: true });
+    prefs.saveAppPreferences({ checkForUpdates: false });
+    expect(prefs.loadAppPreferences()).toEqual({ checkForUpdates: false });
+  });
+
+  it('forgets remembered settings and choices, keeping the app preferences', () => {
+    const store = new MemoryStore();
+    const prefs = createPreferences(store);
+    prefs.saveUserOptions({ ...DEFAULT_OPTIONS, colors: 7 });
+    prefs.save('export', { tab: 'dxf' });
+    prefs.saveAppPreferences({ checkForUpdates: false });
+    prefs.resetRemembered(['export']);
+    expect(prefs.loadUserOptions()).toEqual(DEFAULT_OPTIONS);
+    expect(store.read('export')).toBeUndefined();
+    expect(prefs.loadAppPreferences()).toEqual({ checkForUpdates: false });
+  });
+});

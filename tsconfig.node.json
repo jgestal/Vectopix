@@ -19,5 +19,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "tests/e2e", "tests/architecture"]
+  "include": ["vite.config.ts", "playwright.config.ts", "playwright.desktop.config.ts", "tests/e2e", "tests/e2e-desktop", "tests/architecture", "tests/electron"]
 }

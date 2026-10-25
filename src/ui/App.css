@@ -902,8 +902,76 @@ a {
   box-shadow: var(--shadow-pop);
 }
 
-.update-notice .btn {
+.update-notice .btn,
+a.btn {
   text-decoration: none;
+}
+
+/* About and Settings */
+.about-dialog,
+.preferences-dialog {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.about-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.about-name {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.about-version,
+.about-fineprint a,
+.about-author a {
+  color: inherit;
+}
+
+.about-tagline {
+  margin: 16px 0;
+  color: var(--graphite);
+}
+
+.about-author {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.about-author a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.about-label {
+  font-size: var(--text-sm);
+  color: var(--graphite);
+}
+
+.about-fineprint {
+  margin: 16px 0 0;
+  font-size: var(--text-sm);
+  color: var(--graphite);
+}
+
+.preferences-dialog .dialog-body {
+  display: grid;
+  gap: 18px;
+}
+
+.preferences-reset {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 /* ==========================================================================

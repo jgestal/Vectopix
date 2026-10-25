@@ -9,14 +9,14 @@ const release = { version: '9.9.9', url: 'https://github.com/jgestal/Vectopix/re
 
 describe('UpdateNotice', () => {
   it('announces a newer release with a link to download it', async () => {
-    renderWithServices(<UpdateNotice />, { updates: { find: vi.fn(async () => release), dismiss: vi.fn() } });
+    renderWithServices(<UpdateNotice />, { updates: { find: vi.fn(async () => release), dismiss: vi.fn(), checkNow: vi.fn() } });
     expect(await screen.findByText('Vectopix 9.9.9 is available')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Download/ }).getAttribute('href')).toBe(release.url);
   });
 
   it('goes away when dismissed, remembering the version', async () => {
     const dismiss = vi.fn();
-    renderWithServices(<UpdateNotice />, { updates: { find: vi.fn(async () => release), dismiss } });
+    renderWithServices(<UpdateNotice />, { updates: { find: vi.fn(async () => release), dismiss, checkNow: vi.fn() } });
     await userEvent.click(await screen.findByRole('button', { name: 'Dismiss' }));
     expect(dismiss).toHaveBeenCalledWith('9.9.9');
     expect(screen.queryByRole('status')).toBeNull();
@@ -24,7 +24,7 @@ describe('UpdateNotice', () => {
 
   it('shows nothing when up to date, or where there is no checker (the web)', async () => {
     const find = vi.fn(async () => null);
-    renderWithServices(<UpdateNotice />, { updates: { find, dismiss: vi.fn() } });
+    renderWithServices(<UpdateNotice />, { updates: { find, dismiss: vi.fn(), checkNow: vi.fn() } });
     await waitFor(() => expect(find).toHaveBeenCalled());
     expect(screen.queryByRole('status')).toBeNull();
 

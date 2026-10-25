@@ -41,3 +41,29 @@ jobs:
           name: playwright-traces
           path: test-results
           retention-days: 7
+
+  e2e-desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # This job needs the real Electron binary
+      - run: npm ci
+      # Electron's sandbox helper must be root-owned and setuid, and Ubuntu
+      # 24.04 restricts the user namespaces Chromium's sandbox uses
+      - name: Allow Electron's sandbox
+        run: |
+          sudo chown root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # Native menus and windows need a display: a virtual one
+      - run: xvfb-run -a npm run test:e2e:desktop
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-desktop-traces
+          path: test-results
+          retention-days: 7

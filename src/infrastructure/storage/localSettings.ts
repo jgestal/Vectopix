@@ -24,6 +24,14 @@ export class LocalSettingsStore implements SettingsStore {
     }
   }
 
+  remove(key: string): void {
+    try {
+      this.storage().removeItem(this.prefix + key);
+    } catch {
+      // Blocked storage: nothing was remembered either
+    }
+  }
+
   write(key: string, value: unknown): void {
     try {
       this.storage().setItem(this.prefix + key, JSON.stringify(value));

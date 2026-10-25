@@ -3,6 +3,7 @@ import { RotateCcw } from 'lucide-react';
 import { AdvancedSettings, CenterlineSettings, ColourSettings } from './sidebar/Sections';
 import type { PaletteColor, TraceMethod, VectorOptions, VectorPreset } from '../../domain/types';
 import { useI18n, type MessageKey } from '../../i18n';
+import { withOption, withTraceMethod } from '../../domain/presets';
 
 interface SidebarProps {
   options: VectorOptions;
@@ -41,17 +42,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t } = useI18n();
   const isCenterline = options.traceMethod === 'centerline';
 
-  const updateOption = <K extends keyof VectorOptions>(key: K, val: VectorOptions[K]) => {
-    setOptions((prev) => ({ ...prev, [key]: val, preset: 'custom' }));
-  };
-
-  const handleTraceMethodChange = (method: TraceMethod) => {
-    setOptions((prev) => ({
-      ...prev,
-      traceMethod: method,
-      preset: method === 'centerline' ? 'centerline-sketch' : 'logo',
-    }));
-  };
+  const updateOption = <K extends keyof VectorOptions>(key: K, val: VectorOptions[K]) => setOptions((prev) => withOption(prev, key, val));
+  const handleTraceMethodChange = (method: TraceMethod) => setOptions((prev) => withTraceMethod(prev, method));
 
   const presets = isCenterline
     ? CENTERLINE_PRESETS

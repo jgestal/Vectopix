@@ -1,4 +1,6 @@
 import type { Raster } from '../domain/raster/raster';
+import type { MenuPlatform, MenuSection } from '../domain/menu';
+import type { AppCommand } from '../domain/commands';
 import type { PaletteCandidate, Rgb } from '../domain/palette/colors';
 import type { ComponentFramework } from '../domain/export/exportFiles';
 import type { ExportFormat, ProgressStage, VectorOptions, VectorResult, WorkerProgress } from '../domain/types';
@@ -12,6 +14,7 @@ import type { ExportFormat, ProgressStage, VectorOptions, VectorResult, WorkerPr
 export interface SettingsStore {
   read(key: string): unknown;
   write(key: string, value: unknown): void;
+  remove(key: string): void;
 }
 
 /** The latest published release, or null if there is none. May throw on network errors. */
@@ -123,4 +126,36 @@ export interface DrawingExporter {
 export interface FileSaver {
   save(content: string | Uint8Array | Blob, fileName: string, mimeType: string): void;
   copyText(text: string): Promise<void>;
+}
+
+// ── Desktop app ─────────────────────────────────────────────────────────────
+
+/** A menu ready to show: labels translated, everything else as the domain built it. */
+export type TranslatedMenu = MenuSection[];
+
+/** What to ask before closing a window with work that would be lost. */
+export interface CloseConfirmation {
+  title: string;
+  message: string;
+  discard: string;
+  cancel: string;
+}
+
+/**
+ * The desktop app's shell (Electron): the native menu bar, files the system
+ * hands over (recent files, the Dock) and closing with unsaved work.
+ * Absent on the web.
+ */
+export interface DesktopShell {
+  readonly platform: MenuPlatform;
+  readonly isDevelopment: boolean;
+  setMenu(menu: TranslatedMenu): void;
+  /** Menu clicks; returns the unsubscribe function. */
+  onCommand(handler: (command: AppCommand) => void): () => void;
+  /** Files opened through the system (Open Recent, the Dock, the file manager). */
+  onOpenFile(handler: (file: File) => void): () => void;
+  /** Add a file the user opened to the system's recent files. */
+  rememberFile(file: File): void;
+  /** Ask before closing while `confirm` is set; never ask when null. */
+  setCloseConfirmation(confirm: CloseConfirmation | null): void;
 }

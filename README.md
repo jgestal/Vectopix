@@ -122,6 +122,7 @@ Open the URL Vite prints (usually `http://localhost:5173`). Drop an image, paste
 | `npm test`             | Run the unit tests (Vitest)                               |
 | `npm run test:e2e`     | Build and run the browser tests (Playwright, Chromium)    |
 | `npm run test:coverage` | Unit and integration tests with coverage (per-layer thresholds) |
+| `npm run test:e2e:desktop` | Build and run the desktop app's tests (Electron, native menus) |
 | `npm run lint`         | Lint with Oxlint                                          |
 | `npm run desktop`      | Build and open the desktop app (Electron)                 |
 | `npm run dist:desktop` | Build the desktop installers for your OS into `release/`  |
@@ -133,6 +134,22 @@ Open the URL Vite prints (usually `http://localhost:5173`). Drop an image, paste
 3. The **Release** workflow builds the apps on macOS, Windows and Linux plus the web zip, and publishes them as a GitHub release. Its notes are that version's CHANGELOG section plus the download table; a tag without a CHANGELOG section fails before anything is built.
 
 Every push to `main` also runs the unit and browser tests and deploys the web version to GitHub Pages.
+
+## Desktop app menus
+
+The desktop app has a full native menu bar, in your language, following each system's conventions (an application menu on macOS; About and Quit under Help and File on Windows and Linux):
+
+| Menu | What's in it |
+| ---- | ------------ |
+| **File** | New, Open Image… <kbd>⌘O</kbd>, Open Recent (macOS), Sample Images, Save as SVG… <kbd>⌘S</kbd>, Export… <kbd>⌘E</kbd>, Copy SVG Code <kbd>⇧⌘C</kbd> |
+| **Edit** | Undo / Redo, clipboard, Simplify Nodes, Restore Original Trace, Settings… (Windows, Linux) |
+| **View** | Compare / Side by Side / Vector Only / Original Only <kbd>⌘1</kbd>–<kbd>⌘4</kbd>, Fill / Outlines / Node Editor, zoom <kbd>⌘+</kbd> <kbd>⌘−</kbd> <kbd>⌘0</kbd> <kbd>⌘9</kbd>, full screen |
+| **Image** | Preset, tracing method, automatic colours, transparent background, Re-vectorize Now <kbd>⌘R</kbd> |
+| **Help** | Keyboard shortcuts, release notes, the web version, source code, Report a Problem… |
+
+Items are enabled and checked to match what's on screen. **Settings…** (<kbd>⌘,</kbd>) holds the app's own preferences: language, automatic update checks, and restoring the remembered settings. Files opened from the Dock, Finder or "Open with" load straight in, and closing the window with unsaved hand edits asks first. On Windows and Linux, <kbd>⌘</kbd> is <kbd>Ctrl</kbd>.
+
+**About Vectopix** — Vectopix is made by **Juan Gestal** · [gestal.es](https://gestal.es) · [juan@gestal.es](mailto:juan@gestal.es)
 
 ## Keyboard shortcuts
 
