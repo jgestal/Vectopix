@@ -87,11 +87,11 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/en/desktop.png" alt="The Vectopix desktop app on macOS, its window named after the traced image" /></td>
+    <td width="50%"><img src="docs/en/desktop.png" alt="The Vectopix desktop app on macOS with its File menu open" /></td>
     <td width="50%"><img src="docs/en/desktop-dark.png" alt="The desktop app in dark mode with Settings open" /></td>
   </tr>
   <tr>
-    <td align="center"><b>macOS</b>: native menus, the window named after the image</td>
+    <td align="center"><b>macOS</b>: the native menu bar, in your language</td>
     <td align="center"><b>Settings</b> (<kbd>⌘,</kbd>): language, appearance and updates</td>
   </tr>
 </table>

@@ -87,11 +87,11 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/es/desktop.png" alt="La app de escritorio de Vectopix en macOS, con la ventana titulada con la imagen vectorizada" /></td>
+    <td width="50%"><img src="docs/es/desktop.png" alt="La app de escritorio de Vectopix en macOS con el menú Archivo abierto" /></td>
     <td width="50%"><img src="docs/es/desktop-dark.png" alt="La app de escritorio en modo oscuro con los Ajustes abiertos" /></td>
   </tr>
   <tr>
-    <td align="center"><b>macOS</b>: menús nativos y la ventana con el nombre de la imagen</td>
+    <td align="center"><b>macOS</b>: la barra de menús nativa, en tu idioma</td>
     <td align="center"><b>Ajustes</b> (<kbd>⌘,</kbd>): idioma, apariencia y actualizaciones</td>
   </tr>
 </table>
