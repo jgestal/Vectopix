@@ -27,4 +27,8 @@ contextBridge.exposeInMainWorld('vectopixDesktop', {
     if (path) ipcRenderer.send('file:remember', path);
   },
   setCloseConfirmation: (confirm) => ipcRenderer.send('window:close-confirmation', confirm),
+  saveFile: (request) => ipcRenderer.invoke('file:save', request),
+  startDrag: (file) => ipcRenderer.send('file:drag', file),
+  setProgress: (fraction) => ipcRenderer.send('window:progress', fraction),
+  setTheme: (preference) => ipcRenderer.send('app:theme', preference),
 });

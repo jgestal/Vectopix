@@ -7,9 +7,9 @@ import type { DesktopBridge, WireMenuItem, WireMenuSection } from './protocol';
 const ACCELERATOR_KEYS: Record<string, string> = { '+': 'Plus', escape: 'Escape', f1: 'F1' };
 
 /** A shortcut in Electron's accelerator notation ("CmdOrCtrl+Shift+Z"). */
-export function toAccelerator({ key, command, shift }: Shortcut): string {
+export function toAccelerator({ key, command, shift, alt }: Shortcut): string {
   const name = ACCELERATOR_KEYS[key] ?? key.toUpperCase();
-  return [command && 'CmdOrCtrl', shift && 'Shift', name].filter(Boolean).join('+');
+  return [command && 'CmdOrCtrl', alt && 'Alt', shift && 'Shift', name].filter(Boolean).join('+');
 }
 
 function toWire(item: MenuItem): WireMenuItem {
@@ -34,6 +34,8 @@ export function createElectronShell(bridge: DesktopBridge): DesktopShell {
     onOpenFile: (handler) => bridge.onOpenFile(({ name, type, data }) => handler(new File([data as BlobPart], name, { type }))),
     rememberFile: (file) => bridge.rememberFile(file),
     setCloseConfirmation: (confirm) => bridge.setCloseConfirmation(confirm),
+    setProgress: (fraction) => bridge.setProgress(fraction),
+    setTheme: (preference) => bridge.setTheme(preference),
   };
 }
 
@@ -43,7 +45,3 @@ declare global {
     vectopixDesktop?: DesktopBridge;
   }
 }
-
-/** The shell when running in the desktop app, else null. */
-export const desktopShellFromWindow = (): DesktopShell | null =>
-  typeof window !== 'undefined' && window.vectopixDesktop ? createElectronShell(window.vectopixDesktop) : null;

@@ -44,30 +44,29 @@
   --focus: 0 0 0 2px var(--paper), 0 0 0 4px var(--magenta);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
+/* Set on <html> by index.html before the first paint, then kept by ui/theme.ts */
+:root[data-theme='dark'] {
+  color-scheme: dark;
 
-    --paper: #232326;
-    --surface: #1b1b1d;
-    --line: #36363a;
-    --line-strong: #47474c;
-    --ink: #ececea;
-    --graphite: #a3a39e;
-    --faint: #7c7c78;
-    --magenta: #ff4fa0;
-    --magenta-soft: rgba(255, 79, 160, 0.14);
-    --danger: #ff6b5e;
-    --success: #4cc27a;
+  --paper: #232326;
+  --surface: #1b1b1d;
+  --line: #36363a;
+  --line-strong: #47474c;
+  --ink: #ececea;
+  --graphite: #a3a39e;
+  --faint: #7c7c78;
+  --magenta: #ff4fa0;
+  --magenta-soft: rgba(255, 79, 160, 0.14);
+  --danger: #ff6b5e;
+  --success: #4cc27a;
 
-    --mat: #161718;
-    --mat-line: rgba(255, 255, 255, 0.045);
-    --mat-line-major: rgba(255, 255, 255, 0.09);
-    --checker-a: #2a2a2d;
-    --checker-b: #232326;
+  --mat: #161718;
+  --mat-line: rgba(255, 255, 255, 0.045);
+  --mat-line-major: rgba(255, 255, 255, 0.09);
+  --checker-a: #2a2a2d;
+  --checker-b: #232326;
 
-    --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  }
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 *,

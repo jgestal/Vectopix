@@ -2,6 +2,7 @@ import React from 'react';
 import { CircleHelp, Download, FolderOpen, Redo2, Undo2 } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import { LanguageSelect } from './LanguageSelect';
+import { ThemeToggle } from './ThemeToggle';
 
 interface TopBarProps {
   fileName: string;
@@ -58,6 +59,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div className="topbar-actions">
+        <ThemeToggle />
         <LanguageSelect />
         <button className="icon-btn" onClick={onHelp} title={t('header.shortcuts')} aria-label={t('header.shortcuts')}>
           <CircleHelp size={18} />

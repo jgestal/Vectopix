@@ -98,10 +98,15 @@ export function PdfCard({ ready, size, isCenterline }: { ready: boolean; size: {
   );
 }
 
-/** The drawing over the chosen background, as the PNG will look. */
-export function PngPreview({ svg, background }: { svg: string; background: PngBackground }) {
+/** The drawing over the chosen background, as the PNG will look; it can go straight to the clipboard. */
+export function PngPreview({ svg, background, onCopy }: { svg: string; background: PngBackground; onCopy: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="export-preview checker" style={{ background: background === 'transparent' ? undefined : background }}>
+      <button className="btn btn-small code-copy" onClick={onCopy}>
+        <Copy size={14} />
+        {t('export.copyImage')}
+      </button>
       <div className="export-preview-svg" dangerouslySetInnerHTML={{ __html: svg }} />
     </div>
   );

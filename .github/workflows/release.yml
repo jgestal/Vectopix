@@ -2,9 +2,12 @@ name: Release
 
 # Push a tag like v1.2.3 to build the desktop apps for every platform and
 # publish them, together with the static web build, as a GitHub release.
+# Run it by hand (Actions → Release → Run workflow) for a dry run: everything
+# is built and kept as workflow artifacts, nothing is published.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -29,6 +32,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Check that the tag matches package.json
+        if: github.ref_type == 'tag'
         shell: bash
         run: |
           version=$(node -p "require('./package.json').version")
@@ -63,7 +67,7 @@ jobs:
       - run: npm run build
       - name: Package the static web build
         run: |
-          version=${GITHUB_REF_NAME#v}
+          version=$(node -p "require('./package.json').version")
           cd dist && zip -qr "../Vectopix-${version}-web.zip" .
       - uses: actions/upload-artifact@v4
         with:
@@ -73,6 +77,7 @@ jobs:
 
   publish:
     needs: [desktop, web]
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -16,6 +16,7 @@ export type AppCommand =
   | 'saveSvg'
   | 'export'
   | 'copySvg'
+  | 'copyPng'
   // Edit
   | 'undo'
   | 'redo'
@@ -65,6 +66,8 @@ export interface Shortcut {
   /** ⌘ on macOS, Ctrl elsewhere. */
   command?: boolean;
   shift?: boolean;
+  /** ⌥ on macOS, Alt elsewhere. */
+  alt?: boolean;
   /**
    * Only through the desktop app's menus: the browser keeps it for itself
    * (new window, reload, switching tabs…).
@@ -79,6 +82,7 @@ export const SHORTCUTS: Partial<Record<AppCommand, readonly Shortcut[]>> = {
   saveSvg: [{ key: 's', command: true }],
   export: [{ key: 'e', command: true }],
   copySvg: [{ key: 'c', command: true, shift: true }, { key: 'c', command: true }],
+  copyPng: [{ key: 'c', command: true, alt: true, desktopOnly: true }],
   undo: [{ key: 'z', command: true }],
   redo: [{ key: 'z', command: true, shift: true }, { key: 'y', command: true }],
   'view.split': [{ key: '1', command: true, desktopOnly: true }],
@@ -109,14 +113,17 @@ export interface KeyPress {
 
 /** Shift only matters with ⌘/Ctrl: a plain key like "?" is typed with Shift on many layouts. */
 const matches = (s: Shortcut, press: KeyPress) =>
-  s.key === press.key.toLowerCase() && !!s.command === press.command && (!s.command || !!s.shift === press.shift);
+  s.key === press.key.toLowerCase() &&
+  !!s.command === press.command &&
+  !!s.alt === press.alt &&
+  (!s.command || !!s.shift === press.shift);
 
 /**
  * The command a key press asks for. Outside the desktop app, keys the
- * browser keeps for itself are left alone. Alt combinations are never ours.
+ * browser keeps for itself are left alone. Alt only counts where a
+ * shortcut asks for it (on many layouts it types characters).
  */
 export function commandForKey(press: KeyPress, inDesktopApp: boolean): AppCommand | null {
-  if (press.alt) return null;
   for (const [command, shortcuts] of Object.entries(SHORTCUTS) as [AppCommand, readonly Shortcut[]][]) {
     if (shortcuts.some((s) => matches(s, press) && (inDesktopApp || !s.desktopOnly))) return command;
   }

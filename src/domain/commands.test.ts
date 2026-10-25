@@ -40,6 +40,11 @@ describe('commandForKey', () => {
     expect(desktop(press('+', { command: true, shift: true }))).toBe('zoomIn');
   });
 
+  it('takes ⌥⌘C for Copy as PNG in the desktop app only', () => {
+    expect(desktop(press('c', { command: true, alt: true }))).toBe('copyPng');
+    expect(web(press('c', { command: true, alt: true }))).toBeNull();
+  });
+
   it('ignores everything else, and anything held with Alt', () => {
     expect(web(press('x'))).toBeNull();
     expect(web(press('n', { alt: true }))).toBeNull();
@@ -50,7 +55,7 @@ describe('commandForKey', () => {
     const seen = new Map<string, string>();
     for (const [command, list] of Object.entries(SHORTCUTS)) {
       for (const s of list ?? []) {
-        const id = `${s.command ? 'cmd+' : ''}${s.shift ? 'shift+' : ''}${s.key}`;
+        const id = `${s.command ? 'cmd+' : ''}${s.alt ? 'alt+' : ''}${s.shift ? 'shift+' : ''}${s.key}`;
         expect(seen.get(id), `${id} is bound twice`).toBeUndefined();
         seen.set(id, command);
       }

@@ -19,6 +19,7 @@ export interface AppActions {
   saveSvg(): void;
   openExport(): void;
   copySvg(): void;
+  copyPng(): void;
   // Edit
   undo(): void;
   redo(): void;
@@ -74,6 +75,7 @@ export function appCommandHandlers(app: AppActions): CommandHandlers {
     export: withResult(app.openExport),
     // With text selected, ⌘C copies the text
     copySvg: () => (app.hasResult && !window.getSelection()?.toString() ? app.copySvg() : false),
+    copyPng: withResult(app.copyPng),
     // From the menu while typing, Undo is about the text, as in any app
     undo: () => app.editText('undo') || app.undo(),
     redo: () => app.editText('redo') || app.redo(),

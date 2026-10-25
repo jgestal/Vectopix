@@ -89,7 +89,35 @@
         }
       ],
       "identity": "-",
-      "hardenedRuntime": false
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Image",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate",
+            "CFBundleTypeExtensions": [
+              "png",
+              "jpg",
+              "jpeg",
+              "webp",
+              "gif",
+              "bmp",
+              "tga",
+              "ico"
+            ],
+            "LSItemContentTypes": [
+              "public.png",
+              "public.jpeg",
+              "org.webmproject.webp",
+              "com.compuserve.gif",
+              "com.microsoft.bmp",
+              "com.truevision.tga-image",
+              "com.microsoft.ico"
+            ]
+          }
+        ]
+      }
     },
     "win": {
       "target": [
@@ -110,7 +138,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "${productName}-${version}-windows-setup.${ext}"
+      "artifactName": "${productName}-${version}-windows-setup.${ext}",
+      "include": "build/installer.nsh"
     },
     "portable": {
       "artifactName": "${productName}-${version}-windows-portable.${ext}"
@@ -121,7 +150,16 @@
         "deb"
       ],
       "category": "Graphics",
-      "maintainer": "Juan Gestal <juan@gestal.es>"
+      "maintainer": "Juan Gestal <juan@gestal.es>",
+      "mimeTypes": [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif",
+        "image/bmp",
+        "image/x-tga",
+        "image/x-icon"
+      ]
     }
   }
 }

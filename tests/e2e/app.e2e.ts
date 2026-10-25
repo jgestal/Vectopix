@@ -255,3 +255,14 @@ test.describe('remembered settings', () => {
   });
 });
 
+test('the chosen theme is kept, and painted before anything else', async ({ page }) => {
+  await page.getByRole('button', { name: /^Appearance:/ }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.getByRole('button', { name: 'Appearance: Light' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  // Read from index.html's inline script: set before the app's code even loads
+  await page.route('**/assets/*.js', (route) => route.fulfill({ contentType: 'text/javascript', body: '' }));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});

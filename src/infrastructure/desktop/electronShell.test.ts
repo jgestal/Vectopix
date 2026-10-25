@@ -18,6 +18,10 @@ function fakeBridge(platform: DesktopBridge['platform'] = 'darwin') {
     onOpenFile: vi.fn((h) => ((listeners.file = h as never), () => {})),
     rememberFile: vi.fn(),
     setCloseConfirmation: vi.fn(),
+    saveFile: vi.fn(async () => true),
+    startDrag: vi.fn(),
+    setProgress: vi.fn(),
+    setTheme: vi.fn(),
   };
   return { bridge, emit: (name: string, payload: unknown) => listeners[name](payload as never) };
 }
@@ -28,6 +32,7 @@ describe('toAccelerator', () => {
     expect(toAccelerator({ key: '+', command: true })).toBe('CmdOrCtrl+Plus');
     expect(toAccelerator({ key: ',', command: true })).toBe('CmdOrCtrl+,');
     expect(toAccelerator({ key: 'w' })).toBe('W');
+    expect(toAccelerator({ key: 'c', command: true, alt: true })).toBe('CmdOrCtrl+Alt+C');
   });
 });
 

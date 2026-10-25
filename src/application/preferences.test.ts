@@ -35,9 +35,15 @@ describe('preferences', () => {
 describe('app preferences', () => {
   it('checks for updates unless switched off', () => {
     const prefs = createPreferences(new MemoryStore());
-    expect(prefs.loadAppPreferences()).toEqual({ checkForUpdates: true });
-    prefs.saveAppPreferences({ checkForUpdates: false });
-    expect(prefs.loadAppPreferences()).toEqual({ checkForUpdates: false });
+    expect(prefs.loadAppPreferences()).toEqual({ checkForUpdates: true, theme: 'system' });
+    prefs.saveAppPreferences({ checkForUpdates: false, theme: 'dark' });
+    expect(prefs.loadAppPreferences()).toEqual({ checkForUpdates: false, theme: 'dark' });
+  });
+
+  it('rejects a theme it does not know', () => {
+    const store = new MemoryStore();
+    store.write('preferences', { checkForUpdates: true, theme: 'sepia' });
+    expect(createPreferences(store).loadAppPreferences().theme).toBe('system');
   });
 
   it('forgets remembered settings and choices, keeping the app preferences', () => {
@@ -45,10 +51,10 @@ describe('app preferences', () => {
     const prefs = createPreferences(store);
     prefs.saveUserOptions({ ...DEFAULT_OPTIONS, colors: 7 });
     prefs.save('export', { tab: 'dxf' });
-    prefs.saveAppPreferences({ checkForUpdates: false });
+    prefs.saveAppPreferences({ checkForUpdates: false, theme: 'light' });
     prefs.resetRemembered(['export']);
     expect(prefs.loadUserOptions()).toEqual(DEFAULT_OPTIONS);
     expect(store.read('export')).toBeUndefined();
-    expect(prefs.loadAppPreferences()).toEqual({ checkForUpdates: false });
+    expect(prefs.loadAppPreferences()).toEqual({ checkForUpdates: false, theme: 'light' });
   });
 });

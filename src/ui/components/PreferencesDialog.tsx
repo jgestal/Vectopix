@@ -4,6 +4,10 @@ import { useI18n } from '../../i18n';
 import { useServices } from '../services/context';
 import { Dialog } from './ui/Dialog';
 import { LanguageSelect } from './LanguageSelect';
+import { Segmented } from './ui/Segmented';
+import { chooseTheme, THEME_LABELS } from '../theme';
+import { THEME_PREFERENCES, type ThemePreference } from '../../domain/theme';
+import type { AppPreferences } from '../../application/preferences';
 
 /** Remembered groups the reset forgets (the engine settings are always included). */
 const REMEMBERED_GROUPS = ['export', 'view'] as const;
@@ -17,10 +21,14 @@ export function PreferencesDialog({ onClose, onReset }: { onClose: () => void; o
   const { preferences, desktop } = useServices();
   const [app, setApp] = useState(preferences.loadAppPreferences);
 
-  const setCheckForUpdates = (checkForUpdates: boolean) => {
-    const next = { ...app, checkForUpdates };
+  const update = (change: Partial<AppPreferences>) => {
+    const next = { ...app, ...change };
     setApp(next);
     preferences.saveAppPreferences(next);
+  };
+  const setTheme = (theme: ThemePreference) => {
+    setApp({ ...app, theme });
+    chooseTheme(theme, preferences, desktop);
   };
 
   return (
@@ -39,10 +47,20 @@ export function PreferencesDialog({ onClose, onReset }: { onClose: () => void; o
         <LanguageSelect />
       </div>
 
+      <div className="option-row">
+        <span className="option-label">{t('prefs.theme')}</span>
+        <Segmented
+          label={t('prefs.theme')}
+          options={THEME_PREFERENCES.map((value) => ({ value, text: t(THEME_LABELS[value]) }))}
+          value={app.theme}
+          onChange={setTheme}
+        />
+      </div>
+
       {/* Only the desktop app updates; the web version is always the latest */}
       {desktop && (
         <label className="check-row">
-          <input type="checkbox" checked={app.checkForUpdates} onChange={(e) => setCheckForUpdates(e.target.checked)} />
+          <input type="checkbox" checked={app.checkForUpdates} onChange={(e) => update({ checkForUpdates: e.target.checked })} />
           <span>
             <span className="check-title">{t('prefs.updates')}</span>
             <span className="check-desc">{t('prefs.updatesDesc')}</span>

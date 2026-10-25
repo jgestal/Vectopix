@@ -53,6 +53,12 @@ a {
   margin-bottom: 36px;
 }
 
+.start-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .start-brand {
   display: flex;
   align-items: center;
@@ -907,6 +913,16 @@ a.btn {
   text-decoration: none;
 }
 
+/* Status bar: drag the SVG out of the app */
+.drag-out {
+  cursor: grab;
+  user-select: none;
+}
+
+.drag-out:active {
+  cursor: grabbing;
+}
+
 /* About and Settings */
 .about-dialog,
 .preferences-dialog {
@@ -1107,6 +1123,7 @@ a.btn {
 }
 
 .export-preview {
+  position: relative;
   height: 320px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);

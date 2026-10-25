@@ -4,6 +4,7 @@ import { SAMPLE_DRAG_TYPE, SAMPLE_IMAGES, type SampleImageItem } from '../../dom
 import { useServices } from '../services/context';
 import { useI18n, type MessageKey } from '../../i18n';
 import { LanguageSelect } from './LanguageSelect';
+import { ThemeToggle } from './ThemeToggle';
 import { RELEASE_NOTES_URL, REPOSITORY_URL } from '../appInfo';
 
 interface DropZoneProps {
@@ -58,7 +59,10 @@ export const DropZone: React.FC<DropZoneProps> = ({ onSampleSelected, onFileSele
             <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={36} height={36} />
             <span>Vectopix</span>
           </div>
-          <LanguageSelect />
+          <div className="start-header-actions">
+            <ThemeToggle />
+            <LanguageSelect />
+          </div>
         </header>
 
         <h1 className="start-title">

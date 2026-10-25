@@ -1,6 +1,7 @@
 import type { CloseConfirmation, DesktopShell, ReleaseSource, SettingsStore, TranslatedMenu } from '../application/ports';
 import type { AppCommand } from '../domain/commands';
 import type { MenuItem, MenuPlatform } from '../domain/menu';
+import type { ThemePreference } from '../domain/theme';
 
 /** SettingsStore in memory; `values` can be inspected or pre-filled. */
 export class MemoryStore implements SettingsStore {
@@ -79,6 +80,14 @@ export class FakeDesktopShell implements DesktopShell {
   }
   setCloseConfirmation(confirm: CloseConfirmation | null) {
     this.closeConfirmation = confirm;
+  }
+  progress: (number | null)[] = [];
+  theme: ThemePreference | null = null;
+  setProgress(fraction: number | null) {
+    this.progress.push(fraction);
+  }
+  setTheme(preference: ThemePreference) {
+    this.theme = preference;
   }
   /** A click on a menu item. */
   click(command: AppCommand) {

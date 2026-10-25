@@ -8,7 +8,7 @@ function actions(overrides: Partial<AppActions> = {}): AppActions {
     hasImage: true,
     hasResult: true,
     viewMode: 'split',
-    newImage: fn(), openImage: fn(), openSample: fn(), saveSvg: fn(), openExport: fn(), copySvg: fn(),
+    newImage: fn(), openImage: fn(), openSample: fn(), saveSvg: fn(), openExport: fn(), copySvg: fn(), copyPng: fn(),
     undo: fn(), redo: fn(), simplifyNodes: fn(), restoreTrace: fn(),
     setViewMode: fn(), setRenderMode: fn(), toggleRenderMode: fn(), zoomBy: fn(), zoomTo: fn(), fit: fn(),
     applyPreset: fn(), setTraceMethod: fn(), toggleOption: fn(), retrace: fn(),

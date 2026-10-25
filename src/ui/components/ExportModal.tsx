@@ -123,9 +123,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseF
     try {
       const content = await produce[activeTab]();
       if (content === null) return onShowToast(t('export.notAvailable', { format: activeTab.toUpperCase() }), 'warning');
-      files.save(content, fileName, EXPORT_MIME[activeTab]);
+      const outcome = await files.save(content, fileName, EXPORT_MIME[activeTab]);
+      if (outcome === 'cancelled') return;
       onSaved?.();
-      onShowToast(t('export.downloaded', { file: fileName }), 'success');
+      onShowToast(t(outcome === 'saved' ? 'export.saved' : 'export.downloaded', { file: fileName }), 'success');
     } catch (err) {
       onShowToast(errorMessage(err, t) ?? t('toast.unknownError'), 'warning');
     } finally {
@@ -139,6 +140,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseF
     if (isExportingPng) return t('export.generatingPng');
     const format = activeTab === 'components' ? componentFramework : activeTab;
     return t('export.download', { format: format.toUpperCase() });
+  };
+
+  /** The PNG as it would download (scale, background), to the clipboard. */
+  const handleCopyImage = async () => {
+    try {
+      await files.copyImage(await exporter.png(result.svg, { width, height }, pngScale, pngBgColor));
+      onShowToast(t('export.imageCopied'), 'success');
+    } catch {
+      onShowToast(t('export.copyImageFailed'), 'warning');
+    }
   };
 
   const handleCopy = async () => {
@@ -208,7 +219,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseF
       />
       <ExportPreview
         tab={activeTab}
-        png={<PngPreview svg={result.svg} background={pngBgColor} />}
+        png={<PngPreview svg={result.svg} background={pngBgColor} onCopy={handleCopyImage} />}
         pdf={pdfState?.status !== 'error' && <PdfCard ready={pdfState?.status === 'ready'} size={{ width, height }} isCenterline={!!result.isCenterline} />}
         code={<CodeView code={getActiveContent()} copied={copied} onCopy={handleCopy} />}
       />

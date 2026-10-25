@@ -148,6 +148,7 @@ function fileMenu({ command, role }: Builders, can: Abilities, mac: boolean): Me
       command('saveSvg', 'menu.saveSvg', can.canEdit),
       command('export', 'menu.export', can.canEdit),
       command('copySvg', 'menu.copySvg', can.canEdit),
+      command('copyPng', 'menu.copyPng', can.canEdit),
       SEPARATOR,
       role('close', 'menu.closeWindow'),
       ...(mac ? [] : [role('quit', 'menu.quit')]),

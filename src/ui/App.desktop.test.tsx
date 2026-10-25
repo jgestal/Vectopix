@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
 import { renderWithServices } from '../test/renderWithServices';
@@ -80,6 +80,29 @@ describe('App in the desktop app', () => {
 
     await click('saveSvg');
     await waitFor(() => expect(desktop.closeConfirmation).toBeNull());
+  });
+
+  it('names the window after the image, and shows tracing progress on the Dock', async () => {
+    const { desktop, click, services } = renderDesktop();
+    expect(document.title).toBe('Vectopix');
+    await withSample(click, services);
+    expect(document.title).toBe('badge-crest.png — Vectopix');
+    expect(desktop.progress.at(-1)).toBeNull();
+  });
+
+  it('copies the trace as a PNG image from the menu', async () => {
+    const { click, services } = renderDesktop();
+    await withSample(click, services);
+    await click('copyPng');
+    await waitFor(() => expect(services.files.copyImage).toHaveBeenCalledWith(expect.any(Blob)));
+    expect(services.exporter.png).toHaveBeenCalledWith(expect.stringContaining('<svg'), { width: 120, height: 80 }, 2, 'transparent');
+  });
+
+  it('drags the SVG out of the status bar', async () => {
+    const { click, services } = renderDesktop();
+    await withSample(click, services);
+    fireEvent.dragStart(screen.getByRole('img', { name: /Drag the SVG/ }));
+    expect(services.files.dragOut).toHaveBeenCalledWith(expect.anything(), 'badge-crest.svg', expect.stringContaining('<svg'), 'image/svg+xml');
   });
 
   it('opens files the system hands over, and remembers files it opened', async () => {

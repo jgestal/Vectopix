@@ -43,7 +43,7 @@ describe('menu bar', () => {
 
   it('enables only what applies: nothing to save, edit or view without a trace', () => {
     const idle = buildMenu(IDLE, 'mac');
-    for (const c of ['saveSvg', 'export', 'copySvg', 'undo', 'simplifyNodes', 'restoreTrace', 'newImage', 'view.split', 'zoomIn', 'retrace']) {
+    for (const c of ['saveSvg', 'export', 'copySvg', 'copyPng', 'undo', 'simplifyNodes', 'restoreTrace', 'newImage', 'view.split', 'zoomIn', 'retrace']) {
       expect(find(idle, c).enabled, c).toBe(false);
     }
     for (const c of ['openImage', 'showAbout', 'showPreferences', 'showShortcuts']) expect(find(idle, c).enabled, c).toBe(true);

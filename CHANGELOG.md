@@ -2,6 +2,17 @@
 
 All notable changes to Vectopix. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Appearance**: light, dark or follow the system, from a button next to the language or in Settings. It is applied before the first paint (no flash) and, in the desktop app, to the native menus and dialogs too.
+- **Copy as PNG** (⌥⌘C, File menu, or *Copy Image* in the PNG export tab): the result as an image on the clipboard, ready to paste into any app.
+- **Drag the SVG out**: a *Drag SVG* handle in the status bar drops the file into another app or a folder (a real file in the desktop app).
+- Desktop: Save and Export use the system's save dialog, starting in the folder used last.
+- Desktop: the window is named after the image, shows the unsaved-changes dot on macOS, and reopens where it was left (back on screen if that monitor is gone).
+- Desktop: a trace's progress on the Dock icon or taskbar button.
+- Desktop: Vectopix appears in "Open with" for PNG, JPG, WebP, GIF, BMP, TGA and ICO images, without becoming their default app.
+
 ## [1.7.0] - 2026-10-25
 
 ### Added

@@ -26,6 +26,32 @@ describe('ExportModal', () => {
     expect(onShowToast).toHaveBeenCalledWith('logo.final.svg downloaded', 'success');
   });
 
+  it('says nothing when the save dialog is cancelled', async () => {
+    const { onShowToast } = renderExport({
+      files: { save: vi.fn(async () => 'cancelled' as const), copyText: vi.fn(), copyImage: vi.fn(), dragOut: vi.fn() },
+    });
+    await download();
+    expect(onShowToast).not.toHaveBeenCalled();
+  });
+
+  it('says "saved" for a file written through the save dialog', async () => {
+    const { onShowToast } = renderExport({
+      files: { save: vi.fn(async () => 'saved' as const), copyText: vi.fn(), copyImage: vi.fn(), dragOut: vi.fn() },
+    });
+    await download();
+    expect(onShowToast).toHaveBeenCalledWith('logo.final.svg saved', 'success');
+  });
+
+  it('copies the PNG as an image, at the chosen scale', async () => {
+    const { services, onShowToast } = renderExport();
+    await userEvent.click(screen.getByRole('tab', { name: 'High-res PNG' }));
+    await userEvent.click(screen.getByRole('button', { name: '4×' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Copy Image' }));
+    expect(services.exporter.png).toHaveBeenCalledWith(tracedResult().svg, { width: 120, height: 80 }, 4, 'transparent');
+    expect(services.files.copyImage).toHaveBeenCalledWith(expect.any(Blob));
+    expect(onShowToast).toHaveBeenCalledWith('Image copied: paste it anywhere', 'success');
+  });
+
   it('renders a PNG at the chosen scale and background', async () => {
     const { services } = renderExport();
     await userEvent.click(screen.getByRole('tab', { name: 'High-res PNG' }));

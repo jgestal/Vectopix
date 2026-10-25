@@ -8,7 +8,8 @@ import { browserImageSource, canvasImageDecoder } from '../infrastructure/browse
 import { canvasSampleRenderer } from '../infrastructure/browser/sampleImages';
 import { browserFileSaver } from '../infrastructure/browser/fileSaver';
 import { createSvgDom } from '../infrastructure/browser/svgDom';
-import { desktopShellFromWindow } from '../infrastructure/desktop/electronShell';
+import { createElectronShell } from '../infrastructure/desktop/electronShell';
+import { createDesktopFileSaver } from '../infrastructure/desktop/desktopFileSaver';
 import { drawingExporter } from '../infrastructure/drawingExporter';
 
 /**
@@ -17,14 +18,16 @@ import { drawingExporter } from '../infrastructure/drawingExporter';
  */
 export function createAppServices(): AppServices {
   const store = new LocalSettingsStore();
-  const desktop = desktopShellFromWindow();
+  // Present only in the desktop app (electron/preload.cjs)
+  const bridge = typeof window !== 'undefined' ? window.vectopixDesktop : undefined;
+  const desktop = bridge ? createElectronShell(bridge) : null;
   return {
     vectorization: workerVectorization,
     images: browserImageSource,
     decoder: canvasImageDecoder,
     samples: canvasSampleRenderer,
     exporter: drawingExporter,
-    files: browserFileSaver,
+    files: bridge ? createDesktopFileSaver(bridge) : browserFileSaver,
     svgDom: createSvgDom(),
     preferences: createPreferences(store),
     updates: desktop

@@ -1,5 +1,6 @@
 import { mergeKnown, type AllowedValues } from '../domain/settings';
 import { DEFAULT_OPTIONS } from '../domain/presets';
+import { THEME_PREFERENCES, type ThemePreference } from '../domain/theme';
 import type { VectorOptions } from '../domain/types';
 import type { SettingsStore } from './ports';
 
@@ -10,10 +11,14 @@ const APP_PREFERENCES_KEY = 'preferences';
 export interface AppPreferences {
   /** Desktop app: look for a new version once a day. */
   checkForUpdates: boolean;
+  theme: ThemePreference;
 }
-const APP_DEFAULTS: AppPreferences = { checkForUpdates: true };
+const APP_DEFAULTS: AppPreferences = { checkForUpdates: true, theme: 'system' };
+const APP_VALUES: AllowedValues<AppPreferences> = { theme: THEME_PREFERENCES };
 
-export const readAppPreferences = (store: SettingsStore): AppPreferences => mergeKnown(APP_DEFAULTS, store.read(APP_PREFERENCES_KEY));
+export const readAppPreferences = (store: SettingsStore): AppPreferences => mergeKnown(APP_DEFAULTS, store.read(APP_PREFERENCES_KEY), APP_VALUES);
+/** Where app preferences are stored (index.html reads the theme from it before the app starts). */
+export const APP_PREFERENCES_STORAGE_KEY = APP_PREFERENCES_KEY;
 
 const OPTION_VALUES: AllowedValues<VectorOptions> = {
   engine: ['vecline', 'imagetracer'],

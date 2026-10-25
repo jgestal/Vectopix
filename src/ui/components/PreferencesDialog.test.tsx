@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PreferencesDialog } from './PreferencesDialog';
 import { renderWithServices } from '../../test/renderWithServices';
@@ -19,7 +19,18 @@ describe('PreferencesDialog', () => {
     const box = screen.getByRole('checkbox', { name: /Check for updates/ }) as HTMLInputElement;
     expect(box.checked).toBe(true);
     await userEvent.click(box);
-    expect(services.preferences.loadAppPreferences()).toEqual({ checkForUpdates: false });
+    expect(services.preferences.loadAppPreferences()).toMatchObject({ checkForUpdates: false });
+  });
+
+  it('switches the theme at once, and remembers it', async () => {
+    const desktop = new FakeDesktopShell();
+    const { services } = renderWithServices(<PreferencesDialog onClose={vi.fn()} onReset={vi.fn()} />, { desktop });
+    const appearance = screen.getByRole('group', { name: 'Appearance' });
+    expect(within(appearance).getByRole('button', { name: 'System' }).getAttribute('aria-pressed')).toBe('true');
+    await userEvent.click(within(appearance).getByRole('button', { name: 'Dark' }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(desktop.theme).toBe('dark');
+    expect(services.preferences.loadAppPreferences()).toMatchObject({ theme: 'dark' });
   });
 
   it('forgets remembered settings when asked', async () => {

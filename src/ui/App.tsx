@@ -15,6 +15,7 @@ import { menuStateFrom, useDesktopMenu } from './hooks/useDesktopMenu';
 import { useHistoryNavigation } from './hooks/useHistoryNavigation';
 import { appCommandHandlers } from './appCommands';
 import { useSaving } from './hooks/useSaving';
+import { useWindowPresence } from './hooks/useWindowPresence';
 import { useUpdateCheck } from './hooks/useUpdateCheck';
 import { usePreference } from './hooks/usePreference';
 import { useVectorOptions } from './hooks/useVectorOptions';
@@ -129,7 +130,11 @@ export function App() {
     showToast(t('toast.presetApplied', { preset: t(presetNameKey(preset, options.traceMethod)) }), 'info');
   };
 
-  const saving = useSaving({ result, fileName: image?.fileName ?? null, showToast });
+  const fileName = image?.fileName ?? null;
+  // Stable between renders: the canvas refits whenever this object changes
+  const imageDimensions = useMemo(() => image && { width: image.width, height: image.height }, [image]);
+  const saving = useSaving({ result, fileName: fileName, size: imageDimensions, showToast });
+  useWindowPresence({ fileName: fileName, progress: engine.progress });
   const updateCheck = useUpdateCheck(showToast);
 
   const openImage = useCallback(() => fileInputRef.current?.click(), []);
@@ -161,6 +166,7 @@ export function App() {
       saveSvg: saving.saveSvg,
       openExport: () => setDialog('export'),
       copySvg: edits.copySvg,
+      copyPng: saving.copyPng,
       undo,
       redo,
       simplifyNodes: edits.simplifyNodes,
@@ -190,9 +196,6 @@ export function App() {
   useDesktopMenu(
     menuStateFrom({ hasImage: !!image, result, isProcessing: engine.isProcessing, canUndo: drawing.canUndo, canRedo: drawing.canRedo, options, viewMode, renderMode })
   );
-
-  // Stable between renders: the canvas refits whenever this object changes
-  const imageDimensions = useMemo(() => image && { width: image.width, height: image.height }, [image]);
 
   return (
     <div
@@ -276,7 +279,7 @@ export function App() {
             />
           </div>
 
-          <MetricsBar result={result} progress={engine.progress} />
+          <MetricsBar result={result} progress={engine.progress} fileName={image.fileName} />
         </div>
       )}
 
@@ -284,7 +287,7 @@ export function App() {
         dialog={dialog}
         onClose={() => setDialog(null)}
         result={result}
-        fileName={image?.fileName ?? null}
+        fileName={fileName}
         imageDimensions={imageDimensions}
         historyIndex={drawing.index}
         showToast={showToast}

@@ -12,6 +12,19 @@
       content="Vectopix: turn raster images (PNG, JPG, WebP, BMP) into clean vector graphics (SVG, DXF, EPS, PDF) with sub-pixel Bézier curve fitting, right in your browser."
     />
     <title>Vectopix</title>
+    <script>
+      // The theme before the first paint, so a dark setup never flashes light.
+      // Same rule as src/domain/theme.ts; ui/theme.ts takes over once loaded.
+      (function () {
+        var preference = 'system';
+        try {
+          var saved = JSON.parse(localStorage.getItem('vectopix.preferences') || '{}').theme;
+          if (saved === 'light' || saved === 'dark') preference = saved;
+        } catch (e) {}
+        var dark = preference === 'dark' || (preference === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

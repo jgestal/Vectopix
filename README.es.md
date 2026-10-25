@@ -32,7 +32,7 @@
 
 ## Características
 
-- **Un espacio de trabajo tranquilo y legible**: el lienzo es una alfombrilla de corte, los ajustes están en un solo panel con los avanzados plegados, y la interfaz sigue el modo claro u oscuro de tu sistema.
+- **Un espacio de trabajo tranquilo y legible**: el lienzo es una alfombrilla de corte, los ajustes están en un solo panel con los avanzados plegados, y la interfaz es clara, oscura o sigue la de tu sistema (el botón junto al idioma, o Ajustes).
 - **Geometría limpia, no píxeles calcados**: los bordes rectos salen como una sola recta, las esquinas son nítidas y los arcos son arcos de circunferencia de verdad. Un logo plano queda con los pocos nodos que dibujaría un diseñador: el logo hexagonal de ejemplo tiene unos 50 nodos en lugar de varios cientos.
 - **Detección automática de colores**: encuentra los colores reales de la imagen y los usa tal cual, ignorando los píxeles mezclados del antialiasing, así que no se fusionan colores parecidos ni aparecen contornos fantasma. También con JPEG: los tonos casi idénticos que deja la compresión cuentan como un solo color.
 - **Trazado sub-píxel** con [vecline](https://www.npmjs.com/package/vecline): cuantización de color en Oklab, reconstrucción del anti-aliasing, fronteras compartidas entre formas vecinas y detección de círculos, elipses y rectángulos. ImageTracerJS está disponible como motor alternativo.
@@ -49,7 +49,7 @@
 - **Comparación visual**: cortinilla antes/después, vista doble, solo vector o solo raster, modo contornos y rejilla de píxeles al hacer zoom.
 - **Editor de nodos Bézier**: mueve anclas y tiradores, alterna curva/esquina, divide tramos, elimina nodos y simplifica trazados, con deshacer y rehacer. Admite todos los comandos de trazado SVG, arcos incluidos, y guarda las ediciones en formato compacto para que el archivo no engorde.
 - **Gestión de paleta**: la caja de colores muestra la paleta del trazado; haz clic en un color para sustituirlo en todo el gráfico (degradados incluidos) o hacerlo transparente.
-- **Exportación**: SVG optimizado, PNG a @1x–@8x, componentes React/Vue/Svelte, DXF (láser/CNC), EPS (imprenta) y PDF vectorial. Todos los formatos incluyen tus ediciones de nodos y colores.
+- **Exportación**: SVG optimizado, PNG a @1x–@8x, componentes React/Vue/Svelte, DXF (láser/CNC), EPS (imprenta) y PDF vectorial. Todos los formatos incluyen tus ediciones de nodos y colores. Copia el resultado como imagen PNG para pegarlo en cualquier app, o arrastra el SVG desde la barra de estado directamente a otra app o a una carpeta.
 - **Recuerda tus preferencias**: los ajustes que eliges y cómo exportas se mantienen para la próxima vez. Las muestras incluidas traen su propio preset sin pisar el tuyo.
 - **8 idiomas**: español, inglés, alemán, francés, italiano, portugués, chino y japonés. La app usa el idioma de tu sistema y recuerda tu elección.
 - **Todo en local**: el motor corre en un Web Worker, así que la interfaz no se bloquea, y no se sube nada a ningún servidor. Las fuentes también van incluidas, así que la app de escritorio funciona sin conexión. La única petición que hace la app de escritorio es preguntar a GitHub, como mucho una vez al día, cuál es la última versión, para avisarte cuando haya una nueva (no se envía ninguna imagen ni dato de uso).
@@ -133,6 +133,8 @@ Abre la URL que muestra Vite (normalmente `http://localhost:5173`). Arrastra una
 2. Etiqueta el commit y sube la etiqueta: `git tag v1.2.3 && git push origin v1.2.3`.
 3. El workflow **Release** compila las apps en macOS, Windows y Linux, más el zip web, y las publica como release de GitHub. Sus notas son la sección del CHANGELOG de esa versión más la tabla de descargas; una etiqueta sin sección en el CHANGELOG falla antes de compilar nada.
 
+Para probar una release antes, lanza el workflow **Release** a mano (Actions → Release → Run workflow): compila todo en los tres sistemas y guarda los instaladores como artefactos del workflow, sin publicar nada.
+
 Además, cada push a `main` pasa los tests unitarios y de navegador y despliega la versión web en GitHub Pages.
 
 ## Menús de la app de escritorio
@@ -141,13 +143,15 @@ La app de escritorio tiene una barra de menús nativa completa, en tu idioma, si
 
 | Menú | Qué contiene |
 | ---- | ------------ |
-| **Archivo** | Nuevo, Abrir imagen… <kbd>⌘O</kbd>, Abrir recientes (macOS), Imágenes de ejemplo, Guardar como SVG… <kbd>⌘S</kbd>, Exportar… <kbd>⌘E</kbd>, Copiar código SVG <kbd>⇧⌘C</kbd> |
+| **Archivo** | Nuevo, Abrir imagen… <kbd>⌘O</kbd>, Abrir recientes (macOS), Imágenes de ejemplo, Guardar como SVG… <kbd>⌘S</kbd>, Exportar… <kbd>⌘E</kbd>, Copiar código SVG <kbd>⇧⌘C</kbd>, Copiar como PNG <kbd>⌥⌘C</kbd> |
 | **Edición** | Deshacer / Rehacer, portapapeles, Simplificar nodos, Restaurar trazado original, Ajustes… (Windows, Linux) |
 | **Visualización** | Comparar / Doble / Solo vector / Solo original <kbd>⌘1</kbd>–<kbd>⌘4</kbd>, Relleno / Contornos / Editor de nodos, zoom <kbd>⌘+</kbd> <kbd>⌘−</kbd> <kbd>⌘0</kbd> <kbd>⌘9</kbd>, pantalla completa |
 | **Imagen** | Preset, método de vectorización, colores automáticos, fondo transparente, Re-vectorizar ahora <kbd>⌘R</kbd> |
 | **Ayuda** | Atajos de teclado, novedades de la versión, la versión web, el código fuente, Informar de un problema… |
 
-Las opciones se activan y se marcan según lo que hay en pantalla. **Ajustes…** (<kbd>⌘,</kbd>) contiene las preferencias de la propia app: idioma, búsqueda automática de actualizaciones y restaurar los ajustes recordados. Los archivos abiertos desde el Dock, el Finder o «Abrir con» se cargan directamente, y cerrar la ventana con ediciones sin guardar pide confirmación. En Windows y Linux, <kbd>⌘</kbd> es <kbd>Ctrl</kbd>.
+Las opciones se activan y se marcan según lo que hay en pantalla. **Ajustes…** (<kbd>⌘,</kbd>) contiene las preferencias de la propia app: idioma, apariencia (clara, oscura o la del sistema, menús y diálogos incluidos), búsqueda automática de actualizaciones y restaurar los ajustes recordados.
+
+La app se comporta como el resto de tu escritorio: Guardar y Exportar usan el diálogo de guardado del sistema, empezando en la última carpeta usada; la ventana lleva el nombre de la imagen (con el punto de cambios sin guardar en macOS) y se vuelve a abrir donde la dejaste; el icono del Dock o de la barra de tareas muestra el progreso de la vectorización. Al instalarla, Vectopix aparece en «Abrir con» para imágenes PNG, JPG, WebP, GIF, BMP, TGA e ICO, sin convertirse en su app predeterminada. Los archivos abiertos desde el Dock, el Finder o «Abrir con» se cargan directamente, y cerrar la ventana con ediciones sin guardar pide confirmación. En Windows y Linux, <kbd>⌘</kbd> es <kbd>Ctrl</kbd>.
 
 **Acerca de Vectopix** — Vectopix está hecho por **Juan Gestal** · [gestal.es](https://gestal.es) · [juan@gestal.es](mailto:juan@gestal.es)
 

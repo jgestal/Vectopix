@@ -1,6 +1,7 @@
 import type { Raster } from '../domain/raster/raster';
 import type { MenuPlatform, MenuSection } from '../domain/menu';
 import type { AppCommand } from '../domain/commands';
+import type { ThemePreference } from '../domain/theme';
 import type { PaletteCandidate, Rgb } from '../domain/palette/colors';
 import type { ComponentFramework } from '../domain/export/exportFiles';
 import type { ExportFormat, ProgressStage, VectorOptions, VectorResult, WorkerProgress } from '../domain/types';
@@ -122,10 +123,20 @@ export interface DrawingExporter {
   minify(svg: string): string;
 }
 
-/** Hands files and text to the person: downloads, clipboard. */
+/**
+ * How a save ended: a download (the browser puts it in Downloads), a file
+ * written where the person chose (desktop app), or cancelled in the dialog.
+ */
+export type SaveOutcome = 'downloaded' | 'saved' | 'cancelled';
+
+/** Hands files, text and images to the person: saving, the clipboard, dragging out. */
 export interface FileSaver {
-  save(content: string | Uint8Array | Blob, fileName: string, mimeType: string): void;
+  save(content: string | Uint8Array | Blob, fileName: string, mimeType: string): Promise<SaveOutcome>;
   copyText(text: string): Promise<void>;
+  /** An image (PNG) to the clipboard, to paste into documents and chats. */
+  copyImage(png: Blob): Promise<void>;
+  /** Make a drag that started on the page carry a file out of the app. */
+  dragOut(event: DragEvent, fileName: string, content: string, mimeType: string): void;
 }
 
 // ── Desktop app ─────────────────────────────────────────────────────────────
@@ -156,6 +167,13 @@ export interface DesktopShell {
   onOpenFile(handler: (file: File) => void): () => void;
   /** Add a file the user opened to the system's recent files. */
   rememberFile(file: File): void;
-  /** Ask before closing while `confirm` is set; never ask when null. */
+  /**
+   * Ask before closing while `confirm` is set; never ask when null. Set also
+   * marks the window as having unsaved changes (the dot in macOS's close button).
+   */
   setCloseConfirmation(confirm: CloseConfirmation | null): void;
+  /** Progress of the work in hand on the Dock / taskbar icon (0–1); null hides it. */
+  setProgress(fraction: number | null): void;
+  /** Native menus and dialogs in the app's theme. */
+  setTheme(preference: ThemePreference): void;
 }

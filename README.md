@@ -32,7 +32,7 @@
 
 ## Features
 
-- **A calm, legible workspace**: the canvas is a cutting mat, settings stay in one panel with the advanced ones folded away, and the interface follows your system's light or dark mode.
+- **A calm, legible workspace**: the canvas is a cutting mat, settings stay in one panel with the advanced ones folded away, and the interface is light, dark or follows your system (the button next to the language, or Settings).
 - **Clean geometry, not traced pixels**: straight edges come out as single straight lines, corners are sharp and arcs are true circular arcs. A flat logo becomes the handful of nodes a designer would draw: the sample hexagon logo has about 50 nodes instead of several hundred.
 - **Automatic colour detection**: the real colours of the image are found and used as-is, while the blended pixels of anti-aliased edges are ignored, so similar colours are never merged and no ghost outlines appear. JPEG noise is handled too: the near-identical shades compression leaves behind count as one colour.
 - **Sub-pixel tracing** powered by [vecline](https://www.npmjs.com/package/vecline): Oklab colour quantization, anti-aliasing reconstruction, shared boundaries between neighbouring shapes and detection of circles, ellipses and rectangles. ImageTracerJS is available as an alternative engine.
@@ -49,7 +49,7 @@
 - **Visual comparison**: before/after split, side-by-side, vector only or raster only, outline mode and a pixel grid when zoomed in.
 - **Bézier node editor**: move anchors and handles, toggle curve/corner, split segments, delete nodes and simplify paths, with undo and redo. It handles every SVG path command, arcs included, and stores edits compactly so the file doesn't grow.
 - **Palette management**: the colour box shows the traced palette; click a colour to replace it across the whole drawing (gradients included) or make it transparent.
-- **Export**: optimized SVG, PNG at @1x–@8x, React/Vue/Svelte components, DXF (laser/CNC), EPS (print) and vector PDF. Every format includes your node and colour edits.
+- **Export**: optimized SVG, PNG at @1x–@8x, React/Vue/Svelte components, DXF (laser/CNC), EPS (print) and vector PDF. Every format includes your node and colour edits. Copy the result as a PNG image to paste into any app, or drag the SVG from the status bar straight into another app or a folder.
 - **Remembers your choices**: the settings you pick and how you export are kept for next time. The built-in samples bring their own preset without overwriting yours.
 - **8 languages**: English, Spanish, German, French, Italian, Portuguese, Chinese and Japanese. The app picks your system language and remembers your choice.
 - **Fully local**: the engine runs in a Web Worker, so the interface never freezes, and nothing is uploaded anywhere. Fonts are bundled too, so the desktop app works offline. The only request the desktop app makes is to ask GitHub, at most once a day, for the latest version number, so it can tell you when a new release is out (no image or usage data is sent).
@@ -133,6 +133,8 @@ Open the URL Vite prints (usually `http://localhost:5173`). Drop an image, paste
 2. Tag the commit and push the tag: `git tag v1.2.3 && git push origin v1.2.3`.
 3. The **Release** workflow builds the apps on macOS, Windows and Linux plus the web zip, and publishes them as a GitHub release. Its notes are that version's CHANGELOG section plus the download table; a tag without a CHANGELOG section fails before anything is built.
 
+To try a release first, run the **Release** workflow by hand (Actions → Release → Run workflow): it builds everything on the three systems and keeps the installers as workflow artifacts, without publishing anything.
+
 Every push to `main` also runs the unit and browser tests and deploys the web version to GitHub Pages.
 
 ## Desktop app menus
@@ -141,13 +143,15 @@ The desktop app has a full native menu bar, in your language, following each sys
 
 | Menu | What's in it |
 | ---- | ------------ |
-| **File** | New, Open Image… <kbd>⌘O</kbd>, Open Recent (macOS), Sample Images, Save as SVG… <kbd>⌘S</kbd>, Export… <kbd>⌘E</kbd>, Copy SVG Code <kbd>⇧⌘C</kbd> |
+| **File** | New, Open Image… <kbd>⌘O</kbd>, Open Recent (macOS), Sample Images, Save as SVG… <kbd>⌘S</kbd>, Export… <kbd>⌘E</kbd>, Copy SVG Code <kbd>⇧⌘C</kbd>, Copy as PNG <kbd>⌥⌘C</kbd> |
 | **Edit** | Undo / Redo, clipboard, Simplify Nodes, Restore Original Trace, Settings… (Windows, Linux) |
 | **View** | Compare / Side by Side / Vector Only / Original Only <kbd>⌘1</kbd>–<kbd>⌘4</kbd>, Fill / Outlines / Node Editor, zoom <kbd>⌘+</kbd> <kbd>⌘−</kbd> <kbd>⌘0</kbd> <kbd>⌘9</kbd>, full screen |
 | **Image** | Preset, tracing method, automatic colours, transparent background, Re-vectorize Now <kbd>⌘R</kbd> |
 | **Help** | Keyboard shortcuts, release notes, the web version, source code, Report a Problem… |
 
-Items are enabled and checked to match what's on screen. **Settings…** (<kbd>⌘,</kbd>) holds the app's own preferences: language, automatic update checks, and restoring the remembered settings. Files opened from the Dock, Finder or "Open with" load straight in, and closing the window with unsaved hand edits asks first. On Windows and Linux, <kbd>⌘</kbd> is <kbd>Ctrl</kbd>.
+Items are enabled and checked to match what's on screen. **Settings…** (<kbd>⌘,</kbd>) holds the app's own preferences: language, appearance (light, dark or the system's, menus and dialogs included), automatic update checks, and restoring the remembered settings.
+
+The app behaves like the rest of your desktop: Save and Export use the system's save dialog, starting in the folder you used last; the window is named after the image (with the unsaved-changes dot on macOS) and reopens where you left it; the Dock or taskbar icon shows a trace's progress. Installing it adds Vectopix to "Open with" for PNG, JPG, WebP, GIF, BMP, TGA and ICO images, without becoming their default app. Files opened from the Dock, Finder or "Open with" load straight in, and closing the window with unsaved hand edits asks first. On Windows and Linux, <kbd>⌘</kbd> is <kbd>Ctrl</kbd>.
 
 **About Vectopix** — Vectopix is made by **Juan Gestal** · [gestal.es](https://gestal.es) · [juan@gestal.es](mailto:juan@gestal.es)
 

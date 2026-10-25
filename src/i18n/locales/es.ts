@@ -368,6 +368,17 @@ export const es = {
   'update.checking': "Buscando actualizaciones…",
   'update.upToDate': "Vectopix {version} es la última versión",
   'update.failed': "No se pudo comprobar si hay actualizaciones. Revisa la conexión e inténtalo de nuevo.",
+  'export.saved': "{file} guardado",
+  'export.copyImage': "Copiar imagen",
+  'export.imageCopied': "Imagen copiada: pégala donde quieras",
+  'export.copyImageFailed': "No se pudo copiar la imagen",
+  'menu.copyPng': "Copiar como PNG",
+  'metrics.drag': "Arrastrar SVG",
+  'metrics.dragTitle': "Arrastra el SVG a otra app o a una carpeta",
+  'prefs.theme': "Apariencia",
+  'prefs.themeSystem': "Sistema",
+  'prefs.themeLight': "Clara",
+  'prefs.themeDark': "Oscura",
 };
 
 export type MessageKey = keyof typeof es;
