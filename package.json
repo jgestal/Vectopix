@@ -1,7 +1,7 @@
 {
   "name": "vectopix",
   "private": true,
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Raster to vector (SVG, DXF, EPS, PDF) converter that runs entirely on your machine, with a Bézier node editor.",
   "author": {
     "name": "Juan Gestal",

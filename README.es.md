@@ -71,7 +71,7 @@
   </tr>
   <tr>
     <td align="center"><b>Vista doble</b>: original y vector lado a lado</td>
-    <td align="center"><b>Modo oscuro</b>: sigue la configuración de tu sistema</td>
+    <td align="center"><b>Modo oscuro</b>: claro, oscuro o el de tu sistema</td>
   </tr>
   <tr>
     <td><img src="docs/es/centerline.png" alt="Trazado de línea central de una firma" /></td>
@@ -80,6 +80,19 @@
   <tr>
     <td align="center"><b>Línea central</b>: trazos de un solo hilo para láser y CNC</td>
     <td align="center"><b>Exportación</b>: SVG, PNG, componentes, DXF, EPS y PDF</td>
+  </tr>
+</table>
+
+### App de escritorio
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/es/desktop.png" alt="La app de escritorio de Vectopix en macOS, con la ventana titulada con la imagen vectorizada" /></td>
+    <td width="50%"><img src="docs/es/desktop-dark.png" alt="La app de escritorio en modo oscuro con los Ajustes abiertos" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>macOS</b>: menús nativos y la ventana con el nombre de la imagen</td>
+    <td align="center"><b>Ajustes</b> (<kbd>⌘,</kbd>): idioma, apariencia y actualizaciones</td>
   </tr>
 </table>
 

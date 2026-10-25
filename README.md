@@ -71,7 +71,7 @@
   </tr>
   <tr>
     <td align="center"><b>Dual view</b>: original and vector side by side</td>
-    <td align="center"><b>Dark mode</b>: follows your system setting</td>
+    <td align="center"><b>Dark mode</b>: light, dark or your system's</td>
   </tr>
   <tr>
     <td><img src="docs/en/centerline.png" alt="Centerline trace of a signature" /></td>
@@ -80,6 +80,19 @@
   <tr>
     <td align="center"><b>Centerline</b>: single-stroke paths for laser and CNC</td>
     <td align="center"><b>Export</b>: SVG, PNG, components, DXF, EPS and PDF</td>
+  </tr>
+</table>
+
+### Desktop app
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/en/desktop.png" alt="The Vectopix desktop app on macOS, its window named after the traced image" /></td>
+    <td width="50%"><img src="docs/en/desktop-dark.png" alt="The desktop app in dark mode with Settings open" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>macOS</b>: native menus, the window named after the image</td>
+    <td align="center"><b>Settings</b> (<kbd>⌘,</kbd>): language, appearance and updates</td>
   </tr>
 </table>
 
