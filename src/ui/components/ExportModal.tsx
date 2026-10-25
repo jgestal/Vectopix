@@ -124,9 +124,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseF
       const content = await produce[activeTab]();
       if (content === null) return onShowToast(t('export.notAvailable', { format: activeTab.toUpperCase() }), 'warning');
       const outcome = await files.save(content, fileName, EXPORT_MIME[activeTab]);
-      if (outcome === 'cancelled') return;
+      if (outcome.status === 'cancelled') return;
       onSaved?.();
-      onShowToast(t(outcome === 'saved' ? 'export.saved' : 'export.downloaded', { file: fileName }), 'success');
+      onShowToast(t(outcome.status === 'saved' ? 'export.saved' : 'export.downloaded', { file: outcome.fileName }), 'success');
     } catch (err) {
       onShowToast(errorMessage(err, t) ?? t('toast.unknownError'), 'warning');
     } finally {

@@ -140,11 +140,12 @@ ipcMain.handle('file:save', async (event, { fileName, data, filterName, extensio
   const folder = state.get('lastDir') ?? app.getPath('downloads');
   const filters = extensions.length ? [{ name: filterName, extensions }] : [];
   const { canceled, filePath } = await dialog.showSaveDialog(win, { defaultPath: path.join(folder, path.basename(fileName)), filters });
-  if (canceled || !filePath) return false;
+  if (canceled || !filePath) return null;
   await fs.writeFile(filePath, data);
   state.set('lastDir', path.dirname(filePath));
   app.addRecentDocument(filePath);
-  return true;
+  // The name the person may have changed in the dialog, for the confirmation
+  return path.basename(filePath);
 });
 
 // Drag a file out of the window: a real file, written to a temporary folder first

@@ -55,7 +55,7 @@ test('Save as uses the native dialog, and starts in the last folder next time', 
   await waitForTrace();
 
   await clickMenu('saveSvg');
-  await expect(page.locator('.toast-success')).toContainText('saved');
+  await expect(page.locator('.toast-success')).toContainText('logo.svg saved');
   expect(readFileSync(join(folder, 'logo.svg'), 'utf8')).toContain('<svg');
 
   await clickMenu('saveSvg');

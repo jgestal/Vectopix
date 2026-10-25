@@ -20,8 +20,8 @@ export function createDesktopFileSaver(bridge: DesktopBridge): FileSaver {
   return {
     async save(content, fileName) {
       const ext = extensionOf(fileName);
-      const written = await bridge.saveFile({ fileName, data: await bytes(content), filterName: ext.toUpperCase(), extensions: ext ? [ext] : [] });
-      return written ? 'saved' : 'cancelled';
+      const saved = await bridge.saveFile({ fileName, data: await bytes(content), filterName: ext.toUpperCase(), extensions: ext ? [ext] : [] });
+      return saved ? { status: 'saved', fileName: saved } : { status: 'cancelled' };
     },
     copyText: browserFileSaver.copyText,
     copyImage: browserFileSaver.copyImage,

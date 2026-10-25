@@ -18,7 +18,7 @@ function fakeBridge(platform: DesktopBridge['platform'] = 'darwin') {
     onOpenFile: vi.fn((h) => ((listeners.file = h as never), () => {})),
     rememberFile: vi.fn(),
     setCloseConfirmation: vi.fn(),
-    saveFile: vi.fn(async () => true),
+    saveFile: vi.fn(async () => 'logo.svg'),
     startDrag: vi.fn(),
     setProgress: vi.fn(),
     setTheme: vi.fn(),

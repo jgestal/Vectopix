@@ -21,6 +21,6 @@ describe('browser file saver', () => {
   });
 
   it('reports a download', async () => {
-    expect(await browserFileSaver.save('<svg/>', 'logo.svg', 'image/svg+xml')).toBe('downloaded');
+    expect(await browserFileSaver.save('<svg/>', 'logo.svg', 'image/svg+xml')).toEqual({ status: 'downloaded', fileName: 'logo.svg' });
   });
 });

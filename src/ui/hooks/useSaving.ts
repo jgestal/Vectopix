@@ -44,9 +44,9 @@ export function useSaving({
       if (!result || !fileName) return;
       const name = exportFileName('svg', fileName, { pngScale: 1, framework: 'react' });
       const outcome = await files.save(exporter.minify(result.svg), name, EXPORT_MIME.svg);
-      if (outcome === 'cancelled') return;
+      if (outcome.status === 'cancelled') return;
       setSavedSvg(result.svg);
-      showToast(t(outcome === 'saved' ? 'export.saved' : 'export.downloaded', { file: name }), 'success');
+      showToast(t(outcome.status === 'saved' ? 'export.saved' : 'export.downloaded', { file: outcome.fileName }), 'success');
     },
     /** The drawing as a PNG on the clipboard (transparent background, twice the size). */
     async copyPng() {

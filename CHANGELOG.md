@@ -2,6 +2,11 @@
 
 All notable changes to Vectopix. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Desktop: after renaming the file in the save dialog, the confirmation named the suggested file instead of the one saved.
+
 ## [1.8.0] - 2026-10-25
 
 ### Added

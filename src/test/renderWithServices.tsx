@@ -60,7 +60,7 @@ export function fakeServices(overrides: Partial<AppServices> = {}) {
       component: vi.fn(() => 'export function VectorGraphic() {}'),
       minify: vi.fn((svg: string) => svg),
     },
-    files: { save: vi.fn(async () => 'downloaded' as const), copyText: vi.fn(async () => {}), copyImage: vi.fn(async () => {}), dragOut: vi.fn() },
+    files: { save: vi.fn(async (_content: unknown, fileName: string) => ({ status: 'downloaded' as const, fileName })), copyText: vi.fn(async () => {}), copyImage: vi.fn(async () => {}), dragOut: vi.fn() },
     svgDom: createSvgDom(),
     preferences: createPreferences(store),
     updates: null,

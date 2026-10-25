@@ -126,8 +126,9 @@ export interface DrawingExporter {
 /**
  * How a save ended: a download (the browser puts it in Downloads), a file
  * written where the person chose (desktop app), or cancelled in the dialog.
+ * `fileName` is the name the file got, which the person may have changed.
  */
-export type SaveOutcome = 'downloaded' | 'saved' | 'cancelled';
+export type SaveOutcome = { status: 'downloaded' | 'saved'; fileName: string } | { status: 'cancelled' };
 
 /** Hands files, text and images to the person: saving, the clipboard, dragging out. */
 export interface FileSaver {

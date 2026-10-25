@@ -36,8 +36,8 @@ export interface DesktopBridge {
   onOpenFile(handler: (file: { name: string; type: string; data: Uint8Array }) => void): () => void;
   rememberFile(file: File): void;
   setCloseConfirmation(confirm: { title: string; message: string; discard: string; cancel: string } | null): void;
-  /** Save through the native dialog (starting in the last folder used): whether a file was written. */
-  saveFile(request: { fileName: string; data: Uint8Array; filterName: string; extensions: string[] }): Promise<boolean>;
+  /** Save through the native dialog (starting in the last folder used): the name the file got, or null if cancelled. */
+  saveFile(request: { fileName: string; data: Uint8Array; filterName: string; extensions: string[] }): Promise<string | null>;
   /** Start dragging a file out of the window (written to a temporary folder first). */
   startDrag(file: { fileName: string; data: Uint8Array }): void;
   setProgress(fraction: number | null): void;

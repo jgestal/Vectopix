@@ -28,18 +28,18 @@ describe('ExportModal', () => {
 
   it('says nothing when the save dialog is cancelled', async () => {
     const { onShowToast } = renderExport({
-      files: { save: vi.fn(async () => 'cancelled' as const), copyText: vi.fn(), copyImage: vi.fn(), dragOut: vi.fn() },
+      files: { save: vi.fn(async () => ({ status: 'cancelled' as const })), copyText: vi.fn(), copyImage: vi.fn(), dragOut: vi.fn() },
     });
     await download();
     expect(onShowToast).not.toHaveBeenCalled();
   });
 
-  it('says "saved" for a file written through the save dialog', async () => {
+  it('says "saved", with the name chosen in the save dialog', async () => {
     const { onShowToast } = renderExport({
-      files: { save: vi.fn(async () => 'saved' as const), copyText: vi.fn(), copyImage: vi.fn(), dragOut: vi.fn() },
+      files: { save: vi.fn(async () => ({ status: 'saved' as const, fileName: 'brand.svg' })), copyText: vi.fn(), copyImage: vi.fn(), dragOut: vi.fn() },
     });
     await download();
-    expect(onShowToast).toHaveBeenCalledWith('logo.final.svg saved', 'success');
+    expect(onShowToast).toHaveBeenCalledWith('brand.svg saved', 'success');
   });
 
   it('copies the PNG as an image, at the chosen scale', async () => {

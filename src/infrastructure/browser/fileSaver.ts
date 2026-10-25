@@ -15,7 +15,7 @@ export const browserFileSaver: FileSaver = {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    return 'downloaded';
+    return { status: 'downloaded', fileName };
   },
   copyText: (text) => navigator.clipboard.writeText(text),
   copyImage: (png) => navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]),
