@@ -176,6 +176,20 @@ test.describe('editing', () => {
     expect(centre).toBe(255);
   });
 
+  test('the mouse wheel zooms the canvas, and the zoom stays', async ({ page }) => {
+    const zoom = page.locator('.zoom-value');
+    await expect(zoom).toHaveText('100%');
+    const box = (await page.locator('.studio-viewport').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    for (let i = 0; i < 3; i++) await page.mouse.wheel(0, -120);
+    await expect(zoom).not.toHaveText('100%');
+    const zoomed = await zoom.innerText();
+    // Re-renders (a notice, a re-trace) must not reset it
+    await page.keyboard.press('w');
+    await page.waitForTimeout(300);
+    await expect(zoom).toHaveText(zoomed);
+  });
+
   test('the side-by-side label counts the same shapes as the status bar', async ({ page }) => {
     const shapes = await page.locator('.status-metrics div', { hasText: 'Paths' }).locator('dd').innerText();
     await page.keyboard.press('d');

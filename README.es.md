@@ -121,6 +121,7 @@ Abre la URL que muestra Vite (normalmente `http://localhost:5173`). Arrastra una
 | `npm run preview`      | Sirve el build de producción                                |
 | `npm test`             | Ejecuta los tests unitarios (Vitest)                        |
 | `npm run test:e2e`     | Compila y ejecuta los tests de navegador (Playwright, Chromium) |
+| `npm run test:coverage` | Tests unitarios y de integración con cobertura (umbrales por capa) |
 | `npm run lint`         | Lint con Oxlint                                             |
 | `npm run desktop`      | Compila y abre la app de escritorio (Electron)              |
 | `npm run dist:desktop` | Genera los instaladores de escritorio de tu sistema en `release/` |
@@ -154,28 +155,34 @@ Además, cada push a `main` pasa los tests unitarios y de navegador y despliega 
 
 ```
 src/
-├── App.tsx                     Estado de la app: imagen, opciones, resultado, historial
-├── i18n/                       Traducciones: runtime ligero, un archivo por idioma
-├── config/presets.ts           Opciones por defecto y tabla única de presets
-├── services/
-│   ├── vectorEngine.ts         Motor puro (sin DOM ni worker): detección de colores, trazado y SSIM
-│   ├── svgRefine.ts            Limpieza geométrica: rectas, esquinas nítidas y arcos de circunferencia
-│   ├── svgStack.ts             Apilado sin grietas: las formas que rellenan un hueco se pintan sobre una forma entera
-│   ├── svgBackground.ts        Fondo transparente, eliminado sobre los vectores
-│   ├── pixelTrace.ts           Trazado exacto sobre la rejilla de píxeles (pixel art)
-│   └── vectorWorkerClient.ts   Cliente del worker: peticiones, progreso y cancelación
-├── workers/vector.worker.ts    Envoltorio fino del motor dentro del Web Worker
-├── components/                 Barra superior, controles del lienzo, Viewport (lienzo y editor de nodos), ajustes, diálogos…
-│   └── ui/                     Piezas compartidas (diálogo)
-└── utils/
-    ├── pathParser.ts           Parser y editor de trazados SVG (anclas, tiradores, simplificación)
-    ├── svgExport.ts            SVG (editado) → geometría para DXF / EPS / PDF
-    ├── centerlineExport.ts     Escritores DXF / EPS / PDF para trazados de línea central
-    ├── fidelity.ts             Renderiza el SVG para medir su fidelidad frente al original
-    └── …                       Preprocesado, paleta, exportación y carga de imágenes
+├── domain/                     Reglas puras: sin librerías, sin APIs del navegador, sin React
+│   ├── geometry/               Datos de trazado SVG, modelo de documento, edición de nodos, simplificación
+│   ├── vectorization/          Reajuste geométrico, apilado sin grietas, quitar el fondo, rejilla de píxeles
+│   ├── palette/                Selección de colores reales (ruido JPEG, mezclas de antialiasing), recoloreado
+│   ├── raster/                 Detección de recortes y de pixel art
+│   └── …                       Presets, historial, ediciones del dibujo, atajos, nombres de exportación
+├── application/                Casos de uso y los puertos que necesitan (ports.ts)
+│   ├── vectorizeImage.ts       Paleta → estrategia de trazado → pasos de limpieza
+│   ├── prepareImage.ts         Decodificar, reducir, avisos
+│   ├── preferences.ts          Ajustes recordados, validados al leerlos
+│   └── checkForUpdate.ts       Aviso de nueva versión de la app de escritorio
+├── infrastructure/             Adaptadores que implementan los puertos
+│   ├── vecline/, imagetracer/  Motores de trazado; engine.ts los monta para el worker
+│   ├── worker/                 Web Worker y su cliente (cancelación, progreso)
+│   ├── browser/                Carga de imágenes, canvas, descargas, parser XML
+│   ├── storage/, github/       localStorage, consulta de la última versión
+│   └── drawingExporter.ts      PNG, componentes, DXF / EPS / PDF
+├── ui/                         React: App, componentes, hooks
+│   ├── compositionRoot.ts      El único sitio que construye los servicios concretos
+│   └── services/               El contrato de servicios inyectados (AppServices)
+└── i18n/                       Traducciones: runtime ligero, un archivo por idioma
+tests/
+├── architecture/               Regla de dependencias: apuntan hacia dentro
+└── e2e/                        Tests de navegador (Playwright)
 electron/main.cjs               App de escritorio: sirve dist/ desde un origen privado app://
-tests/e2e/                      Tests de navegador (Playwright)
 ```
+
+**Capas y pruebas.** Las dependencias apuntan hacia dentro: la interfaz y los adaptadores dependen de los casos de uso, los casos de uso del dominio, y el dominio de nada. Un test lo comprueba en cada import (y mantiene las APIs del navegador fuera de las capas internas). La interfaz recibe sus servicios por inyección de dependencias, así que los tests la ejecutan sobre fakes. Pruebas por capa: reglas del dominio y casos de uso con fakes (unitarias), adaptadores contra las librerías reales (integración), componentes y la app entera sobre servicios falsos (React Testing Library) y los flujos críticos en un navegador real (Playwright). La CI exige cobertura por capa y un límite de complejidad ciclomática de 10.
 
 **Cómo fluye una vectorización**
 

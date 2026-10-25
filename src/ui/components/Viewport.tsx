@@ -4,7 +4,8 @@ import type { ViewMode, RenderMode } from '../types';
 import { parseSvgDocument, serializeParsedDoc, type ParsedSvgDoc } from '../../domain/geometry/svgDocument';
 import { extractInteractiveNodes, toggleNodeType, splitSegmentAtMidpoint, moveNode, deleteNode, type InteractiveNode } from '../../domain/geometry/nodeEditing';
 import { countShapes } from '../../domain/geometry/svgStats';
-import { ChevronsLeftRight, CornerUpRight, Plus, RotateCcw, Sparkles, Spline, Trash2 } from 'lucide-react';
+import { NodeHandles, NodeToolbar, ProcessingCard } from './viewport/ViewportParts';
+import { SideBySideStage, SplitStage } from './viewport/Stages';
 import { useI18n } from '../../i18n';
 import { useServices } from '../services/context';
 
@@ -32,8 +33,6 @@ type DraggedNode = Pick<InteractiveNode, 'id' | 'pathIndex' | 'segmentIndex' | '
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 24;
 const FIT_PADDING = 80;
-/** Height of the title bar on top of each side-by-side pane (see .sbs-pane-badge). */
-const SBS_TITLE_HEIGHT = 28;
 
 /** Path index encoded in an interactive node id (`p{path}_s{segment}_{type}`). */
 function pathIndexFromNodeId(id: string | null): number | null {
@@ -346,93 +345,20 @@ export const Viewport: React.FC<ViewportProps> = ({
   }
 
   const { width, height } = imageDimensions;
-  const scaledWidth = width * zoom;
-  const scaledHeight = height * zoom;
 
   // Wireframe styling is applied in CSS (.mode-wireframe), for every shape type
-  const processedSvg = svgContent;
-
-  // Node handle radius scaled inversely with zoom
-  const handleRadius = Math.max(3, Math.min(8, 5.5 / Math.sqrt(zoom)));
-  const handleStroke = Math.max(1, 1.5 / Math.sqrt(zoom));
-
-  // Render SVG node editor handles
-  const renderNodeHandlesSvg = () => (
-    <svg
-      ref={overlayRef}
-      className="artboard-layer node-editor-overlay"
-      viewBox={`0 0 ${width} ${height}`}
-      width={scaledWidth}
-      height={scaledHeight}
-    >
-      {/* Draw Tangent Lines for Cubic Bézier Control Points */}
-      {interactiveNodes
-        .filter((n) => n.nodeType === 'cp1' || n.nodeType === 'cp2')
-        .map((cp) => {
-          if (!cp.connectedAnchor) return null;
-          return (
-            <line
-              key={`line_${cp.id}`}
-              x1={cp.connectedAnchor.x}
-              y1={cp.connectedAnchor.y}
-              x2={cp.x}
-              y2={cp.y}
-              stroke="var(--magenta)"
-              strokeWidth={1 / Math.sqrt(zoom)}
-              strokeDasharray={`${3 / Math.sqrt(zoom)},${3 / Math.sqrt(zoom)}`}
-            />
-          );
-        })}
-
-      {/* Draw Interactive Control Handle Points */}
-      {interactiveNodes
-        .filter((n) => n.nodeType === 'cp1' || n.nodeType === 'cp2')
-        .map((cp) => (
-          <circle
-            key={cp.id}
-            cx={cp.x}
-            cy={cp.y}
-            r={handleRadius * 0.75}
-            fill="var(--magenta)"
-            stroke="#ffffff"
-            strokeWidth={handleStroke}
-            className="interactive-cp-handle"
-            onMouseDown={(e) => handleNodeMouseDown(e, cp)}
-          />
-        ))}
-
-      {/* Draw Interactive Anchor Points */}
-      {interactiveNodes
-        .filter((n) => n.nodeType === 'anchor')
-        .map((anchor) => {
-          const isSelected = selectedNodeId === anchor.id;
-          return (
-            <g key={anchor.id} className="anchor-point-group">
-              {isSelected && (
-                <circle
-                  cx={anchor.x}
-                  cy={anchor.y}
-                  r={handleRadius * 1.8}
-                  fill="var(--magenta-soft)"
-                  stroke="var(--magenta)"
-                  strokeWidth={handleStroke}
-                />
-              )}
-              <circle
-                cx={anchor.x}
-                cy={anchor.y}
-                r={handleRadius}
-                fill={isSelected ? 'var(--magenta)' : '#ffffff'}
-                stroke={isSelected ? '#ffffff' : 'var(--magenta)'}
-                strokeWidth={handleStroke}
-                className="interactive-anchor-handle"
-                onMouseDown={(e) => handleNodeMouseDown(e, anchor)}
-              />
-            </g>
-          );
-        })}
-    </svg>
+  const nodeHandles = renderMode === 'nodes' && (
+    <NodeHandles
+      overlayRef={overlayRef}
+      nodes={interactiveNodes}
+      selectedNodeId={selectedNodeId}
+      width={width}
+      height={height}
+      zoom={zoom}
+      onNodeMouseDown={handleNodeMouseDown}
+    />
   );
+  const stage = { rasterUrl, svgContent, width, height, zoom, pan, renderMode, nodeHandles };
 
   return (
     <div
@@ -444,221 +370,24 @@ export const Viewport: React.FC<ViewportProps> = ({
       <div className="viewport-backdrop"></div>
 
       {viewMode === 'side-by-side' ? (
-        /* DUAL-PANE SIDE-BY-SIDE COMPARISON */
-        <div
-          className="artboard-stage side-by-side-stage"
-          style={{
-            transform: `translate3d(${pan.x}px, ${pan.y}px, 0)`,
-            width: `${scaledWidth * 2 + 32}px`,
-            height: `${scaledHeight + 36}px`,
-          }}
-        >
-          {/* Left Board: Original Raster */}
-          <div className="sbs-pane" style={{ width: `${scaledWidth}px`, height: `${scaledHeight + SBS_TITLE_HEIGHT}px` }}>
-            <div className="sbs-pane-badge raster-badge">
-              <span>{t('viewport.rasterBadge', { width, height })}</span>
-            </div>
-            <div className="sbs-pane-content">
-              <img
-                src={rasterUrl}
-                alt={t('viewport.rasterAlt')}
-                width={scaledWidth}
-                height={scaledHeight}
-                className={`raster-img ${zoom >= 4 ? 'pixelated' : ''}`}
-                draggable={false}
-              />
-              {zoom >= 6 && (
-                <svg
-                  className="pixel-lattice-overlay"
-                  width={scaledWidth}
-                  height={scaledHeight}
-                  viewBox={`0 0 ${width} ${height}`}
-                >
-                  <defs>
-                    <pattern id="pixelGridSbs" width="1" height="1" patternUnits="userSpaceOnUse">
-                      <path d="M 1 0 L 0 0 0 1" fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth={0.05} />
-                    </pattern>
-                  </defs>
-                  <rect width={width} height={height} fill="url(#pixelGridSbs)" />
-                </svg>
-              )}
-            </div>
-          </div>
-
-          {/* Right Board: Vector Output */}
-          <div className="sbs-pane" style={{ width: `${scaledWidth}px`, height: `${scaledHeight + SBS_TITLE_HEIGHT}px` }}>
-            <div className="sbs-pane-badge vector-badge">
-              <span>{t('viewport.vectorBadge', { count: shapeCount })}</span>
-            </div>
-            <div className={`sbs-pane-content vector-layer mode-${renderMode}`}>
-              <div
-                className="svg-render-container"
-                dangerouslySetInnerHTML={{ __html: processedSvg }}
-              />
-              {renderMode === 'nodes' && renderNodeHandlesSvg()}
-            </div>
-          </div>
-        </div>
+        <SideBySideStage {...stage} shapeCount={shapeCount} />
       ) : (
-        /* SINGLE ARTBOARD STAGE (SPLIT CURTAIN / SOLO VECTOR / SOLO RASTER) */
-        <div
-          className="artboard-stage"
-          style={{
-            transform: `translate3d(${pan.x}px, ${pan.y}px, 0)`,
-            width: `${scaledWidth}px`,
-            height: `${scaledHeight}px`,
-          }}
-        >
-          {/* Layer 1: Original Raster Bitmap */}
-          {(viewMode === 'split' || viewMode === 'raster') && (
-            <div
-              className="artboard-layer raster-layer"
-              style={{
-                clipPath:
-                  viewMode === 'split'
-                    ? `polygon(0% 0%, ${splitPos}% 0%, ${splitPos}% 100%, 0% 100%)`
-                    : undefined,
-              }}
-            >
-              <img
-                src={rasterUrl}
-                alt={t('viewport.rasterAlt')}
-                width={scaledWidth}
-                height={scaledHeight}
-                className={`raster-img ${zoom >= 4 ? 'pixelated' : ''}`}
-                draggable={false}
-              />
-
-              {/* Pixel Lattice Grid at extreme zoom (>= 6x) to inspect sub-pixel fidelity */}
-              {zoom >= 6 && (
-                <svg
-                  className="pixel-lattice-overlay"
-                  width={scaledWidth}
-                  height={scaledHeight}
-                  viewBox={`0 0 ${width} ${height}`}
-                >
-                  <defs>
-                    <pattern
-                      id="pixelGrid"
-                      width="1"
-                      height="1"
-                      patternUnits="userSpaceOnUse"
-                    >
-                      <path
-                        d="M 1 0 L 0 0 0 1"
-                        fill="none"
-                        stroke="rgba(255, 255, 255, 0.15)"
-                        strokeWidth={0.05}
-                      />
-                    </pattern>
-                  </defs>
-                  <rect width={width} height={height} fill="url(#pixelGrid)" />
-                </svg>
-              )}
-            </div>
-          )}
-
-          {/* Layer 2: Vector SVG Output */}
-          {(viewMode === 'split' || viewMode === 'vector') && (
-            <div
-              className={`artboard-layer vector-layer mode-${renderMode}`}
-              style={{
-                clipPath:
-                  viewMode === 'split'
-                    ? `polygon(${splitPos}% 0%, 100% 0%, 100% 100%, ${splitPos}% 100%)`
-                    : undefined,
-              }}
-            >
-              <div
-                className="svg-render-container"
-                dangerouslySetInnerHTML={{ __html: processedSvg }}
-              />
-            </div>
-          )}
-
-          {/* Layer 3: Interactive Bézier Node Editor Overlay */}
-          {renderMode === 'nodes' && renderNodeHandlesSvg()}
-
-          {/* Layer 4: Split Curtain Slider Bar */}
-          {viewMode === 'split' && (
-            <div
-              className="split-slider-line"
-              style={{ left: `${splitPos}%` }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                setIsDraggingSplit(true);
-              }}
-            >
-              <div className="split-handle">
-                <ChevronsLeftRight size={16} aria-label={t('viewport.splitTag')} />
-              </div>
-            </div>
-          )}
-        </div>
+        <SplitStage {...stage} viewMode={viewMode} splitPos={splitPos} onSplitDragStart={() => setIsDraggingSplit(true)} />
       )}
 
-      {/* Node editor toolbar, floating at the bottom of the canvas */}
       {renderMode === 'nodes' && (
-        <div className="node-toolbar" onMouseDown={(e) => e.stopPropagation()}>
-          {selectedNode ? (
-            <>
-              <span className="node-toolbar-coords">
-                {t(selectedNode.nodeType === 'anchor' ? 'nodes.anchor' : 'nodes.handle')}{' '}
-                <span className="numeric">
-                  {selectedNode.x.toFixed(1)}, {selectedNode.y.toFixed(1)}
-                </span>
-              </span>
-              {selectedNode.nodeType === 'anchor' && selectedNode.segmentType !== 'M' && (
-                <>
-                  <button
-                    className="btn btn-small btn-quiet"
-                    onClick={handleToggleCurve}
-                    title={selectedNode.isCurve ? t('nodes.toCornerTitle') : t('nodes.toSmoothTitle')}
-                  >
-                    {selectedNode.isCurve ? <CornerUpRight size={14} /> : <Spline size={14} />}
-                    {t(selectedNode.isCurve ? 'nodes.corner' : 'nodes.smooth')}
-                  </button>
-                  <button className="btn btn-small btn-quiet" onClick={handleSplitSegment} title={t('nodes.splitTitle')}>
-                    <Plus size={14} />
-                    {t('nodes.split')}
-                  </button>
-                </>
-              )}
-              {selectedNode.nodeType === 'anchor' && (
-                <button className="btn btn-small btn-quiet" onClick={handleDeleteSelectedNode} title={t('nodes.deleteTitle')}>
-                  <Trash2 size={14} />
-                  {t('nodes.delete')}
-                </button>
-              )}
-              <span className="node-toolbar-divider" />
-            </>
-          ) : (
-            <span className="node-toolbar-hint">{t('nodes.hint')}</span>
-          )}
-
-          <button className="btn btn-small btn-quiet" onClick={onSimplifyNodes} title={t('nodes.simplifyTitle')}>
-            <Sparkles size={14} />
-            {t('nodes.simplify')}
-          </button>
-          {hasModifications && (
-            <button className="btn btn-small btn-quiet" onClick={onResetEdits} title={t('nodes.resetTitle')}>
-              <RotateCcw size={14} />
-              {t('nodes.reset')}
-            </button>
-          )}
-        </div>
+        <NodeToolbar
+          selectedNode={selectedNode}
+          hasModifications={hasModifications}
+          onToggleCurve={handleToggleCurve}
+          onSplit={handleSplitSegment}
+          onDelete={handleDeleteSelectedNode}
+          onSimplify={onSimplifyNodes}
+          onReset={onResetEdits}
+        />
       )}
 
-      {/* Progress: a slim card that names the current step */}
-      {isProcessing && progress && (
-        <div className="processing" role="status">
-          <span className="processing-title">{t('viewport.processing')}</span>
-          <span className="processing-stage">{t(progress.stage)}</span>
-          <span className="processing-track" role="progressbar" aria-valuenow={progress.percent} aria-valuemin={0} aria-valuemax={100}>
-            <span className="processing-fill" style={{ width: `${progress.percent}%` }} />
-          </span>
-        </div>
-      )}
+      {isProcessing && progress && <ProcessingCard progress={progress} />}
     </div>
   );
 };

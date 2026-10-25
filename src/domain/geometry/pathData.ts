@@ -16,6 +16,84 @@ export interface PathSegment {
 
 const NUMBER = /[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/y;
 
+/** An elliptical arc in centre form: what the cubic approximation is built from. */
+interface CenterArc {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  cos: number;
+  sin: number;
+  /** Start angle and signed sweep (radians). */
+  theta1: number;
+  delta: number;
+}
+
+const vectorAngle = (ux: number, uy: number, vx: number, vy: number) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+
+/** Endpoint to centre parameterisation, as in the SVG spec (appendix F.6.5). */
+function arcCenter(x1: number, y1: number, rx: number, ry: number, rotationDeg: number, largeArc: boolean, sweep: boolean, x2: number, y2: number): CenterArc {
+  rx = Math.abs(rx);
+  ry = Math.abs(ry);
+  const phi = (rotationDeg * Math.PI) / 180;
+  const [cos, sin] = [Math.cos(phi), Math.sin(phi)];
+  const [dx, dy] = [(x1 - x2) / 2, (y1 - y2) / 2];
+  const x1p = cos * dx + sin * dy;
+  const y1p = -sin * dx + cos * dy;
+
+  // Scale radii up when they are too small to reach the endpoint
+  const lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+  if (lambda > 1) {
+    rx *= Math.sqrt(lambda);
+    ry *= Math.sqrt(lambda);
+  }
+
+  const num = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
+  const den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+  const coef = (largeArc === sweep ? -1 : 1) * Math.sqrt(Math.max(0, num / den));
+  const cxp = (coef * rx * y1p) / ry;
+  const cyp = (-coef * ry * x1p) / rx;
+
+  const theta1 = vectorAngle(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+  const delta = vectorAngle((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+  // The sweep flag picks the direction; the large-arc flag already picked the centre
+  const signed = !sweep && delta > 0 ? delta - 2 * Math.PI : sweep && delta < 0 ? delta + 2 * Math.PI : delta;
+  return {
+    cx: cos * cxp - sin * cyp + (x1 + x2) / 2,
+    cy: sin * cxp + cos * cyp + (y1 + y2) / 2,
+    rx,
+    ry,
+    cos,
+    sin,
+    theta1,
+    delta: signed,
+  };
+}
+
+/** Cubics of at most 90° each along a centre-form arc, ending exactly at `end`. */
+function centerArcToCubics({ cx, cy, rx, ry, cos, sin, theta1, delta }: CenterArc, end: { x: number; y: number }): PathSegment[] {
+  const point = (t: number) => ({
+    x: cx + rx * Math.cos(t) * cos - ry * Math.sin(t) * sin,
+    y: cy + rx * Math.cos(t) * sin + ry * Math.sin(t) * cos,
+  });
+  const tangent = (t: number) => ({
+    x: -rx * Math.sin(t) * cos - ry * Math.cos(t) * sin,
+    y: -rx * Math.sin(t) * sin + ry * Math.cos(t) * cos,
+  });
+  const count = Math.max(1, Math.ceil(Math.abs(delta) / (Math.PI / 2) - 1e-9));
+  const step = delta / count;
+  const k = (4 / 3) * Math.tan(step / 4);
+  return Array.from({ length: count }, (_, i): PathSegment => {
+    const t1 = theta1 + i * step;
+    const t2 = t1 + step;
+    const a = point(t1);
+    const da = tangent(t1);
+    const b = i === count - 1 ? end : point(t2);
+    const db = tangent(t2);
+    return { type: 'C', cp1x: a.x + k * da.x, cp1y: a.y + k * da.y, cp2x: b.x - k * db.x, cp2y: b.y - k * db.y, x: b.x, y: b.y };
+  });
+}
+
 /**
  * Convert an SVG elliptical arc into cubic Béziers (≤ 90° each), following
  * the endpoint-to-center conversion of the SVG spec (appendix F.6.5)
@@ -33,72 +111,7 @@ function arcToCubics(
 ): PathSegment[] {
   if (x1 === x2 && y1 === y2) return [];
   if (rx === 0 || ry === 0) return [{ type: 'L', x: x2, y: y2 }];
-
-  rx = Math.abs(rx);
-  ry = Math.abs(ry);
-  const phi = (rotationDeg * Math.PI) / 180;
-  const cos = Math.cos(phi);
-  const sin = Math.sin(phi);
-
-  const dx = (x1 - x2) / 2;
-  const dy = (y1 - y2) / 2;
-  const x1p = cos * dx + sin * dy;
-  const y1p = -sin * dx + cos * dy;
-
-  // Scale radii up when they are too small to reach the endpoint
-  const lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
-  if (lambda > 1) {
-    rx *= Math.sqrt(lambda);
-    ry *= Math.sqrt(lambda);
-  }
-
-  const num = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
-  const den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
-  const coef = (largeArc === sweep ? -1 : 1) * Math.sqrt(Math.max(0, num / den));
-  const cxp = (coef * rx * y1p) / ry;
-  const cyp = (-coef * ry * x1p) / rx;
-  const cx = cos * cxp - sin * cyp + (x1 + x2) / 2;
-  const cy = sin * cxp + cos * cyp + (y1 + y2) / 2;
-
-  const angle = (ux: number, uy: number, vx: number, vy: number) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
-  const theta1 = angle(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
-  let delta = angle((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
-  if (!sweep && delta > 0) delta -= 2 * Math.PI;
-  else if (sweep && delta < 0) delta += 2 * Math.PI;
-
-  const point = (t: number) => ({
-    x: cx + rx * Math.cos(t) * cos - ry * Math.sin(t) * sin,
-    y: cy + rx * Math.cos(t) * sin + ry * Math.sin(t) * cos,
-  });
-  const tangent = (t: number) => ({
-    x: -rx * Math.sin(t) * cos - ry * Math.cos(t) * sin,
-    y: -rx * Math.sin(t) * sin + ry * Math.cos(t) * cos,
-  });
-
-  const count = Math.max(1, Math.ceil(Math.abs(delta) / (Math.PI / 2) - 1e-9));
-  const step = delta / count;
-  const k = (4 / 3) * Math.tan(step / 4);
-  const segments: PathSegment[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const t1 = theta1 + i * step;
-    const t2 = t1 + step;
-    const a = point(t1);
-    const da = tangent(t1);
-    const b = i === count - 1 ? { x: x2, y: y2 } : point(t2);
-    const db = tangent(t2);
-    segments.push({
-      type: 'C',
-      cp1x: a.x + k * da.x,
-      cp1y: a.y + k * da.y,
-      cp2x: b.x - k * db.x,
-      cp2y: b.y - k * db.y,
-      x: b.x,
-      y: b.y,
-    });
-  }
-
-  return segments;
+  return centerArcToCubics(arcCenter(x1, y1, rx, ry, rotationDeg, largeArc, sweep, x2, y2), { x: x2, y: y2 });
 }
 
 /**
@@ -264,6 +277,10 @@ const COMMANDS: Record<string, CommandHandler> = {
   },
 };
 
+/** After M, further coordinate pairs are implicit lineTo; after Z a new command must follow. */
+const IMPLICIT_NEXT: Record<string, string> = { M: 'L', m: 'l', Z: '', z: '' };
+const commandForNextNumbers = (cmd: string) => IMPLICIT_NEXT[cmd] ?? cmd;
+
 /** Like {@link parsePathSegments}, also reporting whether all of `d` was valid. */
 export function parsePathData(d: string): { segments: PathSegment[]; complete: boolean } {
   const reader = new PathReader(d);
@@ -281,9 +298,7 @@ export function parsePathData(d: string): { segments: PathSegment[]; complete: b
     if (!result) break;
     state.lastCubic = result.cubic ?? null;
     state.lastQuad = result.quad ?? null;
-    // After M, further coordinate pairs are implicit lineTo; after Z a new command must follow
-    if (cmd === 'M' || cmd === 'm') cmd = isRelative ? 'l' : 'L';
-    else if (cmd === 'Z' || cmd === 'z') cmd = '';
+    cmd = commandForNextNumbers(cmd);
   }
 
   return { segments: state.segments, complete: reader.atEnd() };

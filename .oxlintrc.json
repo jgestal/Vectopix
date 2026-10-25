@@ -3,12 +3,17 @@
   "plugins": ["react", "typescript", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "eslint/complexity": ["error", { "max": 10 }]
   },
   "overrides": [
     {
-      "files": ["src/test/**", "**/*.test.ts", "**/*.test.tsx"],
-      "rules": { "react/only-export-components": "off" }
+      "files": ["src/ui/App.tsx"],
+      "rules": { "eslint/complexity": ["error", { "max": 15 }] }
+    },
+    {
+      "files": ["src/test/**", "tests/**", "**/*.test.ts", "**/*.test.tsx"],
+      "rules": { "react/only-export-components": "off", "eslint/complexity": "off" }
     }
   ]
 }

@@ -121,6 +121,7 @@ Open the URL Vite prints (usually `http://localhost:5173`). Drop an image, paste
 | `npm run preview`      | Serve the production build                                |
 | `npm test`             | Run the unit tests (Vitest)                               |
 | `npm run test:e2e`     | Build and run the browser tests (Playwright, Chromium)    |
+| `npm run test:coverage` | Unit and integration tests with coverage (per-layer thresholds) |
 | `npm run lint`         | Lint with Oxlint                                          |
 | `npm run desktop`      | Build and open the desktop app (Electron)                 |
 | `npm run dist:desktop` | Build the desktop installers for your OS into `release/`  |
@@ -154,28 +155,34 @@ Every push to `main` also runs the unit and browser tests and deploys the web ve
 
 ```
 src/
-├── App.tsx                     App state: image, options, result, history
-├── i18n/                       Translations: lightweight runtime, one file per language
-├── config/presets.ts           Default options and the single preset table
-├── services/
-│   ├── vectorEngine.ts         Pure engine (no DOM, no worker): colour detection, tracing, SSIM
-│   ├── svgRefine.ts            Geometry clean-up: straight lines, sharp corners, circular arcs
-│   ├── svgStack.ts             Seam-free stacking: shapes filling a hole are painted on a whole shape
-│   ├── svgBackground.ts        Transparent background, removed on the vectors
-│   ├── pixelTrace.ts           Exact pixel-grid tracing for pixel art
-│   └── vectorWorkerClient.ts   Worker client: requests, progress and cancellation
-├── workers/vector.worker.ts    Thin wrapper around the engine inside the Web Worker
-├── components/                 Top bar, canvas controls, Viewport (canvas and node editor), settings, dialogs…
-│   └── ui/                     Shared building blocks (dialog)
-└── utils/
-    ├── pathParser.ts           SVG path parser and editor (anchors, handles, simplification)
-    ├── svgExport.ts            (Edited) SVG → geometry for DXF / EPS / PDF
-    ├── centerlineExport.ts     DXF / EPS / PDF writers for centerline traces
-    ├── fidelity.ts             Renders the SVG to measure its fidelity against the source
-    └── …                       Preprocessing, palette, export and image loading
+├── domain/                     Pure rules: no libraries, no browser APIs, no React
+│   ├── geometry/               SVG path data, document model, node editing, simplification
+│   ├── vectorization/          Geometry refit, seam-free stacking, background removal, pixel grid
+│   ├── palette/                Real-colour selection (JPEG noise, anti-aliasing blends), recolouring
+│   ├── raster/                 Cut-out and pixel-art detection
+│   └── …                       Presets, undo history, drawing edits, shortcuts, export file names
+├── application/                Use cases and the ports they need (ports.ts)
+│   ├── vectorizeImage.ts       Palette → tracing strategy → clean-up steps
+│   ├── prepareImage.ts         Decode, downscale, notices
+│   ├── preferences.ts          Remembered settings, validated on read
+│   └── checkForUpdate.ts       New-version notice for the desktop app
+├── infrastructure/             Adapters that implement the ports
+│   ├── vecline/, imagetracer/  Tracing engines; engine.ts wires them for the worker
+│   ├── worker/                 Web Worker and its client (cancellation, progress)
+│   ├── browser/                Image loading, canvas, downloads, XML parser
+│   ├── storage/, github/       localStorage, latest-release lookup
+│   └── drawingExporter.ts      PNG, components, DXF / EPS / PDF
+├── ui/                         React: App, components, hooks
+│   ├── compositionRoot.ts      The one place that builds the concrete services
+│   └── services/               The injected services contract (AppServices)
+└── i18n/                       Translations: lightweight runtime, one file per language
+tests/
+├── architecture/               Dependency rule: dependencies point inwards
+└── e2e/                        Browser tests (Playwright)
 electron/main.cjs               Desktop shell: serves dist/ from a private app:// origin
-tests/e2e/                      Browser tests (Playwright)
 ```
+
+**Layers and testing.** Dependencies point inwards: the UI and the adapters depend on use cases, use cases on the domain, and the domain on nothing. A test enforces it on every import (and keeps browser APIs out of the inner layers). The UI receives its services through dependency injection, so tests run it on fakes. Tests by layer: domain rules and use cases with fakes (unit), adapters against the real libraries (integration), components and the whole app on fake services (React Testing Library), and the critical flows in a real browser (Playwright). CI enforces coverage per layer and a cyclomatic complexity limit of 10.
 
 **How a vectorization flows**
 

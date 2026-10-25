@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import type { VectorResult, WorkerProgress } from '../../domain/types';
-import { formatBytes } from '../../domain/format';
-import { useI18n, type MessageKey } from '../../i18n';
+import { useI18n } from '../../i18n';
+import { useServices } from '../services/context';
+import { metricsFor } from '../metrics';
 
 interface MetricsBarProps {
   result: VectorResult | null;
@@ -12,46 +13,19 @@ interface MetricsBarProps {
 /** Status bar: what the engine is doing, then the numbers of the current trace. */
 export const MetricsBar: React.FC<MetricsBarProps> = ({ result, progress }) => {
   const { t, lang } = useI18n();
+  const { files } = useServices();
   const [copied, setCopied] = useState(false);
 
-  const handleCopySvg = async () => {
+  const handleCopySvg = () => {
     if (!result) return;
-    try {
-      await navigator.clipboard.writeText(result.svg);
+    // A blocked clipboard is not worth a message: ⌘/Ctrl+C offers the same action
+    files.copyText(result.svg).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard can be blocked; Cmd/Ctrl+C offers the same action
-    }
+    }, () => {});
   };
 
-  const metrics: { label: MessageKey; title: MessageKey; value: string }[] = [];
-  if (result) {
-    const savings =
-      result.rasterSizeBytes > 0
-        ? Math.round(((result.rasterSizeBytes - result.fileSizeBytes) / result.rasterSizeBytes) * 100)
-        : 0;
-    if (result.isCenterline) {
-      metrics.push({ label: 'metrics.centerlines', title: 'metrics.centerlinesTitle', value: result.shapes.toLocaleString(lang) });
-      metrics.push({
-        label: 'metrics.length',
-        title: 'metrics.lengthTitle',
-        value: `${(result.centerlineLength ?? 0).toLocaleString(lang)} px`,
-      });
-    } else {
-      metrics.push({ label: 'metrics.paths', title: 'metrics.pathsTitle', value: result.shapes.toLocaleString(lang) });
-    }
-    metrics.push({ label: 'metrics.nodes', title: 'metrics.nodesTitle', value: result.nodesCount.toLocaleString(lang) });
-    metrics.push({ label: 'metrics.time', title: 'metrics.timeTitle', value: `${result.executionTimeMs} ms` });
-    metrics.push({
-      label: 'metrics.size',
-      title: 'metrics.sizeTitle',
-      value: formatBytes(result.fileSizeBytes) + (savings > 0 ? ` (−${savings}%)` : ''),
-    });
-    if (result.ssim !== undefined) {
-      metrics.push({ label: 'metrics.fidelity', title: 'metrics.fidelityTitle', value: `${(result.ssim * 100).toFixed(1)}%` });
-    }
-  }
+  const metrics = result ? metricsFor(result, lang) : [];
 
   return (
     <footer className="statusbar">

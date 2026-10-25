@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PaletteColor, VectorOptions, VectorPreset, VectorResult } from '../domain/types';
 import type { RenderMode, ViewMode } from './types';
 import type { Raster } from '../domain/raster/raster';
 import { applyPreset } from '../domain/presets';
 import { optionsForNewImage } from '../domain/images';
-import { recolor, removeColor, restoreTrace, simplify, withSvg } from '../domain/drawing';
 import { useI18n, type MessageKey } from '../i18n';
 import { errorDetail } from './errors';
-import { useServices } from './services/context';
 import { useToasts } from './hooks/useToasts';
 import { useDrawing } from './hooks/useDrawing';
 import { useVectorization } from './hooks/useVectorization';
@@ -15,6 +13,8 @@ import { useImageInput, type LoadedImage } from './hooks/useImageInput';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { usePreference } from './hooks/usePreference';
 import { useVectorOptions } from './hooks/useVectorOptions';
+import { useDrawingEdits } from './hooks/useDrawingEdits';
+import { useAutoRetrace } from './hooks/useAutoRetrace';
 import { TopBar } from './components/TopBar';
 import { CanvasControls } from './components/CanvasControls';
 import { Sidebar } from './components/Sidebar';
@@ -28,8 +28,6 @@ import { ToastContainer } from './components/Toast';
 import { UpdateNotice } from './components/UpdateNotice';
 import './App.css';
 
-/** Delay before re-tracing after a setting changes, so sliders don't flood the engine. */
-const RETRACE_DEBOUNCE_MS = 400;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 24;
 
@@ -51,7 +49,6 @@ interface SourceImage {
  */
 export function App() {
   const { t } = useI18n();
-  const { files, svgDom } = useServices();
   const { toasts, showToast, dismissToast, reportError } = useToasts();
   const drawing = useDrawing();
   const { options, setOptions, setUserOptions, loadUserOptions } = useVectorOptions();
@@ -93,25 +90,7 @@ export function App() {
   const engine = useVectorization({ onTraced, onFidelity: drawing.attachFidelity, onError: onTraceError });
   const { run: runTrace } = engine;
 
-  /** Settings restored by undo/redo come with their result: no re-trace for them. */
-  const restoredOptions = useRef<VectorOptions | null>(null);
-  const lastTracedImage = useRef<SourceImage | null>(null);
-
-  // Re-trace whenever the image or a setting changes: a new image at once,
-  // setting changes debounced so dragging a slider traces only once.
-  useEffect(() => {
-    if (!image) return;
-    if (restoredOptions.current === options) {
-      restoredOptions.current = null;
-      return;
-    }
-    const isNewImage = lastTracedImage.current !== image;
-    lastTracedImage.current = image;
-    const timer = setTimeout(() => runTrace(image.pixels, image.sizeBytes, options), isNewImage ? 0 : RETRACE_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [image, options, runTrace]);
-
-  const retrace = () => image && runTrace(image.pixels, image.sizeBytes, options);
+  const { retrace, skipTraceFor } = useAutoRetrace(image, options, runTrace);
 
   // ── Images ───────────────────────────────────────────────────────────────
   const onLoaded = useCallback(
@@ -138,7 +117,7 @@ export function App() {
     if (!step) return;
     engine.cancel(); // a trace in flight must not replace the restored step
     if (step.options !== options) {
-      restoredOptions.current = step.options;
+      skipTraceFor(step.options);
       setOptions(step.options);
     }
     showToast(t(toastKey), 'info');
@@ -147,38 +126,7 @@ export function App() {
   const redo = () => drawing.canRedo && restoreStep(drawing.index + 1, 'toast.redo');
 
   // ── Edits ────────────────────────────────────────────────────────────────
-  const commitEdit = (edited: VectorResult, toastText?: string) => {
-    commit({ result: edited, options });
-    if (toastText) showToast(toastText, 'info');
-  };
-
-  const onSvgModified = (svg: string, isFinal = true, toastText?: string) => {
-    if (!result) return;
-    const edited = withSvg(result, svg);
-    if (isFinal) commitEdit(edited, toastText);
-    else drawing.preview(edited);
-  };
-
-  const resetEdits = () => result && commitEdit(restoreTrace(result, drawing.earlierResults), t('toast.nodesRestored'));
-
-  const simplifyNodes = () => {
-    if (!result) return;
-    const done = simplify(result, svgDom);
-    if (!done) return showToast(t('toast.alreadySimplified'), 'info');
-    commitEdit(done.result, t('toast.simplified', { count: done.removed, pct: done.percent }));
-  };
-
-  const replaceColor = (from: string, to: string) =>
-    result && commitEdit(recolor(result, from, to, svgDom), t('toast.colorReplaced', { from, to }));
-  const deleteColor = (hex: string) => result && commitEdit(removeColor(result, hex, svgDom), t('toast.colorRemoved', { color: hex }));
-
-  const copySvg = () => {
-    if (!result) return;
-    files.copyText(result.svg).then(
-      () => showToast(t('toast.svgCopied'), 'success'),
-      (err) => reportError(err)
-    );
-  };
+  const edits = useDrawingEdits({ drawing, options, showToast, reportError });
 
   const applyUserPreset = (preset: VectorPreset) => {
     setUserOptions((prev) => applyPreset(preset, prev));
@@ -197,7 +145,7 @@ export function App() {
     undo,
     redo,
     // With text selected, ⌘C copies the text
-    copySvg: () => (result && !window.getSelection()?.toString() ? copySvg() : false),
+    copySvg: () => (result && !window.getSelection()?.toString() ? edits.copySvg() : false),
     toggleHelp: () => setIsShortcutsOpen((open) => !open),
     closeDialogs: () => {
       setIsExportOpen(false);
@@ -210,7 +158,8 @@ export function App() {
     toggleSideBySide: () => setViewMode(viewMode === 'side-by-side' ? 'split' : 'side-by-side'),
   });
 
-  const imageDimensions = image && { width: image.width, height: image.height };
+  // Stable between renders: the canvas refits whenever this object changes
+  const imageDimensions = useMemo(() => image && { width: image.width, height: image.height }, [image]);
 
   return (
     <div
@@ -264,9 +213,9 @@ export function App() {
                 setZoom={setZoom}
                 isProcessing={engine.isProcessing}
                 progress={engine.progress}
-                onSvgModified={onSvgModified}
-                onResetEdits={resetEdits}
-                onSimplifyNodes={simplifyNodes}
+                onSvgModified={edits.onSvgModified}
+                onResetEdits={edits.resetEdits}
+                onSimplifyNodes={edits.simplifyNodes}
                 onShowToast={showToast}
                 fitRequest={fitRequest}
               />
@@ -289,7 +238,7 @@ export function App() {
               onSelectColor={setSelectedColor}
               isProcessing={engine.isProcessing}
               onRetrace={retrace}
-              onSimplifyNodes={simplifyNodes}
+              onSimplifyNodes={edits.simplifyNodes}
               nodesCount={result?.nodesCount}
             />
           </div>
@@ -314,8 +263,8 @@ export function App() {
           key={selectedColor.hex}
           color={selectedColor}
           onClose={() => setSelectedColor(null)}
-          onReplaceColor={replaceColor}
-          onRemoveColor={deleteColor}
+          onReplaceColor={edits.replaceColor}
+          onRemoveColor={edits.deleteColor}
         />
       )}
 

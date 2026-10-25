@@ -87,19 +87,20 @@ export function removeOuterBackground(svg: string, background: Rgb, width: numbe
  */
 export function snapToCanvasEdge(svg: string, width: number, height: number): string {
   const snap = (v: number, max: number) => (v <= 0.5 ? 0 : v >= max - 0.5 ? max : v);
+  const snapSegment = (s: PathSegment): PathSegment => ({
+    ...s,
+    x: snap(s.x, width),
+    y: snap(s.y, height),
+    ...(s.cp1x !== undefined ? { cp1x: snap(s.cp1x, width), cp1y: snap(s.cp1y ?? 0, height) } : {}),
+    ...(s.cp2x !== undefined ? { cp2x: snap(s.cp2x, width), cp2y: snap(s.cp2y ?? 0, height) } : {}),
+  });
+  const COORDS = ['x', 'y', 'cp1x', 'cp1y', 'cp2x', 'cp2y'] as const;
+  const moved = (a: PathSegment, b: PathSegment) => COORDS.some((k) => a[k] !== b[k]);
+
   return svg.replace(/(<path\b[^>]*\sd=")([^"]*)"/g, (whole, head: string, d: string) => {
-    let changed = false;
-    const segs = parsePathSegments(d).map((s): PathSegment => {
-      const next = {
-        ...s,
-        x: snap(s.x, width),
-        y: snap(s.y, height),
-        ...(s.cp1x !== undefined ? { cp1x: snap(s.cp1x, width), cp1y: snap(s.cp1y ?? 0, height) } : {}),
-        ...(s.cp2x !== undefined ? { cp2x: snap(s.cp2x, width), cp2y: snap(s.cp2y ?? 0, height) } : {}),
-      };
-      if (next.x !== s.x || next.y !== s.y || next.cp1x !== s.cp1x || next.cp1y !== s.cp1y || next.cp2x !== s.cp2x || next.cp2y !== s.cp2y) changed = true;
-      return next;
-    });
-    return changed ? `${head}${serializePathSegments(segs, 2)}"` : whole;
+    const segs = parsePathSegments(d);
+    const snapped = segs.map(snapSegment);
+    // Paths away from the edge are left byte for byte
+    return snapped.some((s, i) => moved(s, segs[i])) ? `${head}${serializePathSegments(snapped, 2)}"` : whole;
   });
 }

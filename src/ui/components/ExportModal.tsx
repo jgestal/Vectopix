@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy, Download, FileText } from 'lucide-react';
+import { Download } from 'lucide-react';
 import type { ExportFormat, VectorResult } from '../../domain/types';
 import { useI18n, type MessageKey } from '../../i18n';
 import { Dialog } from './ui/Dialog';
+import { CodeView, ExportOptions, PdfCard, PngPreview, type PngBackground } from './export/ExportParts';
 import { useServices } from '../services/context';
 import { usePreference } from '../hooks/usePreference';
 import { errorMessage } from '../errors';
@@ -28,7 +29,7 @@ const EXPORT_DEFAULTS = {
   tab: 'svg' as ExportTab,
   framework: 'react' as ComponentFramework,
   pngScale: 2,
-  pngBackground: 'transparent' as 'transparent' | '#ffffff' | '#0f172a',
+  pngBackground: 'transparent' as PngBackground,
   minify: true,
 };
 type ExportChoices = typeof EXPORT_DEFAULTS;
@@ -129,6 +130,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseF
     }
   };
 
+  /** CAD formats can be downloaded once built; nothing while a PNG renders. */
+  const canDownload = () => !isExportingPng && (!isCadFormat(activeTab) || !!cadData(activeTab));
+  const downloadLabel = () => {
+    if (isExportingPng) return t('export.generatingPng');
+    const format = activeTab === 'components' ? componentFramework : activeTab;
+    return t('export.download', { format: format.toUpperCase() });
+  };
+
   const handleCopy = async () => {
     await files.copyText(getActiveContent());
     setCopied(true);
@@ -165,17 +174,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseF
           <button className="btn" onClick={onClose}>
             {t('export.cancel')}
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={handleDownload}
-            disabled={isExportingPng || (isCadFormat(activeTab) && !cadData(activeTab))}
-          >
+          <button className="btn btn-primary" onClick={handleDownload} disabled={!canDownload()}>
             <Download size={16} />
-            {isExportingPng
-              ? t('export.generatingPng')
-              : t('export.download', {
-                  format: activeTab === 'components' ? componentFramework.toUpperCase() : activeTab.toUpperCase(),
-                })}
+            {downloadLabel()}
           </button>
         </>
       }
@@ -190,93 +191,30 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, result, baseF
         ))}
       </div>
 
-      <div className="export-options">
-        {activeTab === 'svg' && (
-          <label className="check-row">
-            <input type="checkbox" checked={minifySvgEnabled} onChange={(e) => setMinifySvgEnabled(e.target.checked)} />
-            <span className="check-title">{t('export.minify')}</span>
-          </label>
-        )}
-
-        {activeTab === 'png' && (
-          <>
-            <div className="option-row">
-              <span className="option-label">{t('export.scale')}</span>
-              <div className="segmented" role="group" aria-label={t('export.scale')}>
-                {PNG_SCALES.map((s) => (
-                  <button key={s} aria-pressed={pngScale === s} onClick={() => setPngScale(s)} title={`${width * s} × ${height * s} px`}>
-                    {s}×
-                  </button>
-                ))}
-              </div>
-              <span className="option-hint">
-                {width * pngScale} × {height * pngScale} px
-              </span>
-            </div>
-            <div className="option-row">
-              <span className="option-label">{t('export.background')}</span>
-              <div className="segmented" role="group" aria-label={t('export.background')}>
-                {(
-                  [
-                    ['transparent', 'export.bgTransparent'],
-                    ['#ffffff', 'export.bgWhite'],
-                    ['#0f172a', 'export.bgDark'],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button key={value} aria-pressed={pngBgColor === value} onClick={() => setPngBgColor(value)}>
-                    {t(label)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'components' && (
-          <div className="option-row">
-            <span className="option-label">{t('export.framework')}</span>
-            <div className="segmented" role="group" aria-label={t('export.framework')}>
-              {(['react', 'vue', 'svelte'] as const).map((fw) => (
-                <button key={fw} aria-pressed={componentFramework === fw} onClick={() => setComponentFramework(fw)}>
-                  {fw === 'react' ? 'React' : fw === 'vue' ? 'Vue' : 'Svelte'}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {activeTab === 'png' ? (
-        <div className="export-preview checker" style={{ background: pngBgColor === 'transparent' ? undefined : pngBgColor }}>
-          <div className="export-preview-svg" dangerouslySetInnerHTML={{ __html: result.svg }} />
-        </div>
-      ) : activeTab === 'pdf' && pdfState?.status !== 'error' ? (
-        <div className="export-preview export-pdf">
-          <FileText size={40} strokeWidth={1.25} />
-          <h3>{t(pdfState?.status === 'ready' ? 'export.pdfReadyTitle' : 'export.pdfGenerating')}</h3>
-          <p>{t('export.pdfDesc')}</p>
-          <dl>
-            <dt>{t('export.pdfDimensions')}</dt>
-            <dd>
-              {width} × {height} pt
-            </dd>
-            <dt>{t('export.pdfColorSpace')}</dt>
-            <dd>sRGB</dd>
-            <dt>{t('export.pdfPathType')}</dt>
-            <dd>{t(result.isCenterline ? 'export.pdfPolylines' : 'export.pdfSplines')}</dd>
-          </dl>
-        </div>
-      ) : (
-        <div className="code-block">
-          <button className="btn btn-small code-copy" onClick={handleCopy}>
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? t('export.copied') : t('export.copyCode')}
-          </button>
-          <pre className="code-viewer">
-            <code>{getActiveContent()}</code>
-          </pre>
-        </div>
-      )}
+      <ExportOptions
+        tab={activeTab}
+        size={{ width, height }}
+        minify={minifySvgEnabled}
+        onMinify={setMinifySvgEnabled}
+        pngScale={pngScale}
+        onPngScale={setPngScale}
+        pngBackground={pngBgColor}
+        onPngBackground={setPngBgColor}
+        framework={componentFramework}
+        onFramework={setComponentFramework}
+      />
+      <ExportPreview
+        tab={activeTab}
+        png={<PngPreview svg={result.svg} background={pngBgColor} />}
+        pdf={pdfState?.status !== 'error' && <PdfCard ready={pdfState?.status === 'ready'} size={{ width, height }} isCenterline={!!result.isCenterline} />}
+        code={<CodeView code={getActiveContent()} copied={copied} onCopy={handleCopy} />}
+      />
     </Dialog>
   );
 };
+
+/** The PNG preview, the PDF card (unless it failed) or the code, for the active tab. */
+function ExportPreview({ tab, png, pdf, code }: { tab: ExportTab; png: React.ReactNode; pdf: React.ReactNode; code: React.ReactNode }) {
+  if (tab === 'png') return png;
+  return (tab === 'pdf' && pdf) || code;
+}

@@ -2,6 +2,15 @@
 
 All notable changes to Vectopix. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Pixel art traced with a preset other than *Exact pixel art* came out with rounded, wavy blocks. Pixel art is now recognised in the image and traced on its own grid whatever the preset (*Exact pixel grid* forces it for any image).
+- With the ImageTracerJS engine, a thin colour such as an outline could disappear: it now uses the colours the app detects.
+
+### Changed
+- Internal restructuring into layers (domain, use cases, adapters, interface) with dependency injection, a test suite per layer with coverage thresholds, and a cyclomatic complexity limit, all enforced in CI. No change in what the app draws: verified against the previous engine on a corpus of images.
+
 ## [1.5.0] - 2026-10-25
 
 ### Added
@@ -74,6 +83,7 @@ All notable changes to Vectopix. The format follows [Keep a Changelog](https://k
 - Eight languages: English, Spanish, German, French, Italian, Portuguese, Chinese and Japanese.
 - Desktop apps for macOS, Windows and Linux, published on GitHub releases, and the web version on GitHub Pages.
 
+[Unreleased]: https://github.com/jgestal/Vectopix/compare/v1.5.0...HEAD
 [1.5.0]: https://github.com/jgestal/Vectopix/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/jgestal/Vectopix/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jgestal/Vectopix/compare/v1.2.0...v1.3.0
