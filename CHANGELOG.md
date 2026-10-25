@@ -2,7 +2,7 @@
 
 All notable changes to Vectopix. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.7.0] - 2026-10-25
 
 ### Added
 - **Desktop menus.** A full native menu bar in the app's language, following each system's conventions: File (open, recent files on macOS, samples, Save as SVG, Export, Copy SVG), Edit (undo, clipboard, simplify, restore the trace), View (comparison modes, drawing modes, zoom, full screen), Image (preset, method, colours, transparent background, re-vectorize), Window and Help. Items are enabled and checked to match what is on screen, with the usual shortcuts (⌘O, ⌘S, ⌘E, ⌘1–⌘4, ⌘+/⌘−/⌘0/⌘9, ⌘R, ⌘,).
@@ -94,7 +94,7 @@ All notable changes to Vectopix. The format follows [Keep a Changelog](https://k
 - Eight languages: English, Spanish, German, French, Italian, Portuguese, Chinese and Japanese.
 - Desktop apps for macOS, Windows and Linux, published on GitHub releases, and the web version on GitHub Pages.
 
-[Unreleased]: https://github.com/jgestal/Vectopix/compare/v1.6.0...HEAD
+[1.7.0]: https://github.com/jgestal/Vectopix/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/jgestal/Vectopix/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/jgestal/Vectopix/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/jgestal/Vectopix/compare/v1.3.0...v1.4.0
