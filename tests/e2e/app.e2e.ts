@@ -82,6 +82,21 @@ test.describe('loading images', () => {
     await expect(page.locator('.topbar-file-name')).toHaveText('dropped.png');
   });
 
+  test('pixel art comes out as exact squares whatever the preset', async ({ page }) => {
+    await page.getByRole('button', { name: /8-bit pixel art heart/ }).click();
+    await waitForTrace(page);
+    const exact = await vectorSvg(page).evaluate((el) => el.outerHTML);
+    await page.getByRole('radio', { name: /Logo \/ icon/ }).click();
+    // The re-trace (after the settings debounce) gives the same exact grid
+    await page.waitForTimeout(600);
+    await waitForTrace(page);
+    expect(await vectorSvg(page).evaluate((el) => el.outerHTML)).toBe(exact);
+    await expect(page.locator('.status-metrics')).toContainText('100.0%');
+    // Only straight horizontal and vertical edges: no curves
+    const d = await vectorSvg(page).evaluate((el) => [...el.querySelectorAll('path')].map((p) => p.getAttribute('d')).join(''));
+    expect(d).not.toMatch(/[cCsSqQaA]/);
+  });
+
   test('a small image traces with a warning that a larger one would be better', async ({ page }) => {
     await page.locator('.dropzone input[type="file"]').setInputFiles(fixture('small.png'));
     await expect(page.getByText(/Small image \(64×64 px\)/)).toBeVisible();

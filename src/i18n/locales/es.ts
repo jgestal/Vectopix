@@ -102,7 +102,7 @@ export const es = {
   'sidebar.subpixel': 'Reconstrucción sub-píxel',
   'sidebar.subpixelDesc': 'Deduce los bordes ideales a partir del anti-aliasing',
   'sidebar.pixelGrid': 'Rejilla de píxeles exacta',
-  'sidebar.pixelGridDesc': 'Bordes rectos siguiendo los píxeles, sin curvas (pixel art)',
+  'sidebar.pixelGridDesc': 'El pixel art se detecta y se traza sobre su rejilla automáticamente; esto lo fuerza en cualquier imagen',
   'sidebar.transparent': 'Fondo transparente',
   'sidebar.transparentDesc': 'Elimina el fondo que rodea al motivo; los colores de dentro se mantienen',
   'sidebar.primitives': 'Detectar primitivas',

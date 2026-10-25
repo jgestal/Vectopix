@@ -97,7 +97,7 @@ export const de: Messages = {
   'sidebar.subpixel': 'Subpixel-Rekonstruktion',
   'sidebar.subpixelDesc': 'Leitet die idealen Kanten aus dem Anti-Aliasing ab',
   'sidebar.pixelGrid': 'Exaktes Pixelraster',
-  'sidebar.pixelGridDesc': 'Gerade Kanten entlang der Pixel, ohne Kurven (Pixel-Art)',
+  'sidebar.pixelGridDesc': 'Pixel-Art wird erkannt und automatisch auf ihrem Raster nachgezeichnet; dies erzwingt es für jedes Bild',
   'sidebar.transparent': 'Transparenter Hintergrund',
   'sidebar.transparentDesc': 'Entfernt den Hintergrund um das Motiv; Farben im Motiv bleiben erhalten',
   'sidebar.primitives': 'Grundformen erkennen',

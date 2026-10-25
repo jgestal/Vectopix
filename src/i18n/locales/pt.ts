@@ -97,7 +97,7 @@ export const pt: Messages = {
   'sidebar.subpixel': 'Reconstrução subpixel',
   'sidebar.subpixelDesc': 'Deduz as bordas ideais a partir do anti-aliasing',
   'sidebar.pixelGrid': 'Grade de pixels exata',
-  'sidebar.pixelGridDesc': 'Bordas retas seguindo os pixels, sem curvas (pixel art)',
+  'sidebar.pixelGridDesc': 'A pixel art é detectada e traçada automaticamente na sua grade; isto força o mesmo em qualquer imagem',
   'sidebar.transparent': 'Fundo transparente',
   'sidebar.transparentDesc': 'Remove o fundo ao redor do motivo; as cores internas são mantidas',
   'sidebar.primitives': 'Detectar primitivas',

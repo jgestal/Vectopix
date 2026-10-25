@@ -51,9 +51,14 @@ function setup(found: PaletteCandidate[] = [WHITE, NAVY, FRINGE]) {
 
 describe('selectOutlineTracer', () => {
   it('uses the exact pixel grid when asked, otherwise the chosen engine', () => {
-    expect(selectOutlineTracer(options({ pixelGrid: true, engine: 'imagetracer' }))).toBe('pixelGrid');
-    expect(selectOutlineTracer(options({ engine: 'imagetracer' }))).toBe('imagetracer');
-    expect(selectOutlineTracer(options())).toBe('vecline');
+    expect(selectOutlineTracer(options({ pixelGrid: true, engine: 'imagetracer' }), false)).toBe('pixelGrid');
+    expect(selectOutlineTracer(options({ engine: 'imagetracer' }), false)).toBe('imagetracer');
+    expect(selectOutlineTracer(options(), false)).toBe('vecline');
+  });
+
+  it('traces pixel art on its grid with any preset, unless another engine was chosen', () => {
+    expect(selectOutlineTracer(options({ preset: 'logo', pixelGrid: false }), true)).toBe('pixelGrid');
+    expect(selectOutlineTracer(options({ engine: 'imagetracer' }), true)).toBe('imagetracer');
   });
 });
 
@@ -93,6 +98,17 @@ describe('vectorize', () => {
     const { vectorizer } = setup();
     const { svg } = vectorizer.vectorize(raster(), options({ refine: false }));
     expect(svg).toContain('d="M0 0h10v10h-10z" fill="#ffffff"');
+  });
+
+  it('traces pixel art with the exact grid, keeping its geometry as traced', () => {
+    const { tracers, vectorizer } = setup();
+    // Two flat colours on a 2-px grid: pixel art
+    const art = raster(8, 8);
+    for (let i = 0; i < 64; i++) if ((Math.floor((i % 8) / 2) + Math.floor(i / 16)) % 2) art.data.set([30, 27, 75, 255], i * 4);
+    const result = vectorizer.vectorize(art, options({ preset: 'logo', refine: true }));
+    expect(tracers.pixelGrid.calls).toHaveLength(1);
+    expect(tracers.vecline.calls).toHaveLength(0);
+    expect(result.svg).toBe(TRACED_SVG);
   });
 
   it('keeps the traced geometry for gradients and exact pixel art', () => {

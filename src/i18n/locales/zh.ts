@@ -97,7 +97,7 @@ export const zh: Messages = {
   'sidebar.subpixel': '亚像素重建',
   'sidebar.subpixelDesc': '根据抗锯齿推断理想边缘',
   'sidebar.pixelGrid': '精确像素网格',
-  'sidebar.pixelGridDesc': '沿像素的直角边缘，无曲线（像素画）',
+  'sidebar.pixelGridDesc': '像素画会被自动识别并沿其网格描摹；开启此项可对任何图片强制使用',
   'sidebar.transparent': '透明背景',
   'sidebar.transparentDesc': '移除主体周围的背景，主体内部的颜色保留',
   'sidebar.primitives': '检测基本图形',

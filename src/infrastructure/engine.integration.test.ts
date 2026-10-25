@@ -223,6 +223,21 @@ describe('vectorizeRaster', () => {
     expect(result.palette.length).toBeLessThanOrEqual(6);
   });
 
+  it('keeps every real colour with ImageTracer, even a thin outline', () => {
+    // White ground, a red block with a 2 px black outline: three colours
+    const size = 60;
+    const data = new Uint8ClampedArray(size * size * 4).fill(255);
+    for (let y = 10; y < 50; y++)
+      for (let x = 10; x < 50; x++) {
+        const outline = x < 12 || x >= 48 || y < 12 || y >= 48;
+        data.set(outline ? [20, 20, 25, 255] : [230, 40, 40, 255], (y * size + x) * 4);
+      }
+    const { svg, palette } = vectorizeRaster({ width: size, height: size, data }, options({ engine: 'imagetracer' }));
+    expect(palette).toHaveLength(3);
+    const fills = [...svg.matchAll(/fill="rgb\((\d+),(\d+),(\d+)\)"/g)].map((m) => m.slice(1).map(Number));
+    expect(fills.some(([r, g, b]) => r < 60 && g < 60 && b < 60)).toBe(true);
+  });
+
   it('applies preprocessing before ImageTracer too', () => {
     const plain = vectorizeRaster(discRaster(), options({ engine: 'imagetracer' })).svg;
     const contrasted = vectorizeRaster(discRaster(), options({ engine: 'imagetracer', contrast: 50 })).svg;

@@ -97,7 +97,7 @@ export const en: Messages = {
   'sidebar.subpixel': 'Sub-pixel reconstruction',
   'sidebar.subpixelDesc': 'Infers the ideal edges from the anti-aliasing',
   'sidebar.pixelGrid': 'Exact pixel grid',
-  'sidebar.pixelGridDesc': 'Square edges along the pixels, no curves (pixel art)',
+  'sidebar.pixelGridDesc': 'Pixel art is detected and traced on its grid automatically; this forces it for any image',
   'sidebar.transparent': 'Transparent background',
   'sidebar.transparentDesc': 'Removes the background around the subject; colours inside it stay',
   'sidebar.primitives': 'Detect primitives',

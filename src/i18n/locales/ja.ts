@@ -97,7 +97,7 @@ export const ja: Messages = {
   'sidebar.subpixel': 'サブピクセル再構築',
   'sidebar.subpixelDesc': 'アンチエイリアスから理想的なエッジを推定します',
   'sidebar.pixelGrid': '正確なピクセルグリッド',
-  'sidebar.pixelGridDesc': 'ピクセルに沿った直線のエッジ、曲線なし（ピクセルアート）',
+  'sidebar.pixelGridDesc': 'ピクセルアートは自動で検出され、そのグリッドに沿ってトレースされます。これを有効にすると任意の画像に適用します',
   'sidebar.transparent': '透明な背景',
   'sidebar.transparentDesc': '被写体の周りの背景を削除します。内側の色は残ります',
   'sidebar.primitives': '基本図形を検出',

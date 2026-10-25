@@ -7,6 +7,9 @@ export const imageTracerOutlineTracer: OutlineTracer = {
   trace(raster, palette, options) {
     const svg = ImageTracer.imagedataToSVG(raster as unknown as ImageData, {
       numberofcolors: palette.length || options.colors,
+      // In automatic mode the detected colours are imposed, as with vecline:
+      // ImageTracer's own sampling can miss a thin colour (an outline) entirely
+      ...(options.autoColors && palette.length ? { pal: palette.map(({ rgb }) => ({ ...rgb, a: 255 })) } : {}),
       scale: 1,
       blurradius: options.blurRadius ?? 0,
       blurdelta: 20,

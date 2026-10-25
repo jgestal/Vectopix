@@ -97,7 +97,7 @@ export const fr: Messages = {
   'sidebar.subpixel': 'Reconstruction sous-pixel',
   'sidebar.subpixelDesc': 'Déduit les bords idéaux à partir de l’anticrénelage',
   'sidebar.pixelGrid': 'Grille de pixels exacte',
-  'sidebar.pixelGridDesc': 'Bords droits le long des pixels, sans courbes (pixel art)',
+  'sidebar.pixelGridDesc': 'Le pixel art est détecté et tracé automatiquement sur sa grille ; ceci le force pour toute image',
   'sidebar.transparent': 'Fond transparent',
   'sidebar.transparentDesc': 'Supprime le fond autour du sujet ; les couleurs à l’intérieur sont conservées',
   'sidebar.primitives': 'Détecter les primitives',

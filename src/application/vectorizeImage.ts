@@ -1,5 +1,6 @@
 import type { Raster } from '../domain/raster/raster';
 import { hasTransparentBorder } from '../domain/raster/transparency';
+import { isPixelArt } from '../domain/raster/pixelArt';
 import { hexToRgb, type PaletteCandidate } from '../domain/palette/colors';
 import { isOpaque, selectRealColors, toPaletteColors } from '../domain/palette/selection';
 import { refineSvg } from '../domain/vectorization/refine';
@@ -47,8 +48,16 @@ export interface Vectorizer {
 const MAX_AUTO_COLOURS = 32;
 const MAX_MANUAL_COLOURS = 64;
 
-/** Exact pixel art keeps its own grid; everything else uses the chosen engine. */
-export const selectOutlineTracer = (options: VectorOptions): OutlineTracerId => (options.pixelGrid ? 'pixelGrid' : options.engine);
+/**
+ * The tracing strategy. Pixel art is traced on its own grid: asked for
+ * (the "exact pixel grid" option), or recognised in the image when vecline,
+ * the default engine, would trace it. A deliberate choice of ImageTracerJS
+ * is respected.
+ */
+export function selectOutlineTracer(options: VectorOptions, imageIsPixelArt: boolean): OutlineTracerId {
+  if (options.pixelGrid) return 'pixelGrid';
+  return options.engine === 'vecline' && imageIsPixelArt ? 'pixelGrid' : options.engine;
+}
 
 /** Strategy: exact pixel-grid tracing (pure, see domain/vectorization/pixelGrid). */
 export const pixelGridTracer: OutlineTracer = {
@@ -59,6 +68,7 @@ export const pixelGridTracer: OutlineTracer = {
 interface CleanUpContext {
   raster: Raster;
   options: VectorOptions;
+  tracer: OutlineTracerId;
   background: BackgroundDetector;
 }
 
@@ -70,7 +80,7 @@ interface CleanUpStep {
 }
 
 /** Gradients' stops are fitted to the shapes as traced; pixel-grid output is exact and overlaps by design. */
-const keepsTracedGeometry = ({ options }: CleanUpContext) => options.gradients || options.pixelGrid;
+const keepsTracedGeometry = ({ options, tracer }: CleanUpContext) => options.gradients || tracer === 'pixelGrid';
 
 /** Clean-up after tracing, in order. */
 const CLEAN_UP_STEPS: CleanUpStep[] = [
@@ -124,11 +134,14 @@ export function createVectorizer(deps: VectorizerDeps): Vectorizer {
     onProgress('progress.palette', 20);
     const palette = choosePalette(raster, options);
 
-    const tracer = tracers[selectOutlineTracer(options)];
+    // Only worth looking for when it could change the strategy
+    const imageIsPixelArt = !options.pixelGrid && options.engine === 'vecline' && isPixelArt(raster);
+    const tracerId = selectOutlineTracer(options, imageIsPixelArt);
+    const tracer = tracers[tracerId];
     onProgress(tracer.stage, 50);
     const traced = tracer.trace(raster, palette, options);
 
-    const ctx: CleanUpContext = { raster, options, background };
+    const ctx: CleanUpContext = { raster, options, tracer: tracerId, background };
     let svg = traced.svg;
     for (const step of CLEAN_UP_STEPS.filter((s) => s.applies(ctx))) {
       if (step.stage) onProgress(step.stage, 85);
