@@ -18,7 +18,7 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run lint
-      - run: npm test
+      - run: npm run test:coverage
       - run: npm run build
 
   e2e:

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { testSvgDom } from '../../test/fakes';
 import { countShapes } from './svgStats';
-import { deleteNode, extractInteractiveNodes, moveNode, splitSegmentAtMidpoint } from './nodeEditing';
+import { toggleNodeType, deleteNode, extractInteractiveNodes, moveNode, splitSegmentAtMidpoint } from './nodeEditing';
 import { parsePathSegments, serializePathSegments } from './pathData';
 import { parseSvgDocument, serializeParsedDoc } from './svgDocument';
 import { simplifySvgPaths } from './simplify';
@@ -132,6 +132,41 @@ describe('node editing', () => {
     expect(segs).toHaveLength(4);
     expect(segs[1]).toMatchObject({ type: 'C', x: 1.5, y: 0.75 });
     expect(segs[2]).toMatchObject({ type: 'C', x: 3, y: 0 });
+  });
+
+  it('turns a corner into a curve with handles at the thirds, and back', () => {
+    const doc = parseSvgDocument('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L9 0"/></svg>', dom);
+    const curved = toggleNodeType(doc, 0, 1);
+    expect(curved.paths[0].segments[1]).toMatchObject({ type: 'C', x: 9, y: 0, cp1x: 2.97, cp2x: 5.94 });
+    expect(toggleNodeType(curved, 0, 1).paths[0].segments[1]).toEqual({ type: 'L', x: 9, y: 0 });
+    // The original document is untouched
+    expect(doc.paths[0].segments[1]).toEqual({ type: 'L', x: 9, y: 0 });
+  });
+
+  it('splits a straight segment at its middle', () => {
+    const doc = parseSvgDocument('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L10 4"/></svg>', dom);
+    const segs = splitSegmentAtMidpoint(doc, 0, 1).newDoc.paths[0].segments;
+    expect(segs).toEqual([
+      { type: 'M', x: 0, y: 0 },
+      { type: 'L', x: 5, y: 2 },
+      { type: 'L', x: 10, y: 4 },
+    ]);
+  });
+
+  it('moves a single handle without moving its anchor', () => {
+    const moved = moveNode(curveDoc(), { pathIndex: 0, segmentIndex: 1, nodeType: 'cp1' }, 9, 9);
+    expect(moved.paths[0].segments[1]).toMatchObject({ x: 3, y: 0, cp1x: 9, cp1y: 9, cp2x: 2, cp2y: 1 });
+  });
+
+  it('offers every anchor, but Bézier handles only on the selected path', () => {
+    const doc = parseSvgDocument(
+      '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0C1 1 2 1 3 0"/><path d="M10 10C11 11 12 11 13 10"/></svg>',
+      dom
+    );
+    const kinds = (selected: number | null) =>
+      extractInteractiveNodes(doc.paths, selected).map((n) => `${n.pathIndex}:${n.nodeType}`);
+    expect(kinds(0)).toEqual(['0:anchor', '0:cp1', '0:cp2', '0:anchor', '1:anchor', '1:anchor']);
+    expect(kinds(null).filter((k) => k.endsWith('cp1'))).toHaveLength(2);
   });
 
   it('removes collinear stair-step nodes when simplifying', () => {
