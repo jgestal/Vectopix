@@ -1,4 +1,6 @@
-import { parsePathSegments, serializePathSegments, type PathSegment } from '../geometry/pathData';
+import { serializePathSegments, type PathSegment } from '../geometry/pathData';
+import { boundsOf, flatten, inPolygon, type Polygon, type Pt } from '../geometry/polygon';
+import { SHAPE_ELEMENT, attr, pathSubpaths, primitiveLoop } from '../geometry/svgElements';
 
 /**
  * Seam-free stacking of traced shapes.
@@ -16,8 +18,6 @@ import { parsePathSegments, serializePathSegments, type PathSegment } from '../g
  * Pure string-in, string-out: no DOM, so it runs inside the Web Worker.
  */
 
-export type Pt = { x: number; y: number };
-export type Polygon = Pt[];
 
 interface Shape {
   /** Original markup, re-emitted with holes removed. */
@@ -37,42 +37,6 @@ const COVERAGE_SAMPLES = 24;
 /** Width (px) of the join band along a hole's outline, ignored by coverage tests. */
 const JOIN_BAND = 1.5;
 
-export function flatten(segs: PathSegment[]): Polygon[] {
-  const loops: Polygon[] = [];
-  let loop: Polygon = [];
-  let cur: Pt = { x: 0, y: 0 };
-  for (const s of segs) {
-    if (s.type === 'M') {
-      if (loop.length > 2) loops.push(loop);
-      loop = [{ x: s.x, y: s.y }];
-    } else if (s.type === 'C') {
-      for (let i = 1; i <= 8; i++) {
-        const t = i / 8;
-        const u = 1 - t;
-        loop.push({
-          x: u * u * u * cur.x + 3 * u * u * t * (s.cp1x ?? cur.x) + 3 * u * t * t * (s.cp2x ?? s.x) + t * t * t * s.x,
-          y: u * u * u * cur.y + 3 * u * u * t * (s.cp1y ?? cur.y) + 3 * u * t * t * (s.cp2y ?? s.y) + t * t * t * s.y,
-        });
-      }
-    } else if (s.type === 'L') {
-      loop.push({ x: s.x, y: s.y });
-    }
-    cur = { x: s.x, y: s.y };
-  }
-  if (loop.length > 2) loops.push(loop);
-  return loops;
-}
-
-export function inPolygon(p: Pt, poly: Polygon): boolean {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const a = poly[i];
-    const b = poly[j];
-    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
-  }
-  return inside;
-}
-
 /** Even-odd fill: inside an odd number of the shape's loops (minus dropped holes). */
 function inShape(p: Pt, shape: Shape, dropped?: Set<number>): boolean {
   const { bbox } = shape;
@@ -84,71 +48,32 @@ function inShape(p: Pt, shape: Shape, dropped?: Set<number>): boolean {
   return count % 2 === 1;
 }
 
-export function boundsOf(loops: Polygon[]) {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const loop of loops)
-    for (const p of loop) {
-      minX = Math.min(minX, p.x);
-      minY = Math.min(minY, p.y);
-      maxX = Math.max(maxX, p.x);
-      maxY = Math.max(maxY, p.y);
-    }
-  return { minX, minY, maxX, maxY };
+/** Only opaque, flat fills take part; anything else keeps its place untouched. */
+function isFlatOpaque(element: string): boolean {
+  const fill = attr(element, 'fill');
+  return !!fill && fill !== 'none' && !fill.startsWith('url(') && !/\s(fill-)?opacity="/.test(element);
 }
 
-const num = (el: string, attr: string) => parseFloat(el.match(new RegExp(`\\s${attr}="([^"]*)"`))?.[1] ?? '0') || 0;
-
-function primitiveLoop(el: string): Polygon | null {
-  const tag = el.match(/^<(\w+)/)?.[1];
-  if (tag === 'rect') {
-    const [x, y, w, h] = [num(el, 'x'), num(el, 'y'), num(el, 'width'), num(el, 'height')];
-    return [
-      { x, y },
-      { x: x + w, y },
-      { x: x + w, y: y + h },
-      { x, y: y + h },
-    ];
+function shapeOf(element: string, tag: string): Shape | null {
+  if (tag !== 'path') {
+    const loop = primitiveLoop(element);
+    return loop && { element, kind: 'primitive', loops: [loop], subpaths: [], bbox: boundsOf([loop]) };
   }
-  if (tag === 'circle' || tag === 'ellipse') {
-    const [cx, cy] = [num(el, 'cx'), num(el, 'cy')];
-    const rx = tag === 'circle' ? num(el, 'r') : num(el, 'rx');
-    const ry = tag === 'circle' ? num(el, 'r') : num(el, 'ry');
-    return Array.from({ length: 48 }, (_, i) => ({
-      x: cx + rx * Math.cos((Math.PI * 2 * i) / 48),
-      y: cy + ry * Math.sin((Math.PI * 2 * i) / 48),
-    }));
-  }
-  return null;
+  const subpaths = pathSubpaths(element);
+  const loops = subpaths.map((sp) => flatten(sp)[0]);
+  // Keep subpaths and loops index-aligned; give up on degenerate data
+  if (!subpaths.length || loops.some((l) => !l)) return null;
+  return { element, kind: 'path', loops, subpaths, bbox: boundsOf(loops) };
 }
 
 function parseShapes(svg: string): { shapes: Shape[]; spans: [number, number][] } {
   const shapes: Shape[] = [];
   const spans: [number, number][] = [];
-  for (const m of svg.matchAll(/<(path|circle|ellipse|rect)\b[^>]*\/>/g)) {
-    const element = m[0];
-    // Only opaque, flat fills take part; anything else keeps its place untouched
-    const fill = element.match(/\sfill="([^"]*)"/)?.[1];
-    if (!fill || fill === 'none' || fill.startsWith('url(') || /\s(fill-)?opacity="/.test(element)) continue;
-    if (m[1] === 'path') {
-      const d = element.match(/\sd="([^"]*)"/)?.[1] ?? '';
-      const subpaths: PathSegment[][] = [];
-      for (const seg of parsePathSegments(d)) {
-        if (seg.type === 'M') subpaths.push([seg]);
-        else subpaths[subpaths.length - 1]?.push(seg);
-      }
-      const loops = subpaths.map((sp) => flatten(sp)[0]);
-      // Keep subpaths and loops index-aligned; give up on degenerate data
-      if (!subpaths.length || loops.some((l) => !l)) continue;
-      shapes.push({ element, kind: 'path', loops, subpaths, bbox: boundsOf(loops) });
-    } else {
-      const loop = primitiveLoop(element);
-      if (!loop) continue;
-      shapes.push({ element, kind: 'primitive', loops: [loop], subpaths: [], bbox: boundsOf([loop]) });
-    }
-    spans.push([m.index ?? 0, (m.index ?? 0) + element.length]);
+  for (const m of svg.matchAll(SHAPE_ELEMENT)) {
+    const shape = isFlatOpaque(m[0]) ? shapeOf(m[0], m[1]) : null;
+    if (!shape) continue;
+    shapes.push(shape);
+    spans.push([m.index, m.index + m[0].length]);
   }
   return { shapes, spans };
 }

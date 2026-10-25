@@ -1,4 +1,6 @@
 import { parsePathSegments, serializePathSegments, type PathSegment } from '../geometry/pathData';
+import { splitSubpaths } from '../geometry/svgElements';
+import { bezierAt } from '../geometry/polygon';
 
 /**
  * Geometric clean-up of traced SVG paths, potrace-style.
@@ -56,24 +58,6 @@ function distToChord(p: Pt, a: Pt, b: Pt): number {
   return Math.abs((p.x - a.x) * d.y - (p.y - a.y) * d.x) / l;
 }
 
-function bezier(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number): Pt {
-  const u = 1 - t;
-  return {
-    x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
-    y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
-  };
-}
-
-/** Split absolute segments into closed subpaths (each starting with M). */
-function splitSubpaths(segments: PathSegment[]): PathSegment[][] {
-  const out: PathSegment[][] = [];
-  for (const s of segments) {
-    if (s.type === 'M') out.push([s]);
-    else if (out.length) out[out.length - 1].push(s);
-  }
-  return out;
-}
-
 /** Minimum tangent turn (°) at one of the tracer's own vertices for it to count as a corner. */
 const TRACER_CORNER_TURN = 45;
 
@@ -82,42 +66,54 @@ const TRACER_CORNER_TURN = 45;
  * plus the tracer's own vertices where the tangent jumps. The tracer splits
  * outlines where regions meet, so those are the exact, shared corner positions.
  */
+/** Angle (degrees, 0–180) between two unit directions. */
+const turnBetween = (a: Pt, b: Pt) => (Math.acos(Math.max(-1, Math.min(1, dot(a, b)))) * 180) / Math.PI;
+
+/** The Bézier control points of a segment from `cur`; a line's are its own ends. */
+function controlPoints(s: PathSegment, cur: Pt): { c1: Pt; c2: Pt } {
+  const end = { x: s.x, y: s.y };
+  if (s.type !== 'C') return { c1: end, c2: cur };
+  return { c1: { x: s.cp1x ?? cur.x, y: s.cp1y ?? cur.y }, c2: { x: s.cp2x ?? end.x, y: s.cp2y ?? end.y } };
+}
+
+/** Direction leaving and arriving at a segment's ends (null for a closing or empty segment). */
+function segmentTangents(s: PathSegment, cur: Pt): { start: Pt; end: Pt; at: Pt } | null {
+  const end = { x: s.x, y: s.y };
+  if (s.type === 'Z' || len(sub(end, cur)) <= 1e-9) return null;
+  const { c1, c2 } = controlPoints(s, cur);
+  const startDir = norm(sub(len(sub(c1, cur)) > 1e-9 ? c1 : end, cur));
+  const endDir = norm(sub(end, len(sub(end, c2)) > 1e-9 ? c2 : cur));
+  return { start: startDir, end: endDir, at: end };
+}
+
+/** Points along a segment (excluding `cur`), about one per pixel. */
+function sampleSegment(s: PathSegment, cur: Pt): Pt[] {
+  const end = { x: s.x, y: s.y };
+  if (s.type === 'C') {
+    const { c1, c2 } = controlPoints(s, cur);
+    const n = Math.max(2, Math.ceil(len(sub(c1, cur)) + len(sub(c2, c1)) + len(sub(end, c2))));
+    return Array.from({ length: n }, (_, i) => bezierAt(cur, c1, c2, end, (i + 1) / n));
+  }
+  const n = Math.max(1, Math.ceil(len(sub(end, cur))));
+  return Array.from({ length: n }, (_, i) => add(cur, mul(sub(end, cur), (i + 1) / n)));
+}
+
 function sampleSubpath(segs: PathSegment[]): { pts: Pt[]; tracerCorners: Pt[] } {
-  const pts: Pt[] = [];
   let cur: Pt = { x: segs[0].x, y: segs[0].y };
-  pts.push(cur);
-  // Direction leaving / arriving at each segment end, to measure tangent jumps
+  const pts: Pt[] = [cur];
   const tangents: { start: Pt; end: Pt; at: Pt }[] = [];
   for (const s of segs.slice(1)) {
-    const end = { x: s.x, y: s.y };
-    if (s.type !== 'Z' && len(sub(end, cur)) > 1e-9) {
-      const c1 = s.type === 'C' ? { x: s.cp1x ?? cur.x, y: s.cp1y ?? cur.y } : end;
-      const c2 = s.type === 'C' ? { x: s.cp2x ?? end.x, y: s.cp2y ?? end.y } : cur;
-      const startDir = norm(sub(len(sub(c1, cur)) > 1e-9 ? c1 : end, cur));
-      const endDir = norm(sub(end, len(sub(end, c2)) > 1e-9 ? c2 : cur));
-      tangents.push({ start: startDir, end: endDir, at: end });
-    }
-    if (s.type === 'C') {
-      const c1 = { x: s.cp1x ?? cur.x, y: s.cp1y ?? cur.y };
-      const c2 = { x: s.cp2x ?? end.x, y: s.cp2y ?? end.y };
-      const approx = len(sub(c1, cur)) + len(sub(c2, c1)) + len(sub(end, c2));
-      const n = Math.max(2, Math.ceil(approx));
-      for (let i = 1; i <= n; i++) pts.push(bezier(cur, c1, c2, end, i / n));
-    } else {
-      const n = Math.max(1, Math.ceil(len(sub(end, cur))));
-      for (let i = 1; i <= n; i++) pts.push(add(cur, mul(sub(end, cur), i / n)));
-    }
-    cur = end;
+    const t = segmentTangents(s, cur);
+    if (t) tangents.push(t);
+    pts.push(...sampleSegment(s, cur));
+    cur = { x: s.x, y: s.y };
   }
   // Closed: drop the repeated start point
   if (pts.length > 1 && len(sub(pts[0], pts[pts.length - 1])) < 1e-6) pts.pop();
 
-  const tracerCorners: Pt[] = [];
-  for (let i = 0; i < tangents.length; i++) {
-    const next = tangents[(i + 1) % tangents.length];
-    const turn = (Math.acos(Math.max(-1, Math.min(1, dot(tangents[i].end, next.start)))) * 180) / Math.PI;
-    if (turn >= TRACER_CORNER_TURN) tracerCorners.push(tangents[i].at);
-  }
+  const tracerCorners = tangents
+    .filter((t, i) => turnBetween(t.end, tangents[(i + 1) % tangents.length].start) >= TRACER_CORNER_TURN)
+    .map((t) => t.at);
   return { pts, tracerCorners };
 }
 
@@ -362,7 +358,7 @@ function maxError(pts: Pt[], u: number[], c: Cubic): { error: number; index: num
   let error = 0;
   let index = Math.floor(pts.length / 2);
   for (let i = 1; i < pts.length - 1; i++) {
-    const d = len(sub(bezier(c[0], c[1], c[2], c[3], u[i]), pts[i]));
+    const d = len(sub(bezierAt(c[0], c[1], c[2], c[3], u[i]), pts[i]));
     if (d > error) {
       error = d;
       index = i;
@@ -375,7 +371,7 @@ function reparameterize(pts: Pt[], u: number[], c: Cubic): number[] {
   return u.map((t, i) => {
     // One Newton-Raphson step on |B(t) - p|²
     const p = pts[i];
-    const b = bezier(c[0], c[1], c[2], c[3], t);
+    const b = bezierAt(c[0], c[1], c[2], c[3], t);
     const d1 = add(
       add(mul(sub(c[1], c[0]), 3 * (1 - t) ** 2), mul(sub(c[2], c[1]), 6 * (1 - t) * t)),
       mul(sub(c[3], c[2]), 3 * t * t)
@@ -489,39 +485,56 @@ function refineSubpath(segs: PathSegment[], o: Required<RefineOptions>): PathSeg
   return fitted;
 }
 
-function fitSubpath(segs: PathSegment[], o: Required<RefineOptions>): PathSegment[] | null {
-  const { pts: raw, tracerCorners } = sampleSubpath(segs);
-  if (raw.length < 3) return null;
-  const pts = resampleClosed(raw);
-  const n = pts.length;
+/** Resampled outline being refitted, with the options in force. */
+interface Outline {
+  pts: Pt[];
+  n: number;
+  o: Required<RefineOptions>;
+}
 
+/** Anti-aliasing slivers: thinner (2·area / perimeter) than `minThickness`. */
+function isFringe({ pts, n, o }: Outline): boolean {
   let perimeter = 0;
   for (let i = 0; i < n; i++) perimeter += len(sub(pts[(i + 1) % n], pts[i]));
-  if ((2 * polygonArea(pts)) / Math.max(perimeter, 1e-9) < o.minThickness) return null;
+  return (2 * polygonArea(pts)) / Math.max(perimeter, 1e-9) < o.minThickness;
+}
 
-  const buildPieces = (cuts: number[]): Piece[] =>
-    cuts.map((start, i) => {
-      const end = cuts[(i + 1) % cuts.length];
-      const stretch: Pt[] = [];
-      for (let k = start; ; k = (k + 1) % n) {
-        stretch.push(pts[k]);
-        if (k === end && stretch.length > 1) break;
-        if (stretch.length > n + 1) break;
-      }
-      // Straight if every point lies close to the best-fit line (not the chord:
-      // the tracer may have rounded the ends, which drags the chord off the
-      // edge). The few px at each end are skipped for the same reason; the
-      // corner itself is placed afterwards at the intersection of the lines.
-      const trim = stretch.length > 4 * END_SKIP ? END_SKIP : 1;
-      const inner = stretch.length > 4 ? stretch.slice(trim, -trim) : stretch;
-      const line = fitLine(inner);
-      const straight = inner.every((p) => distToChord(p, line.p, add(line.p, line.d)) <= o.lineTolerance);
-      return { kind: straight ? 'line' : 'curve', pts: stretch };
-    });
+/** A stretch without its ends, which the tracer may have rounded. */
+const withoutEnds = (stretch: Pt[]) => {
+  const trim = stretch.length > 4 * END_SKIP ? END_SKIP : 1;
+  return stretch.slice(trim, -trim);
+};
+/** The points a stretch's best-fit line is judged on (very short stretches keep their ends). */
+const lineSample = (stretch: Pt[]) => (stretch.length > 4 ? withoutEnds(stretch) : stretch);
 
-  // Corners: the tracer's own sharp vertices (snapped onto the exact vertex),
-  // plus what the geometric detectors find. Candidates a few px apart are one
-  // corner; the tracer's is preferred because neighbouring regions share it.
+/**
+ * Split the outline at `cuts` into pieces, each straight or curved. Straight
+ * if every point lies close to the best-fit line (not the chord: the tracer
+ * may have rounded the ends, which drags the chord off the edge); the corner
+ * itself is placed afterwards at the intersection of the lines.
+ */
+function buildPieces({ pts, n, o }: Outline, cuts: number[]): Piece[] {
+  return cuts.map((start, i) => {
+    const end = cuts[(i + 1) % cuts.length];
+    const stretch: Pt[] = [];
+    for (let k = start; ; k = (k + 1) % n) {
+      stretch.push(pts[k]);
+      if ((k === end && stretch.length > 1) || stretch.length > n + 1) break;
+    }
+    const inner = lineSample(stretch);
+    const line = fitLine(inner);
+    const straight = inner.every((p) => distToChord(p, line.p, add(line.p, line.d)) <= o.lineTolerance);
+    return { kind: straight ? 'line' : 'curve', pts: stretch };
+  });
+}
+
+/**
+ * Corners: the tracer's own sharp vertices (snapped onto the exact vertex),
+ * plus what the geometric detectors find. Candidates a few px apart are one
+ * corner; the tracer's is preferred because neighbouring regions share it.
+ */
+function findOutlineCorners(outline: Outline, tracerCorners: Pt[]): number[] {
+  const { pts, n, o } = outline;
   const nearestIndex = (p: Pt) => {
     let best = 0;
     for (let i = 1; i < n; i++) if (len(sub(pts[i], p)) < len(sub(pts[best], p))) best = i;
@@ -534,62 +547,81 @@ function fitSubpath(segs: PathSegment[], o: Required<RefineOptions>): PathSegmen
     pts[i] = c;
   }
   const candidates = [...new Set([...fromTracer.keys(), ...findCorners(pts, o.cornerSpan, o.cornerAngle)])].sort((a, b) => a - b);
-  let corners: number[] = [];
+  // Within CORNER_MERGE of `kept`, the tracer's candidate replaces a detected one
+  const prefer = (kept: number, c: number) => (fromTracer.has(c) && !fromTracer.has(kept) ? c : kept);
+  const corners: number[] = [];
   for (const c of candidates) {
-    const last = corners[corners.length - 1];
-    const wrapsToFirst = corners.length > 0 && n - c + corners[0] <= CORNER_MERGE;
-    if (last !== undefined && c - last <= CORNER_MERGE) {
-      if (fromTracer.has(c) && !fromTracer.has(last)) corners[corners.length - 1] = c;
-    } else if (wrapsToFirst) {
-      if (fromTracer.has(c) && !fromTracer.has(corners[0])) corners[0] = c;
-    } else {
-      corners.push(c);
-    }
+    const last = corners.at(-1);
+    if (last !== undefined && c - last <= CORNER_MERGE) corners[corners.length - 1] = prefer(last, c);
+    else if (corners.length > 0 && n - c + corners[0] <= CORNER_MERGE) corners[0] = prefer(corners[0], c);
+    else corners.push(c);
   }
-  corners.sort((a, b) => a - b);
+  return corners.sort((a, b) => a - b);
+}
 
-  // A tracer often draws a small arc as a few short chords or kinked curves,
-  // and a curve easing into a straight run can trip the corner detectors.
-  // A gentle turn is only a real corner between two long straight edges (the
-  // shallow peak of a shield); anywhere else the corner is dropped and the
-  // stretch refitted as one smooth curve. Sharp turns always stay corners.
-  if (corners.length > 2) {
-    const pieces = buildPieces(corners);
-    const chord = (pc: Piece) => len(sub(pc.pts[pc.pts.length - 1], pc.pts[0]));
-    const reach = (pc: Piece) => Math.min(TANGENT_REACH, pc.pts.length - 1);
-    const keep = corners.filter((_, i) => {
-      const before = pieces[(i - 1 + pieces.length) % pieces.length];
-      const after = pieces[i];
-      const tb = norm(sub(before.pts[before.pts.length - 1], before.pts[before.pts.length - 1 - reach(before)]));
-      const ta = norm(sub(after.pts[reach(after)], after.pts[0]));
-      const turn = (Math.acos(Math.max(-1, Math.min(1, dot(tb, ta)))) * 180) / Math.PI;
-      if (turn >= ARC_TURN_MAX) return true;
-      return before.kind === 'line' && after.kind === 'line' && chord(before) >= ARC_CHORD_MAX && chord(after) >= ARC_CHORD_MAX;
-    });
-    if (keep.length !== corners.length) corners = keep;
+/**
+ * A tracer often draws a small arc as a few short chords or kinked curves,
+ * and a curve easing into a straight run can trip the corner detectors. A
+ * gentle turn is only a real corner between two long straight edges (the
+ * shallow peak of a shield); anywhere else the corner is dropped and the
+ * stretch refitted as one smooth curve. Sharp turns always stay corners.
+ */
+function dropGentleCorners(outline: Outline, corners: number[]): number[] {
+  if (corners.length <= 2) return corners;
+  const pieces = buildPieces(outline, corners);
+  const chord = (pc: Piece) => len(sub(pc.pts[pc.pts.length - 1], pc.pts[0]));
+  const reach = (pc: Piece) => Math.min(TANGENT_REACH, pc.pts.length - 1);
+  const isLongLine = (pc: Piece) => pc.kind === 'line' && chord(pc) >= ARC_CHORD_MAX;
+  return corners.filter((_, i) => {
+    const before = pieces[(i - 1 + pieces.length) % pieces.length];
+    const after = pieces[i];
+    const tb = norm(sub(before.pts[before.pts.length - 1], before.pts[before.pts.length - 1 - reach(before)]));
+    const ta = norm(sub(after.pts[reach(after)], after.pts[0]));
+    return turnBetween(tb, ta) >= ARC_TURN_MAX || (isLongLine(before) && isLongLine(after));
+  });
+}
+
+/** Line-line corners move to the exact intersection of the two fitted lines. */
+function snapCorners(outline: Outline, cuts: number[], pieces: Piece[]): Pt[] {
+  const cornerPts = cuts.map((c) => outline.pts[c]);
+  const lines = pieces.map((p) => (p.kind === 'line' && p.pts.length >= 4 ? fitLine(withoutEnds(p.pts)) : null));
+  cuts.forEach((_, i) => {
+    const before = lines[(i - 1 + cuts.length) % cuts.length];
+    const after = lines[i];
+    const x = before && after ? intersect(before, after) : null;
+    if (x && len(sub(x, cornerPts[i])) <= outline.o.cornerSpan) cornerPts[i] = x;
+  });
+  return cornerPts;
+}
+
+const cubicSegment = (c: Cubic): PathSegment => ({ type: 'C', cp1x: c[1].x, cp1y: c[1].y, cp2x: c[2].x, cp2y: c[2].y, x: c[3].x, y: c[3].y });
+
+/** A curved piece from `a` to `b`: a circular arc if it is one, else a minimal Bézier fit. */
+function curveSegments(stretch: Pt[], tangents: { t1: Pt; t2: Pt }, o: Required<RefineOptions>): PathSegment[] {
+  const [a, b] = [stretch[0], stretch[stretch.length - 1]];
+  const circle = stretch.length >= 8 ? fitCircle(stretch) : null;
+  // The traced data itself wobbles by about a pixel, so a larger circle may
+  // stray a little further from it (4 % of the radius, at most 1.5 px)
+  const circleTolerance = circle ? Math.max(o.curveTolerance, Math.min(1.5, 0.04 * circle.r)) : 0;
+  if (circle && circle.residual <= circleTolerance && circle.r < 1e4) {
+    return arcCubics(circle.c, circle.r, a, b, stretch[Math.floor(stretch.length / 2)]).map(cubicSegment);
   }
+  return fitCubics(stretch, tangents.t1, tangents.t2, o.curveTolerance).map(cubicSegment);
+}
 
+function fitSubpath(segs: PathSegment[], o: Required<RefineOptions>): PathSegment[] | null {
+  const { pts: raw, tracerCorners } = sampleSubpath(segs);
+  if (raw.length < 3) return null;
+  const pts = resampleClosed(raw);
+  const outline: Outline = { pts, n: pts.length, o };
+  if (isFringe(outline)) return null;
+
+  const corners = dropGentleCorners(outline, findOutlineCorners(outline, tracerCorners));
   // A loop without corners (a circle, a blob) is split in two smooth halves
-  const cuts = corners.length ? corners : [0, Math.floor(n / 2)];
   const smoothJoins = corners.length === 0;
-  const pieces = buildPieces(cuts);
-
-  // Snap line-line corners to the exact intersection of the two fitted lines
-  const cornerPts = cuts.map((c) => pts[c]);
-  if (!smoothJoins) {
-    const lines = pieces.map((p) => {
-      if (p.kind !== 'line' || p.pts.length < 4) return null;
-      const trim = p.pts.length > 4 * END_SKIP ? END_SKIP : 1;
-      return fitLine(p.pts.slice(trim, -trim));
-    });
-    for (let i = 0; i < cuts.length; i++) {
-      const before = lines[(i - 1 + cuts.length) % cuts.length];
-      const after = lines[i];
-      if (!before || !after) continue;
-      const x = intersect(before, after);
-      if (x && len(sub(x, cornerPts[i])) <= o.cornerSpan) cornerPts[i] = x;
-    }
-  }
+  const cuts = smoothJoins ? [0, Math.floor(outline.n / 2)] : corners;
+  const pieces = buildPieces(outline, cuts);
+  const cornerPts = smoothJoins ? cuts.map((c) => pts[c]) : snapCorners(outline, cuts, pieces);
 
   const out: PathSegment[] = [{ type: 'M', ...cornerPts[0] }];
   pieces.forEach((piece, i) => {
@@ -601,27 +633,12 @@ function fitSubpath(segs: PathSegment[], o: Required<RefineOptions>): PathSegmen
       return;
     }
     const stretch = [a, ...piece.pts.slice(1, -1), b];
-
-    // Part of a circle? Draw it from the circle itself
-    const circle = stretch.length >= 8 ? fitCircle(stretch) : null;
-    // The traced data itself wobbles by about a pixel, so a larger circle may
-    // stray a little further from it (4 % of the radius, at most 1.5 px)
-    const circleTolerance = circle ? Math.max(o.curveTolerance, Math.min(1.5, 0.04 * circle.r)) : 0;
-    if (circle && circle.residual <= circleTolerance && circle.r < 1e4) {
-      for (const c of arcCubics(circle.c, circle.r, a, b, stretch[Math.floor(stretch.length / 2)])) {
-        out.push({ type: 'C', cp1x: c[1].x, cp1y: c[1].y, cp2x: c[2].x, cp2y: c[2].y, x: c[3].x, y: c[3].y });
-      }
-      return;
-    }
-
     // Smooth loops share one tangent across each join, so the seam doesn't kink
-    const t1 = smoothJoins ? norm(sub(stretch[1], pieces[(i - 1 + pieces.length) % pieces.length].pts.at(-2)!)) : endTangent(stretch, true);
-    const t2 = smoothJoins
-      ? mul(norm(sub(pieces[(i + 1) % pieces.length].pts[1], stretch[stretch.length - 2])), -1)
-      : endTangent(stretch, false);
-    for (const c of fitCubics(stretch, t1, t2, o.curveTolerance)) {
-      out.push({ type: 'C', cp1x: c[1].x, cp1y: c[1].y, cp2x: c[2].x, cp2y: c[2].y, x: c[3].x, y: c[3].y });
-    }
+    const neighbour = (k: number) => pieces[(i + k + pieces.length) % pieces.length];
+    const tangents = smoothJoins
+      ? { t1: norm(sub(stretch[1], neighbour(-1).pts.at(-2)!)), t2: mul(norm(sub(neighbour(1).pts[1], stretch[stretch.length - 2])), -1) }
+      : { t1: endTangent(stretch, true), t2: endTangent(stretch, false) };
+    out.push(...curveSegments(stretch, tangents, o));
   });
   out.push({ type: 'Z', ...cornerPts[0] });
   return out;

@@ -1,5 +1,6 @@
 import { parsePathSegments, serializePathSegments, type PathSegment } from '../geometry/pathData';
-import { boundsOf, flatten, inPolygon } from './stack';
+import { boundsOf, flatten, inPolygon, type Bounds, type Polygon } from '../geometry/polygon';
+import { SHAPE_ELEMENT, attr, pathSubpaths, primitiveLoop } from '../geometry/svgElements';
 
 /**
  * Transparent background, decided on the traced vectors.
@@ -29,50 +30,48 @@ function parseColour(value: string): Rgb | null {
   return rgb ? { r: +rgb[1], g: +rgb[2], b: +rgb[3] } : null;
 }
 
-function numberAttr(el: string, attr: string): number {
-  return parseFloat(el.match(new RegExp(`\\s${attr}="([^"]*)"`))?.[1] ?? '0') || 0;
+/** The indices of the loops that contain each loop (even-odd nesting within one path). */
+function containers(loops: Polygon[]): number[][] {
+  return loops.map((loop, i) =>
+    loop.length ? loops.map((_, j) => j).filter((j) => j !== i && loops[j].length > 2 && inPolygon(loop[0], loops[j])) : []
+  );
+}
+
+/**
+ * The subpaths of a background-coloured path that make up the outer region:
+ * its top-level loops reaching the border, plus the holes directly inside
+ * them (where the subject is drawn). Islands deeper in are the subject's own.
+ */
+function outerRegion(subpaths: PathSegment[][], touchesBorder: (b: Bounds) => boolean): Set<number> {
+  const loops = subpaths.map((sp) => flatten(sp)[0] ?? []);
+  const parents = containers(loops);
+  const outer = new Set(loops.map((_, i) => i).filter((i) => parents[i].length === 0 && loops[i].length && touchesBorder(boundsOf([loops[i]]))));
+  const region = new Set(outer);
+  parents.forEach((p, i) => {
+    if (p.length === 1 && outer.has(p[0])) region.add(i);
+  });
+  return outer.size ? region : new Set();
+}
+
+function isColour(element: string, colour: Rgb): boolean {
+  const fill = parseColour(attr(element, 'fill') ?? '');
+  return !!fill && Math.hypot(fill.r - colour.r, fill.g - colour.g, fill.b - colour.b) <= SAME_COLOUR;
 }
 
 export function removeOuterBackground(svg: string, background: Rgb, width: number, height: number): string {
-  const touchesBorder = (b: ReturnType<typeof boundsOf>) =>
+  const touchesBorder = (b: Bounds) =>
     b.minX <= BORDER_REACH || b.minY <= BORDER_REACH || b.maxX >= width - BORDER_REACH || b.maxY >= height - BORDER_REACH;
 
-  return svg.replace(/<(path|circle|ellipse|rect)\b[^>]*\/>/g, (element, tag: string) => {
-    const fill = parseColour(element.match(/\sfill="([^"]*)"/)?.[1] ?? '');
-    if (!fill || Math.hypot(fill.r - background.r, fill.g - background.g, fill.b - background.b) > SAME_COLOUR) return element;
-
+  return svg.replace(SHAPE_ELEMENT, (element, tag: string) => {
+    if (!isColour(element, background)) return element;
+    // A primitive in the background colour: the backing shape if it reaches the border
     if (tag !== 'path') {
-      // A primitive in the background colour: the backing shape if it reaches the border
-      const [x, y] = tag === 'rect' ? [numberAttr(element, 'x'), numberAttr(element, 'y')] : [numberAttr(element, 'cx'), numberAttr(element, 'cy')];
-      const [w, h] =
-        tag === 'rect'
-          ? [numberAttr(element, 'width'), numberAttr(element, 'height')]
-          : tag === 'circle'
-            ? [numberAttr(element, 'r'), numberAttr(element, 'r')]
-            : [numberAttr(element, 'rx'), numberAttr(element, 'ry')];
-      const b = tag === 'rect' ? { minX: x, minY: y, maxX: x + w, maxY: y + h } : { minX: x - w, minY: y - h, maxX: x + w, maxY: y + h };
-      return touchesBorder(b) ? '' : element;
+      const loop = primitiveLoop(element);
+      return loop && touchesBorder(boundsOf([loop])) ? '' : element;
     }
-
-    const subpaths: PathSegment[][] = [];
-    for (const seg of parsePathSegments(element.match(/\sd="([^"]*)"/)?.[1] ?? '')) {
-      if (seg.type === 'M') subpaths.push([seg]);
-      else subpaths[subpaths.length - 1]?.push(seg);
-    }
-    const loops = subpaths.map((sp) => flatten(sp)[0] ?? []);
-    // Which loops contain each loop (even-odd nesting within this path)
-    const parents = loops.map((loop, i) =>
-      loop.length ? loops.map((_, j) => j).filter((j) => j !== i && loops[j].length > 2 && inPolygon(loop[0], loops[j])) : []
-    );
-    // The outer region: top-level loops reaching the border, plus the holes
-    // directly inside them (where the subject is drawn)
-    const outer = new Set(loops.map((_, i) => i).filter((i) => parents[i].length === 0 && loops[i].length && touchesBorder(boundsOf([loops[i]]))));
-    if (!outer.size) return element;
-    const removed = new Set(outer);
-    parents.forEach((p, i) => {
-      if (p.length === 1 && outer.has(p[0])) removed.add(i);
-    });
-
+    const subpaths = pathSubpaths(element);
+    const removed = outerRegion(subpaths, touchesBorder);
+    if (!removed.size) return element;
     const kept = subpaths.filter((_, i) => !removed.has(i));
     if (!kept.length) return '';
     return element.replace(/\sd="[^"]*"/, ` d="${kept.map((sp) => serializePathSegments(sp, 2)).join('')}"`);

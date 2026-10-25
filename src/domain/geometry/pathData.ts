@@ -109,148 +109,184 @@ export function parsePathSegments(d: string): PathSegment[] {
   return parsePathData(d).segments;
 }
 
-/** Like {@link parsePathSegments}, also reporting whether all of `d` was valid. */
-export function parsePathData(d: string): { segments: PathSegment[]; complete: boolean } {
-  let pos = 0;
-  const skipSeparators = () => {
-    while (pos < d.length && (d[pos] === ',' || d[pos] === ' ' || d[pos] === '\n' || d[pos] === '\t' || d[pos] === '\r')) pos++;
-  };
-  const readNumber = (): number | null => {
-    skipSeparators();
-    NUMBER.lastIndex = pos;
-    const match = NUMBER.exec(d);
+type Pt = { x: number; y: number };
+
+const SEPARATORS = new Set([',', ' ', '\n', '\t', '\r']);
+
+/** Reads numbers, flags and command letters from path data, left to right. */
+class PathReader {
+  private pos = 0;
+  private readonly d: string;
+
+  constructor(d: string) {
+    this.d = d;
+  }
+
+  skipSeparators(): void {
+    while (this.pos < this.d.length && SEPARATORS.has(this.d[this.pos])) this.pos++;
+  }
+
+  atEnd(): boolean {
+    this.skipSeparators();
+    return this.pos >= this.d.length;
+  }
+
+  /** The command letter here, consumed; null if the next token is a number. */
+  command(): string | null {
+    this.skipSeparators();
+    const c = this.d[this.pos];
+    if (!c || !/[a-zA-Z]/.test(c)) return null;
+    this.pos++;
+    return c;
+  }
+
+  number(): number | null {
+    this.skipSeparators();
+    NUMBER.lastIndex = this.pos;
+    const match = NUMBER.exec(this.d);
     if (!match) return null;
-    pos = NUMBER.lastIndex;
+    this.pos = NUMBER.lastIndex;
     return parseFloat(match[0]);
-  };
-  // Arc flags are single digits and may be packed without separators ("011")
-  const readFlag = (): boolean | null => {
-    skipSeparators();
-    const c = d[pos];
+  }
+
+  /** Arc flags are single digits and may be packed without separators ("011"). */
+  flag(): boolean | null {
+    this.skipSeparators();
+    const c = this.d[this.pos];
     if (c !== '0' && c !== '1') return null;
-    pos++;
+    this.pos++;
     return c === '1';
-  };
-  const readNumbers = (count: number): number[] | null => {
+  }
+
+  numbers(count: number): number[] | null {
     const out: number[] = [];
     for (let k = 0; k < count; k++) {
-      const n = readNumber();
+      const n = this.number();
       if (n === null) return null;
       out.push(n);
     }
     return out;
-  };
-
-  const segments: PathSegment[] = [];
-  let curX = 0;
-  let curY = 0;
-  let startX = 0;
-  let startY = 0;
-  let cmd = '';
-  // Control points of the previous cubic / quadratic, for S and T reflection
-  let lastCubic: { x: number; y: number } | null = null;
-  let lastQuad: { x: number; y: number } | null = null;
-
-  while (true) {
-    skipSeparators();
-    if (pos >= d.length) break;
-    if (/[a-zA-Z]/.test(d[pos])) {
-      cmd = d[pos++];
-    } else if (!cmd) {
-      break;
-    }
-
-    const upper = cmd.toUpperCase();
-    const rel = cmd !== upper;
-    const ox = rel ? curX : 0;
-    const oy = rel ? curY : 0;
-    let nextCubic: { x: number; y: number } | null = null;
-    let nextQuad: { x: number; y: number } | null = null;
-
-    if (upper === 'Z') {
-      segments.push({ type: 'Z', x: startX, y: startY });
-      curX = startX;
-      curY = startY;
-      cmd = '';
-    } else if (upper === 'M' || upper === 'L' || upper === 'T') {
-      const n = readNumbers(2);
-      if (!n) break;
-      const x = ox + n[0];
-      const y = oy + n[1];
-      if (upper === 'M') {
-        segments.push({ type: 'M', x, y });
-        startX = x;
-        startY = y;
-        cmd = rel ? 'l' : 'L'; // Subsequent pairs are implicit lineTo
-      } else if (upper === 'L') {
-        segments.push({ type: 'L', x, y });
-      } else {
-        const q: { x: number; y: number } = lastQuad ? { x: 2 * curX - lastQuad.x, y: 2 * curY - lastQuad.y } : { x: curX, y: curY };
-        segments.push(quadToCubic(curX, curY, q.x, q.y, x, y));
-        nextQuad = q;
-      }
-      curX = x;
-      curY = y;
-    } else if (upper === 'H' || upper === 'V') {
-      const n = readNumber();
-      if (n === null) break;
-      if (upper === 'H') curX = ox + n;
-      else curY = oy + n;
-      segments.push({ type: 'L', x: curX, y: curY });
-    } else if (upper === 'C' || upper === 'S') {
-      const n = readNumbers(upper === 'C' ? 6 : 4);
-      if (!n) break;
-      const [cp1x, cp1y] =
-        upper === 'C'
-          ? [ox + n[0], oy + n[1]]
-          : lastCubic
-            ? [2 * curX - lastCubic.x, 2 * curY - lastCubic.y]
-            : [curX, curY];
-      const rest = upper === 'C' ? n.slice(2) : n;
-      const seg: PathSegment = {
-        type: 'C',
-        cp1x,
-        cp1y,
-        cp2x: ox + rest[0],
-        cp2y: oy + rest[1],
-        x: ox + rest[2],
-        y: oy + rest[3],
-      };
-      segments.push(seg);
-      nextCubic = { x: seg.cp2x!, y: seg.cp2y! };
-      curX = seg.x;
-      curY = seg.y;
-    } else if (upper === 'Q') {
-      const n = readNumbers(4);
-      if (!n) break;
-      const q = { x: ox + n[0], y: oy + n[1] };
-      const x = ox + n[2];
-      const y = oy + n[3];
-      segments.push(quadToCubic(curX, curY, q.x, q.y, x, y));
-      nextQuad = q;
-      curX = x;
-      curY = y;
-    } else if (upper === 'A') {
-      const radii = readNumbers(3);
-      const largeArc = readFlag();
-      const sweep = readFlag();
-      const end = readNumbers(2);
-      if (!radii || largeArc === null || sweep === null || !end) break;
-      const x = ox + end[0];
-      const y = oy + end[1];
-      segments.push(...arcToCubics(curX, curY, radii[0], radii[1], radii[2], largeArc, sweep, x, y));
-      curX = x;
-      curY = y;
-    } else {
-      break; // Unknown command: stop rather than misread the rest
-    }
-
-    lastCubic = nextCubic;
-    lastQuad = nextQuad;
   }
 
-  skipSeparators();
-  return { segments, complete: pos >= d.length };
+  /** A point, relative to `origin` (0,0 for absolute commands). */
+  point(origin: Pt): Pt | null {
+    const n = this.numbers(2);
+    return n && { x: origin.x + n[0], y: origin.y + n[1] };
+  }
+}
+
+interface ParseState {
+  segments: PathSegment[];
+  cur: Pt;
+  /** Start of the current subpath, where Z returns. */
+  start: Pt;
+  /** Control points of the previous cubic / quadratic, for S and T reflection. */
+  lastCubic: Pt | null;
+  lastQuad: Pt | null;
+}
+
+/** What a command leaves for the next one to reflect; null when its data was malformed. */
+type CommandResult = { cubic?: Pt; quad?: Pt } | null;
+type CommandHandler = (state: ParseState, reader: PathReader, origin: Pt) => CommandResult;
+
+/** `p` mirrored through the current point (S and T reuse the previous control point this way). */
+const reflect = (p: Pt | null, cur: Pt): Pt => (p ? { x: 2 * cur.x - p.x, y: 2 * cur.y - p.y } : cur);
+
+function lineTo(state: ParseState, to: Pt): CommandResult {
+  state.segments.push({ type: 'L', ...to });
+  state.cur = to;
+  return {};
+}
+
+function quadTo(state: ParseState, control: Pt, to: Pt): CommandResult {
+  state.segments.push(quadToCubic(state.cur.x, state.cur.y, control.x, control.y, to.x, to.y));
+  state.cur = to;
+  return { quad: control };
+}
+
+function cubicTo(state: ParseState, cp1: Pt, cp2: Pt, to: Pt): CommandResult {
+  state.segments.push({ type: 'C', cp1x: cp1.x, cp1y: cp1.y, cp2x: cp2.x, cp2y: cp2.y, ...to });
+  state.cur = to;
+  return { cubic: cp2 };
+}
+
+/** One handler per command letter (upper case; relative commands pass their origin). */
+const COMMANDS: Record<string, CommandHandler> = {
+  Z(state) {
+    state.segments.push({ type: 'Z', ...state.start });
+    state.cur = state.start;
+    return {};
+  },
+  M(state, reader, origin) {
+    const to = reader.point(origin);
+    if (!to) return null;
+    state.segments.push({ type: 'M', ...to });
+    state.cur = state.start = to;
+    return {};
+  },
+  L: (state, reader, origin) => {
+    const to = reader.point(origin);
+    return to && lineTo(state, to);
+  },
+  H: (state, reader, origin) => {
+    const x = reader.number();
+    return x === null ? null : lineTo(state, { x: origin.x + x, y: state.cur.y });
+  },
+  V: (state, reader, origin) => {
+    const y = reader.number();
+    return y === null ? null : lineTo(state, { x: state.cur.x, y: origin.y + y });
+  },
+  C: (state, reader, origin) => {
+    const [cp1, cp2, to] = [reader.point(origin), reader.point(origin), reader.point(origin)];
+    return cp1 && cp2 && to && cubicTo(state, cp1, cp2, to);
+  },
+  S: (state, reader, origin) => {
+    const [cp2, to] = [reader.point(origin), reader.point(origin)];
+    return cp2 && to && cubicTo(state, reflect(state.lastCubic, state.cur), cp2, to);
+  },
+  Q: (state, reader, origin) => {
+    const [control, to] = [reader.point(origin), reader.point(origin)];
+    return control && to && quadTo(state, control, to);
+  },
+  T: (state, reader, origin) => {
+    const to = reader.point(origin);
+    return to && quadTo(state, reflect(state.lastQuad, state.cur), to);
+  },
+  A: (state, reader, origin) => {
+    const radii = reader.numbers(3);
+    const largeArc = reader.flag();
+    const sweep = reader.flag();
+    const to = reader.point(origin);
+    if (!radii || largeArc === null || sweep === null || !to) return null;
+    state.segments.push(...arcToCubics(state.cur.x, state.cur.y, radii[0], radii[1], radii[2], largeArc, sweep, to.x, to.y));
+    state.cur = to;
+    return {};
+  },
+};
+
+/** Like {@link parsePathSegments}, also reporting whether all of `d` was valid. */
+export function parsePathData(d: string): { segments: PathSegment[]; complete: boolean } {
+  const reader = new PathReader(d);
+  const state: ParseState = { segments: [], cur: { x: 0, y: 0 }, start: { x: 0, y: 0 }, lastCubic: null, lastQuad: null };
+  // A command letter applies to the coordinates after it until the next letter
+  let cmd = '';
+
+  while (!reader.atEnd()) {
+    cmd = reader.command() ?? cmd;
+    const handler = COMMANDS[cmd.toUpperCase()];
+    // Unknown command, or numbers with no command: stop rather than misread the rest
+    if (!handler) break;
+    const isRelative = cmd !== cmd.toUpperCase();
+    const result = handler(state, reader, isRelative ? state.cur : { x: 0, y: 0 });
+    if (!result) break;
+    state.lastCubic = result.cubic ?? null;
+    state.lastQuad = result.quad ?? null;
+    // After M, further coordinate pairs are implicit lineTo; after Z a new command must follow
+    if (cmd === 'M' || cmd === 'm') cmd = isRelative ? 'l' : 'L';
+    else if (cmd === 'Z' || cmd === 'z') cmd = '';
+  }
+
+  return { segments: state.segments, complete: reader.atEnd() };
 }
 
 function quadToCubic(x0: number, y0: number, qx: number, qy: number, x: number, y: number): PathSegment {
