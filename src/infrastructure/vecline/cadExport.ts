@@ -1,5 +1,6 @@
 import { toDxf, toEps, toPdf, parseCssColor, type TraceGeometry, type GeometryPath, type FittedPath } from 'vecline/core';
 import { parsePathSegments, type PathSegment } from '../../domain/geometry/pathData';
+import { bezierAt } from '../../domain/geometry/polygon';
 import { centerlineToDxf, centerlineToEps, centerlineToPdf } from '../../domain/export/centerlineWriters';
 import type { ExportFormat } from '../../domain/types';
 
@@ -63,54 +64,51 @@ function resolvePaint(doc: Document, value: string | null, fallback: Rgba | null
 
 const num = (el: Element, attr: string) => parseFloat(el.getAttribute(attr) || '0') || 0;
 
-/** Any supported shape element as absolute path segments. */
-function shapeSegments(el: Element): PathSegment[] {
-  switch (el.tagName) {
-    case 'path':
-      return parsePathSegments(el.getAttribute('d') || '');
-    case 'rect': {
-      const [x, y, w, h] = [num(el, 'x'), num(el, 'y'), num(el, 'width'), num(el, 'height')];
-      if (w <= 0 || h <= 0) return [];
-      return [
-        { type: 'M', x, y },
-        { type: 'L', x: x + w, y },
-        { type: 'L', x: x + w, y: y + h },
-        { type: 'L', x, y: y + h },
-        { type: 'Z', x, y },
-      ];
-    }
-    case 'circle':
-    case 'ellipse': {
-      const cx = num(el, 'cx');
-      const cy = num(el, 'cy');
-      const rx = el.tagName === 'circle' ? num(el, 'r') : num(el, 'rx');
-      const ry = el.tagName === 'circle' ? num(el, 'r') : num(el, 'ry');
-      if (rx <= 0 || ry <= 0) return [];
-      const kx = rx * KAPPA;
-      const ky = ry * KAPPA;
-      return [
-        { type: 'M', x: cx + rx, y: cy },
-        { type: 'C', cp1x: cx + rx, cp1y: cy + ky, cp2x: cx + kx, cp2y: cy + ry, x: cx, y: cy + ry },
-        { type: 'C', cp1x: cx - kx, cp1y: cy + ry, cp2x: cx - rx, cp2y: cy + ky, x: cx - rx, y: cy },
-        { type: 'C', cp1x: cx - rx, cp1y: cy - ky, cp2x: cx - kx, cp2y: cy - ry, x: cx, y: cy - ry },
-        { type: 'C', cp1x: cx + kx, cp1y: cy - ry, cp2x: cx + rx, cp2y: cy - ky, x: cx + rx, y: cy },
-        { type: 'Z', x: cx + rx, y: cy },
-      ];
-    }
-    case 'polygon':
-    case 'polyline': {
-      const coords = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
-      const segs: PathSegment[] = [];
-      for (let i = 0; i + 1 < coords.length; i += 2) {
-        segs.push({ type: i === 0 ? 'M' : 'L', x: coords[i], y: coords[i + 1] });
-      }
-      if (el.tagName === 'polygon' && segs.length) segs.push({ type: 'Z', x: segs[0].x, y: segs[0].y });
-      return segs;
-    }
-    default:
-      return [];
-  }
+function rectSegments(el: Element): PathSegment[] {
+  const [x, y, w, h] = [num(el, 'x'), num(el, 'y'), num(el, 'width'), num(el, 'height')];
+  if (w <= 0 || h <= 0) return [];
+  return [
+    { type: 'M', x, y },
+    { type: 'L', x: x + w, y },
+    { type: 'L', x: x + w, y: y + h },
+    { type: 'L', x, y: y + h },
+    { type: 'Z', x, y },
+  ];
 }
+
+/** An ellipse as four cubic quarter-arcs. */
+function ellipseSegments(cx: number, cy: number, rx: number, ry: number): PathSegment[] {
+  if (rx <= 0 || ry <= 0) return [];
+  const [kx, ky] = [rx * KAPPA, ry * KAPPA];
+  return [
+    { type: 'M', x: cx + rx, y: cy },
+    { type: 'C', cp1x: cx + rx, cp1y: cy + ky, cp2x: cx + kx, cp2y: cy + ry, x: cx, y: cy + ry },
+    { type: 'C', cp1x: cx - kx, cp1y: cy + ry, cp2x: cx - rx, cp2y: cy + ky, x: cx - rx, y: cy },
+    { type: 'C', cp1x: cx - rx, cp1y: cy - ky, cp2x: cx - kx, cp2y: cy - ry, x: cx, y: cy - ry },
+    { type: 'C', cp1x: cx + kx, cp1y: cy - ry, cp2x: cx + rx, cp2y: cy - ky, x: cx + rx, y: cy },
+    { type: 'Z', x: cx + rx, y: cy },
+  ];
+}
+
+function pointListSegments(el: Element, closed: boolean): PathSegment[] {
+  const coords = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
+  const segs: PathSegment[] = [];
+  for (let i = 0; i + 1 < coords.length; i += 2) segs.push({ type: i === 0 ? 'M' : 'L', x: coords[i], y: coords[i + 1] });
+  if (closed && segs.length) segs.push({ type: 'Z', x: segs[0].x, y: segs[0].y });
+  return segs;
+}
+
+/** Each supported shape element as absolute path segments. */
+const SHAPE_OUTLINES: Record<string, (el: Element) => PathSegment[]> = {
+  path: (el) => parsePathSegments(el.getAttribute('d') || ''),
+  rect: rectSegments,
+  circle: (el) => ellipseSegments(num(el, 'cx'), num(el, 'cy'), num(el, 'r'), num(el, 'r')),
+  ellipse: (el) => ellipseSegments(num(el, 'cx'), num(el, 'cy'), num(el, 'rx'), num(el, 'ry')),
+  polygon: (el) => pointListSegments(el, true),
+  polyline: (el) => pointListSegments(el, false),
+};
+
+const shapeSegments = (el: Element): PathSegment[] => SHAPE_OUTLINES[el.tagName]?.(el) ?? [];
 
 /** Split absolute segments into vecline subpaths (implicitly closed by the writers). */
 function toSubpaths(segments: PathSegment[]): FittedPath[] {
@@ -146,7 +144,6 @@ function toPolylines(segments: PathSegment[], curveSteps = 8): Point[][] {
   const polylines: Point[][] = [];
   let current: Point[] = [];
   let pos: Point = { x: 0, y: 0 };
-
   const flush = () => {
     if (current.length > 1) polylines.push(current);
     current = [];
@@ -156,18 +153,12 @@ function toPolylines(segments: PathSegment[], curveSteps = 8): Point[][] {
     if (seg.type === 'M') {
       flush();
       current = [{ x: seg.x, y: seg.y }];
-    } else if (seg.type === 'L' || seg.type === 'Z') {
-      current.push({ x: seg.x, y: seg.y });
+    } else if (seg.type === 'C') {
+      const c1 = { x: seg.cp1x ?? pos.x, y: seg.cp1y ?? pos.y };
+      const c2 = { x: seg.cp2x ?? seg.x, y: seg.cp2y ?? seg.y };
+      for (let i = 1; i <= curveSteps; i++) current.push(bezierAt(pos, c1, c2, seg, i / curveSteps));
     } else {
-      const [x1, y1, x2, y2] = [seg.cp1x ?? pos.x, seg.cp1y ?? pos.y, seg.cp2x ?? seg.x, seg.cp2y ?? seg.y];
-      for (let i = 1; i <= curveSteps; i++) {
-        const t = i / curveSteps;
-        const u = 1 - t;
-        current.push({
-          x: u * u * u * pos.x + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * seg.x,
-          y: u * u * u * pos.y + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * seg.y,
-        });
-      }
+      current.push({ x: seg.x, y: seg.y });
     }
     pos = { x: seg.x, y: seg.y };
   }
